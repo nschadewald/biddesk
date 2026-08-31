@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import AgentPanel from "./AgentPanel";
-import { formatDate, formatEuro, formatQuantity } from "./format";
+import { formatDate, formatEuro } from "./format";
+import PositionRow from "./PositionRow";
 import { boot, resetDemo, useAppState } from "./store";
 import type { Position } from "./types";
 import { useWebMCP } from "./webmcp/useWebMCP";
@@ -40,7 +41,7 @@ export default function App() {
 }
 
 function BidScreen() {
-  const { detail } = useAppState();
+  const { detail, suggestions } = useAppState();
   if (!detail) return null;
 
   const { tender, positions } = detail;
@@ -76,33 +77,17 @@ function BidScreen() {
             <th className="py-2 pr-3 font-medium">Description</th>
             <th className="w-24 py-2 pr-3 text-right font-medium">Qty</th>
             <th className="w-16 py-2 pr-3 font-medium">Unit</th>
-            <th className="w-32 py-2 pr-3 text-right font-medium">Unit price</th>
-            <th className="w-32 py-2 text-right font-medium">Total</th>
+            <th className="w-60 py-2 pr-3 text-right font-medium">Unit price</th>
+            <th className="w-28 py-2 text-right font-medium">Total</th>
           </tr>
         </thead>
         <tbody>
           {positions.map((position) => (
-            <tr key={position.oz} className="border-b border-slate-100 align-top">
-              <td className="py-2 pr-3 font-mono text-xs text-slate-500">{position.oz}</td>
-              <td className="py-2 pr-3">
-                {position.text}
-                {position.contingency && (
-                  <span className="ml-2 rounded border border-slate-200 px-1 py-0.5 text-[10px] uppercase tracking-wide text-slate-500">
-                    contingency
-                  </span>
-                )}
-              </td>
-              <td className="py-2 pr-3 text-right tabular-nums text-slate-700">
-                {formatQuantity(position.quantity)}
-              </td>
-              <td className="py-2 pr-3 text-slate-500">{position.unit}</td>
-              <td className="py-2 pr-3 text-right tabular-nums text-slate-400">
-                {position.my_unit_price === null ? "—" : formatEuro(position.my_unit_price)}
-              </td>
-              <td className="py-2 text-right tabular-nums text-slate-400">
-                {position.line_total === null ? "—" : formatEuro(position.line_total)}
-              </td>
-            </tr>
+            <PositionRow
+              key={position.oz}
+              position={position}
+              suggestion={suggestions[position.oz]}
+            />
           ))}
         </tbody>
       </table>

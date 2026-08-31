@@ -1,4 +1,10 @@
-import type { ApiError, TenderDetail, TenderList } from "./types";
+import type {
+  ApiError,
+  PriceBookResponse,
+  SuggestionsResponse,
+  TenderDetail,
+  TenderList
+} from "./types";
 
 const STORAGE_KEY = "biddesk.workspace";
 
@@ -95,6 +101,25 @@ export async function listTenders(workspaceId: string, filters: TenderFilters = 
   }
   const suffix = query.size > 0 ? `?${query.toString()}` : "";
   return readThroughWorkspace<TenderList>(`/api/tenders${suffix}`, workspaceId);
+}
+
+export type PriceBookFilters = { category?: string; query?: string };
+
+export async function readPriceBook(workspaceId: string, filters: PriceBookFilters = {}) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (typeof value === "string" && value.length > 0) query.set(key, value);
+  }
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+  return readThroughWorkspace<PriceBookResponse>(`/api/price-book${suffix}`, workspaceId);
+}
+
+export async function readSuggestions(workspaceId: string, tenderId: string, oz?: string[]) {
+  const suffix = oz?.length ? `?oz=${encodeURIComponent(oz.join(","))}` : "";
+  return readThroughWorkspace<SuggestionsResponse>(
+    `/api/tenders/${encodeURIComponent(tenderId)}/suggestions${suffix}`,
+    workspaceId
+  );
 }
 
 export async function loadTender(tenderId: string, workspaceId: string) {

@@ -189,3 +189,62 @@ lädt. Damit sind echte Anmeldung, echte Aufrufe und echtes Log geprüft, nicht 
 - Origin-Trial-Token einbauen (jetzt sinnvoll: die Selbstdiagnose kann es gegenprüfen).
 - Rollen- und Bieterwahl im Kopfbereich; die API nimmt `X-Bidder-Id` bereits entgegen.
 - Die restlichen zehn Werkzeuge, Preislogik, Herkunfts-Chips.
+
+## Schritt 4 – Preisbuch und Vorschläge (Mo 31.08.2026)
+
+**Ergebnis:** `get_price_book` und `suggest_prices` laufen, die Herkunfts-Chips stehen an den
+Zeilen. Sollergebnis gegen die produktive URL geprüft: **12 Vorschläge, 11 mit ≥2 Treffern,
+1 mit einem, genau zwei Lücken (03.04, 04.02), netto 13.213,50 €, Bedarf 370,00 €.**
+
+### Die Regel steht an einer Stelle und ist gegen den Seed geprüft
+
+`src/matching.ts` ist die einzige Fassung im Code, `seed/verify_seed.py` die ausführbare
+Referenz. `src/matching.test.ts` liest **`seed/seed.json` selbst** und rechnet das Sollergebnis
+nach – nicht gegen abgeschriebene Zahlen. Driften die beiden Regeln je auseinander, fällt der
+Test um. Mitgeprüft: der Gleichstand-Fall (bei gleicher Trefferzahl gewinnt der frühere
+Eintrag), deshalb liest der Worker das Preisbuch `ORDER BY id` – das ist die Seed-Reihenfolge.
+
+Die drei Bedingungen und ihr Grund stehen als Kommentar im Modul, weil beide aus einem
+tatsächlichen Fehlschlag stammen: die Rückfallebene „nur Einheit passt" hätte für Heizkörper
+den Türenpreis von 148 € geliefert, und wortgleiches Matching hätte für „Schimmelbehandlung"
+3,20 € (Reinigen) vorgeschlagen – mit Herkunfts-Chip auf die falsche Zeile, also schlimmer
+als eine Lücke. Beides ist als Test festgeschrieben.
+
+### `matched_on` sagt mehr als „category, unit"
+
+Bei einem Vorschlag steht dort immer `["category","unit"]` wie in Spec §13.3. Bei einer Lücke
+unterscheidet das Feld zwei Fälle: `[]` heißt „kein Eintrag dieser Bauart im Preisbuch",
+`["category","unit"]` hieße „Einträge der richtigen Bauart vorhanden, aber die Wortwahl passte
+nicht". Für Farbwerk Meier sind beide Lücken der erste Fall. Der Preis bleibt in beiden Fällen
+`null`, und der Grund ist wörtlich `no comparable entry in your price book`.
+
+**Kein Feld `confidence`** – nirgends, weder in der Ausgabe noch im Speicher. Die Wortwahl der
+`reason` unterscheidet „one search term matched" von „N search terms matched"; das ist die
+einzige Stelle, an der die Trefferzahl die Sprache beeinflusst.
+
+### Vorschlagen ist nicht Eintragen
+
+Der vorgeschlagene Preis erscheint **nicht** in der Preiszelle, sondern auf dem Chip daneben.
+Die Zelle bleibt leer, die Summenleiste bleibt bei 0,00 €, bis ein Mensch übernimmt. Das ist
+der Vorschlagsmodus aus der Textverarbeitung und der einzige Aufbau, der zum Leitsatz passt:
+Das Dokument bleibt seins. Der Übernehmen-Knopf kommt mit `set_unit_price`.
+
+Drei sichtbare **Zustände**, keine Grade: Wert mit Chip (aus dem Preisbuch), Wert ohne Chip
+(vom Menschen), kein Wert mit „no comparable entry". Ein Test hält fest, dass **alle Chips
+dieselbe CSS-Klasse tragen** – eine Abstufung nach Trefferzahl wäre die Konfidenzskala durch
+die Hintertür. Ein zweiter Test hält fest, dass in einer Lückenzeile nichts Rotes, Gelbes oder
+ein Warnzeichen vorkommt.
+
+### Abweichung von Spec §3, bewusst
+
+`get_price_book` liefert **kein `last_used`**. Das Feld existiert im Datenmodell nicht
+(`seed.json` kennt `source_project`, `source_date`, `source_position_text`). Statt ein Datum zu
+erfinden, liefert das Werkzeug die drei echten Herkunftsfelder – das ist ohnehin das, was den
+Chip belegbar macht.
+
+### Offen
+
+- `set_unit_price` mit Übernehmen-Knopf, gestaffeltem Einlaufen und Undo.
+- `check_bid`, `ask_clarification`, `submit_bid`, Client-Rolle.
+- Bieterwahl im Kopfbereich (die API kann es über `X-Bidder-Id` bereits: B-B hat null Lücken,
+  B-C hat sechs – live gegengeprüft).

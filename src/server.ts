@@ -1,6 +1,19 @@
 import { Hono } from "hono";
 import type { MiddlewareHandler } from "hono";
-import type { BidStatus, Position, RequiredDocument, Tender } from "./types";
+import {
+  findMatch,
+  hasComparableShape,
+  normalise,
+  type PriceBookEntry
+} from "./matching";
+import type {
+  BidStatus,
+  Position,
+  PriceBookRow,
+  RequiredDocument,
+  Suggestion,
+  Tender
+} from "./types";
 import {
   createWorkspace,
   isWorkspaceId,
@@ -296,6 +309,140 @@ app.get("/api/tenders/:id", async (c) => {
       valid_until: held.get(document.doc_type) ?? null
     }))
   });
+});
+
+type PriceBookDbRow = Omit<PriceBookEntry, "keywords"> & { keywords: string };
+
+/**
+ * The bidder's price book, ordered by id. The order is not cosmetic: ties in the
+ * matcher go to the earlier entry, so it has to stay the seed order.
+ */
+async function readPriceBook(
+  db: D1Database,
+  workspaceId: string,
+  bidderId: string
+): Promise<PriceBookEntry[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT id, category, unit, keywords, unit_price,
+              source_project, source_date, source_position_text
+         FROM price_book
+        WHERE workspace_id = ?1 AND bidder_id = ?2
+        ORDER BY id`
+    )
+    .bind(workspaceId, bidderId)
+    .all<PriceBookDbRow>();
+
+  return results.map((row) => ({
+    ...row,
+    keywords: JSON.parse(row.keywords) as string[]
+  }));
+}
+
+app.use("/api/price-book", requireWorkspace);
+
+app.get("/api/price-book", async (c) => {
+  const workspaceId = c.get("workspaceId");
+  const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
+  const category = c.req.query("category");
+  const query = c.req.query("query");
+
+  let entries = await readPriceBook(c.env.DB, workspaceId, bidderId);
+
+  if (category) {
+    entries = entries.filter((entry) => entry.category === category.toLowerCase());
+  }
+  if (query) {
+    // Same normalisation as the matcher, so what a search finds and what a
+    // suggestion matches on cannot drift apart.
+    const needle = normalise(query);
+    entries = entries.filter(
+      (entry) =>
+        entry.keywords.some((keyword) => normalise(keyword).includes(needle)) ||
+        normalise(entry.source_position_text).includes(needle)
+    );
+  }
+
+  const rows: PriceBookRow[] = entries;
+  return c.json({ ok: true, bidder_id: bidderId, entries: rows });
+});
+
+app.get("/api/tenders/:id/suggestions", async (c) => {
+  const workspaceId = c.get("workspaceId");
+  const tenderId = c.req.param("id");
+  const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
+
+  const requested = c.req
+    .query("oz")
+    ?.split(",")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  const [positions, priceBook] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT oz, text_de, unit, category, sort_no
+         FROM positions
+        WHERE workspace_id = ?1 AND tender_id = ?2
+        ORDER BY sort_no`
+    )
+      .bind(workspaceId, tenderId)
+      .all<{ oz: string; text_de: string; unit: string; category: string }>(),
+    readPriceBook(c.env.DB, workspaceId, bidderId)
+  ]);
+
+  if (positions.results.length === 0) {
+    return c.json(fail("tender_not_found", `No tender ${tenderId} in this workspace.`), 404);
+  }
+
+  const wanted = requested?.length ? new Set(requested) : null;
+  const unknown = requested?.filter(
+    (oz) => !positions.results.some((position) => position.oz === oz)
+  );
+  if (unknown && unknown.length > 0) {
+    return c.json(
+      fail("unknown_position", `Not a position of ${tenderId}: ${unknown.join(", ")}.`),
+      400
+    );
+  }
+
+  const suggestions: Suggestion[] = positions.results
+    .filter((position) => wanted === null || wanted.has(position.oz))
+    .map((position) => {
+      const match = findMatch(priceBook, position);
+
+      if (match === null) {
+        return {
+          oz: position.oz,
+          unit_price: null,
+          matched_terms: 0,
+          // Says whether the price book held nothing of this shape at all, or
+          // held lines of the right shape whose wording did not match.
+          matched_on: hasComparableShape(priceBook, position) ? ["category", "unit"] : [],
+          based_on: null,
+          reason: "no comparable entry in your price book"
+        } satisfies Suggestion;
+      }
+
+      const terms = match.matchedKeywords.length;
+      return {
+        oz: position.oz,
+        unit_price: match.entry.unit_price,
+        matched_terms: terms,
+        matched_on: ["category", "unit"],
+        based_on: {
+          price_book_id: match.entry.id,
+          source_project: match.entry.source_project,
+          source_date: match.entry.source_date,
+          source_position_text: match.entry.source_position_text
+        },
+        reason:
+          terms === 1
+            ? "Same category and unit; one search term matched."
+            : `Same category and unit; ${terms} search terms matched.`
+      } satisfies Suggestion;
+    });
+
+  return c.json({ ok: true, bidder_id: bidderId, tender_id: tenderId, suggestions });
 });
 
 app.all("/api/*", (c) => c.json(fail("not_found", "Unknown API route."), 404));

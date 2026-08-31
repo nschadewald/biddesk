@@ -18,3 +18,9 @@ export const formatDate = (isoDate: string) =>
     month: "short",
     year: "numeric"
   }).format(new Date(`${isoDate}T00:00:00Z`));
+
+/** "March 2026" — the way a source chip names where a price came from. */
+export const formatMonthYear = (isoDate: string) =>
+  new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(
+    new Date(`${isoDate}T00:00:00Z`)
+  );

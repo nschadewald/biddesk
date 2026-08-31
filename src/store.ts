@@ -3,10 +3,20 @@ import {
   ensureWorkspace,
   listTenders,
   loadTender,
+  readPriceBook,
+  readSuggestions,
   resetWorkspace,
+  type PriceBookFilters,
   type TenderFilters
 } from "./api";
-import type { Role, TenderDetail, TenderList } from "./types";
+import type {
+  PriceBookResponse,
+  Role,
+  Suggestion,
+  SuggestionsResponse,
+  TenderDetail,
+  TenderList
+} from "./types";
 import { logStore } from "./webmcp/log";
 
 /**
@@ -24,6 +34,8 @@ export type AppState = {
   role: Role;
   tenderId: string;
   detail: TenderDetail | null;
+  /** Proposals for the open tender, keyed by item number. Never entered values. */
+  suggestions: Record<string, Suggestion>;
   failure: string | null;
 };
 
@@ -34,6 +46,7 @@ let state: AppState = {
   role: "bidder",
   tenderId: DEMO_TENDER,
   detail: null,
+  suggestions: {},
   failure: null
 };
 
@@ -85,6 +98,9 @@ export async function openTender(tenderId: string): Promise<TenderDetail> {
     bidderId: detail.bidder_id,
     tenderId: detail.tender.id,
     detail,
+    // Proposals belong to the tender they were made for. Opening another one
+    // must not leave someone else's chips hanging on these rows.
+    suggestions: detail.tender.id === state.tenderId ? state.suggestions : {},
     failure: null
   });
   return detail;
@@ -93,6 +109,35 @@ export async function openTender(tenderId: string): Promise<TenderDetail> {
 export async function readTenders(filters: TenderFilters = {}): Promise<TenderList> {
   const workspaceId = await requireWorkspace();
   const { workspaceId: current, data } = await listTenders(workspaceId, filters);
+  if (current !== workspaceId) set({ workspaceId: current });
+  return data;
+}
+
+/**
+ * Fetches proposals and puts them on the rows. Nothing is entered: the chip sits
+ * next to an empty price cell until a human takes it over.
+ */
+export async function suggestPrices(
+  tenderId: string,
+  oz?: string[]
+): Promise<SuggestionsResponse> {
+  const workspaceId = await requireWorkspace();
+  const { workspaceId: current, data } = await readSuggestions(workspaceId, tenderId, oz);
+
+  const patch: Partial<AppState> = current === workspaceId ? {} : { workspaceId: current };
+  if (tenderId === state.tenderId) {
+    const merged = { ...state.suggestions };
+    for (const suggestion of data.suggestions) merged[suggestion.oz] = suggestion;
+    patch.suggestions = merged;
+  }
+  set(patch);
+
+  return data;
+}
+
+export async function getPriceBook(filters: PriceBookFilters = {}): Promise<PriceBookResponse> {
+  const workspaceId = await requireWorkspace();
+  const { workspaceId: current, data } = await readPriceBook(workspaceId, filters);
   if (current !== workspaceId) set({ workspaceId: current });
   return data;
 }
@@ -117,6 +162,6 @@ export async function resetDemo(): Promise<void> {
   const workspaceId = await requireWorkspace();
   await resetWorkspace(workspaceId);
   logStore.clear();
-  set({ tenderId: DEMO_TENDER });
+  set({ tenderId: DEMO_TENDER, suggestions: {} });
   await openTender(DEMO_TENDER);
 }

@@ -1,5 +1,5 @@
 import { ApiFailure, type TenderFilters } from "../api";
-import { openTender, readTenders } from "../store";
+import { getPriceBook, openTender, readTenders, suggestPrices } from "../store";
 import type { ToolDefinition, ToolFailure, ToolResult } from "./types";
 
 /**
@@ -181,5 +181,121 @@ const getTenderTool: ToolDefinition = {
   }
 };
 
+const getPriceBookTool: ToolDefinition = {
+  name: "get_price_book",
+  title: "Read the contractor's own price book",
+  description:
+    "Returns the lines of this contractor's own price book: every entry is a real position " +
+    "from one of their past projects, with the trade category, the unit, the search terms " +
+    "it is filed under, the unit price, and where it came from (project, date, original " +
+    "wording). Use it to answer what this contractor has charged before, to see why a " +
+    "suggested price is what it is, or to check whether a kind of work is covered at all. " +
+    "It only reads: it changes nothing on screen and prices nothing.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      category: {
+        type: "string",
+        description:
+          'Restrict to one trade category, for example "wall", "metal", "wood", "ceiling", "prep" or "labour".'
+      },
+      query: {
+        type: "string",
+        description:
+          "Free text. Matched against the search terms and the original wording of each entry, ignoring case and German umlauts."
+      }
+    },
+    required: [],
+    additionalProperties: false
+  },
+  annotations: { readOnlyHint: true },
+  async execute(input): Promise<ToolResult> {
+    const parsed = readObject(input, ["category", "query"]);
+    if (isFailure(parsed)) return parsed;
+
+    const filters: { category?: string; query?: string } = {};
+    for (const key of ["category", "query"] as const) {
+      const value = parsed[key];
+      if (value === undefined) continue;
+      if (typeof value !== "string") return invalid(`${key} must be a string.`);
+      filters[key] = value;
+    }
+
+    try {
+      const result = await getPriceBook(filters);
+      return { ok: true, bidder_id: result.bidder_id, entries: result.entries };
+    } catch (caught) {
+      return asFailure(caught);
+    }
+  }
+};
+
+const suggestPricesTool: ToolDefinition = {
+  name: "suggest_prices",
+  title: "Propose prices from the price book",
+  description:
+    "Proposes a unit price for positions of a tender by looking each one up in this " +
+    "contractor's own price book. A proposal is only made when a past line matches in " +
+    "category AND unit AND at least one search term; otherwise the position comes back " +
+    "with unit_price null and the reason \"no comparable entry in your price book\". " +
+    "Nothing is ever estimated, interpolated or averaged, so a null is a real gap and must " +
+    "be reported to the user rather than filled in by you. Every proposal carries based_on, " +
+    "the exact past line it came from. Use it after get_tender and before pricing. " +
+    "Visible effect: each proposal appears as a source chip next to its row; the price " +
+    "cells stay empty, because proposing is not entering.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      tender_id: {
+        type: "string",
+        description: 'The tender to price, for example "T-2026-014".'
+      },
+      oz: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          'Item numbers to propose prices for, for example ["03.04","04.02"]. Omit for every position of the tender.'
+      }
+    },
+    required: ["tender_id"],
+    additionalProperties: false
+  },
+  annotations: { readOnlyHint: true },
+  async execute(input): Promise<ToolResult> {
+    const parsed = readObject(input, ["tender_id", "oz"]);
+    if (isFailure(parsed)) return parsed;
+
+    const tenderId = parsed.tender_id;
+    if (typeof tenderId !== "string" || tenderId.trim().length === 0) {
+      return invalid("tender_id is required and must be a non-empty string.");
+    }
+
+    let oz: string[] | undefined;
+    if (parsed.oz !== undefined) {
+      if (!Array.isArray(parsed.oz) || parsed.oz.some((value) => typeof value !== "string")) {
+        return invalid("oz must be an array of item numbers, for example [\"03.04\"].");
+      }
+      oz = (parsed.oz as string[]).map((value) => value.trim()).filter((value) => value.length > 0);
+    }
+
+    try {
+      const result = await suggestPrices(tenderId.trim(), oz);
+      return {
+        ok: true,
+        bidder_id: result.bidder_id,
+        tender_id: result.tender_id,
+        suggestions: result.suggestions
+      };
+    } catch (caught) {
+      return asFailure(caught);
+    }
+  }
+};
+
 /** Registered while the visitor is in the bidder role. */
-export const bidderReadTools: ToolDefinition[] = [listTendersTool, getTenderTool];
+export const bidderReadTools: ToolDefinition[] = [
+  listTendersTool,
+  getTenderTool,
+  getPriceBookTool,
+  suggestPricesTool
+];

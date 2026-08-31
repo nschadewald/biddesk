@@ -57,6 +57,10 @@ Agent-ready tender room for building trades. Einreichung für die WebMCP Challen
 - Bedarfspositionen (contingency) zählen nicht in die Angebotssumme.
 
 ## Testen
+
+**GATE MO 31.08. BESTANDEN.** ChatGPT-Desktop (5.6 Sol, Aufwand Hoch) hat `get_tender` und `webmcp_list_tools` auf der produktiven URL aufgerufen, T-2026-015 korrekt mit 6 Positionen zurückgegeben, nichts verändert.
+
+**Für das README unverzichtbar (am 31.08. selbst erlebt):** Der ChatGPT-Desktop-Browser erkennt die Werkzeuge sofort (Symbol in der Adressleiste → „Website-Tools (2), 2 mit Lesezugriff"), ruft sie aber erst auf, wenn der **Work-Mode-Handoff angenommen** wird. Wird er einmal abgelehnt, verweigert ChatGPT für den REST DER UNTERHALTUNG und antwortet „I can't interact with the open tender site" – die Seite sieht dann funktionslos aus, obwohl alles korrekt registriert ist. Abhilfe: neue Unterhaltung, Handoff annehmen. Dieser Hinweis MUSS in „How to test in 60 seconds", sonst zieht ein Juror den falschen Schluss.
 - Chrome: `chrome://flags/#enable-webmcp-testing` + Extension „Model Context Tool Inspector" + DevTools-WebMCP-Panel.
 - ChatGPT-Desktop-Browser (WebMCP seit ~26.08.2026): Pfeil in der Adressleiste zeigt Tools; Bestätigung bei sensiblen Aktionen prüfen.
 - Vor jedem Commit: `npm test` (vitest) + `npm run typecheck`. Vor Deploy: Seed/Reset lokal durchspielen.

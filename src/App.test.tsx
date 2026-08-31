@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
+import { bidderReadTools } from "./webmcp/tools";
 
 const WS = "33333333-3333-4333-8333-333333333333";
 
@@ -116,9 +117,11 @@ it("counts the registered tools from the registry when WebMCP is present", async
 
   render(<App />);
 
-  await screen.findByText("WebMCP detected · 2 tools registered");
-  expect(screen.getByText("list_tenders")).toBeInTheDocument();
-  expect(screen.getByText("get_tender")).toBeInTheDocument();
+  // Counted from the block, not written down: the panel does the same.
+  await screen.findByText(`WebMCP detected · ${bidderReadTools.length} tools registered`);
+  for (const registered of bidderReadTools) {
+    expect(screen.getByText(registered.name)).toBeInTheDocument();
+  }
 
   Reflect.deleteProperty(document, "modelContext");
 });

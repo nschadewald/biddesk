@@ -59,6 +59,53 @@ export type TenderList = {
   tenders: Tender[];
 };
 
+/** One historical line from the bidder's own price book. */
+export type PriceBookRow = {
+  id: string;
+  category: string;
+  unit: string;
+  keywords: string[];
+  unit_price: number;
+  source_project: string;
+  source_date: string;
+  source_position_text: string;
+};
+
+export type PriceBookResponse = {
+  ok: true;
+  bidder_id: string;
+  entries: PriceBookRow[];
+};
+
+/** Where a suggested price comes from. Never absent when a price is offered. */
+export type SuggestionSource = {
+  price_book_id: string;
+  source_project: string;
+  source_date: string;
+  source_position_text: string;
+};
+
+/**
+ * A proposal, not an entry. `unit_price` is null whenever nothing qualified;
+ * there is no estimate and no `confidence` field -- `matched_terms` and
+ * `matched_on` are plain data, never a scale (spec section 13.3).
+ */
+export type Suggestion = {
+  oz: string;
+  unit_price: number | null;
+  matched_terms: number;
+  matched_on: string[];
+  based_on: SuggestionSource | null;
+  reason: string;
+};
+
+export type SuggestionsResponse = {
+  ok: true;
+  bidder_id: string;
+  tender_id: string;
+  suggestions: Suggestion[];
+};
+
 export type WorkspaceResponse = {
   ok: true;
   workspace_id: string;
