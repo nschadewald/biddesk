@@ -56,6 +56,13 @@ export default function Header({
           </select>
         </label>
       )}
+
+      <a
+        href="/how-to-test"
+        className="ml-auto text-xs text-slate-500 underline hover:text-slate-900"
+      >
+        How to test in 60 seconds
+      </a>
     </header>
   );
 }

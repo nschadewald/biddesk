@@ -482,3 +482,63 @@ Für das Video heißt das: den Wechsel über die Werkzeugantwort zeigen, nicht �
 - Origin-Trial-Token, `/how-to-test`, README, Evals.
 - Der Doppelname-Test im Tool Inspector (Chrome 149+) ist mit dieser Änderung gegenstandslos:
   es wird nur noch genau eine Fassung angemeldet.
+
+## Schritt 8 – Seed, Origin Trial, Einstiegshilfe (Mo 31.08.2026)
+
+**Ergebnis:** Neuer Seed ausgeliefert, Origin-Trial-Token in der Seite, `/how-to-test` und
+README stehen. Gegen die produktive URL geprüft.
+
+### Seed
+
+`seed.sql` wird per `?raw` in den Worker gebündelt, ein `npm run build` reicht also zum
+Einbündeln. In einem frischen Workspace gegengeprüft:
+
+| | |
+|---|---|
+| T-2026-014, Meier | 2 Lücken (03.04, 04.02), netto **13.213,50 €**, Bedarf 370,00 € |
+| T-2026-015 | Meier **1** (03.01) · Brandt **0** · Colorpoint **2** (02.03, 03.01) |
+| T-2026-009 | Median 13,20 €, Colorpoint einziger Ausreißer – unverändert |
+| `verify_seed.py` | ALLES GRUEN, inklusive der neuen T-2026-015-Prüfung |
+
+**Nebenwirkung, die auffallen wird:** Colorpoint hat auf T-2026-014 jetzt **sieben** Lücken
+statt sechs – der gestrichene `ceiling/m2`-Eintrag fehlt dort bei 02.03. Das ist die Folge
+derselben Änderung, die T-2026-015 dreiteilig macht, und kein Fehler. `matching.test.ts` liest
+die Erwartung jetzt aus `seed.json` (`deliberate_gaps.secondary_tender`) statt aus
+abgeschriebenen Listen, damit die nächste Seed-Änderung den Test nicht still falsch macht.
+
+### Origin Trial – eingebaut, hier aber nicht abschließend prüfbar
+
+Der Token steht als `<meta http-equiv="origin-trial">` im `<head>` und übersteht den Build.
+Geprüft ist, was von hier aus prüfbar ist:
+
+- Der ausgelieferte HTML-Kopf trägt das Meta-Tag (aus der Produktion gelesen).
+- Der Token dekodiert zu `origin: https://biddesk.n-schadewald.workers.dev:443`,
+  `feature: WebMCP`, `expiry: 17.11.2026` – die Origin stimmt, und er läuft nach dem
+  Jurierungsende (21.09.) ab, nicht davor.
+- **Kein Rückschritt:** Die Seite lädt unverändert, 14 Zeilen, keine Konsolenfehler.
+
+**Nicht geprüft, weil hier nicht prüfbar:** ob Chrome ohne Flag damit WebMCP freischaltet.
+Der Automatisierungsbrowser ist **Chrome 148**; WebMCP kommt mit 149. Ein Origin Trial
+schaltet nur frei, was der Build überhaupt kennt. Die Abnahme aus dem Auftrag – *normales
+Chrome ohne Flag, Selbstdiagnose zählt* – muss auf einem Rechner mit Chrome 149+ laufen.
+Fällt sie durch: Meta-Tag aus `index.html` entfernen, Flag bleibt der Testweg, Satz ins README.
+
+### `/how-to-test`
+
+Zwei Seiten, kein Router: Der Worker liefert für jeden Pfad `index.html`, und `client.tsx`
+wählt anhand von `location.pathname`. Eine Router-Abhängigkeit hätte hier nichts gebracht.
+
+Der **Handoff-Hinweis steht ganz oben**, vor allem anderen, in einem hervorgehobenen Kasten.
+Das ist die Lehre vom 31.08.: Wird die eine Nachfrage von ChatGPT abgelehnt, verweigert es für
+den Rest der Unterhaltung, und die Seite sieht funktionslos aus. Ohne diesen Satz zieht ein
+Juror den falschen Schluss, und kein Code der Welt hilft dagegen.
+
+Der Kasten ist bernsteinfarben. Das ist die einzige Farbe außerhalb des Prüfergebnisses in der
+ganzen Anwendung; sie steht auf einer Hilfeseite, nicht am Artefakt, und markiert keinen
+Zustand des Angebots. Wenn das zu weit geht, ist es eine Zeile.
+
+### Offen
+
+- Chrome-149-Abnahme des Origin Trials (siehe oben).
+- WebMCP-Evals, Lighthouse-Agentic-Audit, GAEB-Import (Zeitbox Mi vormittag).
+- Devpost-Text und Video.

@@ -69,6 +69,10 @@ check("Mindestens 8 Positionen mit hoher Konfidenz",
 tot = sum(pp["quantity"] * match("B-A", pp)[1]["unit_price"]
           for pp in t14 if match("B-A", pp)[0] != "none" and not pp["contingency"])
 check("Nettosumme nach Prompt 1 ist 13213.50 EUR", abs(tot - 13213.50) < 0.01, "%.2f" % tot)
+t15 = [t for t in d["tenders"] if t["id"] == "T-2026-015"][0]["positions"]
+exp = d["deliberate_gaps"]["secondary_tender"]["expect"]
+got = {b: sum(1 for p in t15 if match(b, p)[0] == "none") for b in ("B-A", "B-B", "B-C")}
+check("Bieterwechsel auf T-2026-015 zeigt drei verschiedene Bilder %s" % exp, got == exp, "%s" % got)
 full = {b["id"]: sorted(oz for oz, c in {p["oz"]: match(b["id"], p)[0] for p in t14}.items() if c == "none")
         for b in d["bidders"]}
 print("     Luecken je Bieter:", full)

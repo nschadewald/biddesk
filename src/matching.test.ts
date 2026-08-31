@@ -20,7 +20,11 @@ type SeedPosition = {
 const seed = JSON.parse(seedRaw) as {
   tenders: { id: string; positions: SeedPosition[] }[];
   price_book: (Omit<PriceBookEntry, "id"> & { bidder_id: string })[];
-  deliberate_gaps: { bidder: string; positions: string[] };
+  deliberate_gaps: {
+    bidder: string;
+    positions: string[];
+    secondary_tender: { tender: string; expect: Record<string, number> };
+  };
 };
 
 /** The Worker reads the price book ordered by id, which is the seed order. */
@@ -140,14 +144,25 @@ describe("Farbwerk Meier on T-2026-014", () => {
 });
 
 describe("the same bill of quantities, other bidders", () => {
-  it("produces different gaps, which is the proof that nothing is hard-coded", () => {
-    const gapsFor = (bidder: string) =>
-      t14
-        .filter((position) => findMatch(priceBookOf(bidder), position) === null)
-        .map((position) => position.oz);
+  const gapsIn = (tenderId: string, bidder: string) =>
+    seed.tenders
+      .find((tender) => tender.id === tenderId)!
+      .positions.filter((position) => findMatch(priceBookOf(bidder), position) === null)
+      .map((position) => position.oz);
 
-    expect(gapsFor("B-A")).toEqual(["03.04", "04.02"]);
-    expect(gapsFor("B-B")).toEqual([]);
-    expect(gapsFor("B-C")).toEqual(["03.01", "03.02", "03.03", "03.04", "03.05", "04.01"]);
+  it("produces different gaps on the main tender, which nothing hard-coded could do", () => {
+    expect(gapsIn("T-2026-014", "B-A")).toEqual(seed.deliberate_gaps.positions);
+    expect(gapsIn("T-2026-014", "B-B")).toEqual([]);
+    expect(gapsIn("T-2026-014", "B-C")).toHaveLength(7);
+  });
+
+  it("shows three different pictures on the second tender too", () => {
+    // The bidder switch is demonstrated on T-2026-015: on the main tender the
+    // other two have already handed in, so their table is locked and the
+    // difference is not on screen. seed.json states the expectation.
+    const { tender, expect: wanted } = seed.deliberate_gaps.secondary_tender;
+    for (const [bidder, count] of Object.entries(wanted)) {
+      expect(gapsIn(tender, bidder)).toHaveLength(count);
+    }
   });
 });

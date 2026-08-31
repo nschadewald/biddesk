@@ -850,19 +850,6 @@
     },
     {
       "bidder_id": "B-C",
-      "category": "ceiling",
-      "unit": "m2",
-      "keywords": [
-        "dispersionsanstrich",
-        "decke"
-      ],
-      "unit_price": 7.5,
-      "source_project": "Duisburger Str. 60",
-      "source_date": "2025-05-19",
-      "source_position_text": "Decken Dispersionsanstrich"
-    },
-    {
-      "bidder_id": "B-C",
       "category": "wall",
       "unit": "m2",
       "keywords": [
@@ -886,6 +873,21 @@
       "source_project": "Duisburger Str. 60",
       "source_date": "2025-05-19",
       "source_position_text": "Stundenlohnarbeiten"
+    },
+    {
+      "bidder_id": "B-B",
+      "category": "metal",
+      "unit": "pcs",
+      "keywords": [
+        "stahltueren",
+        "stahltuer",
+        "entrosten",
+        "lackanstrich"
+      ],
+      "unit_price": 142.0,
+      "source_project": "Nordstr. 91",
+      "source_date": "2025-10-05",
+      "source_position_text": "Stahltüren entrosten, grundieren und lackieren"
     }
   ],
   "submitted_bids": {
@@ -937,7 +939,16 @@
       "03.04",
       "04.02"
     ],
-    "reason": "Farbwerk Meier hat keinen Eintrag fuer metal/pcs (Heizkoerper) und keinen fuer labour/h (Stundenlohn). Der deterministische Matcher liefert dort confidence=none und KEINEN Preis. Das ist die Kernszene des Videos - diese beiden Zeilen bleiben leer, bis der Mensch sie eintraegt."
+    "reason": "Farbwerk Meier hat keinen Eintrag fuer metal/pcs (Heizkoerper) und keinen fuer labour/h (Stundenlohn). Der deterministische Matcher liefert dort confidence=none und KEINEN Preis. Das ist die Kernszene des Videos - diese beiden Zeilen bleiben leer, bis der Mensch sie eintraegt.",
+    "secondary_tender": {
+      "tender": "T-2026-015",
+      "expect": {
+        "B-A": 1,
+        "B-B": 0,
+        "B-C": 2
+      },
+      "reason": "Der Bieterwechsel aus §13.2 wird auf T-2026-015 gezeigt, nicht auf dem Haupt-Tender: dort haben Brandt und Colorpoint bereits abgegeben, ihre Tabelle ist gesperrt. Auf T-2026-015 sind alle drei im Entwurf und liefern drei verschiedene Bilder."
+    }
   },
   "submitted_bids_t14": {
     "B-B": {
