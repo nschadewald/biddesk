@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getAppState } from "../store";
-import { bidderReadTools } from "./tools";
+import { bidderTools } from "./tools";
 
 const WS = "44444444-4444-4444-8444-444444444444";
 
-const listTenders = bidderReadTools.find((tool) => tool.name === "list_tenders")!;
-const getTender = bidderReadTools.find((tool) => tool.name === "get_tender")!;
+const listTenders = bidderTools.find((tool) => tool.name === "list_tenders")!;
+const getTender = bidderTools.find((tool) => tool.name === "get_tender")!;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -75,15 +75,34 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("declares read-only hints, titles and closed schemas", () => {
-  for (const tool of bidderReadTools) {
-    expect(tool.annotations.readOnlyHint).toBe(true);
+it("declares titles, closed schemas and a description for every field", () => {
+  for (const tool of bidderTools) {
     expect(tool.title.length).toBeGreaterThan(0);
     expect(tool.inputSchema.additionalProperties).toBe(false);
     for (const property of Object.values(tool.inputSchema.properties)) {
       expect((property as { description?: string }).description).toBeTruthy();
     }
   }
+});
+
+it("marks the reading tools read-only and the writing tools not", () => {
+  const readOnly = bidderTools
+    .filter((tool) => tool.annotations.readOnlyHint === true)
+    .map((tool) => tool.name);
+  const writing = bidderTools
+    .filter((tool) => tool.annotations.readOnlyHint !== true)
+    .map((tool) => tool.name);
+
+  expect(readOnly).toEqual(["list_tenders", "get_tender", "get_price_book", "suggest_prices"]);
+  expect(writing).toEqual(["set_unit_price", "undo_last_change"]);
+});
+
+it("tells the agent that suggest_prices only proposes and names what applies it", () => {
+  const suggest = bidderTools.find((tool) => tool.name === "suggest_prices")!;
+  // Without this, prompt 1 ends at "here are the prices" and the table stays empty.
+  expect(suggest.description).toContain("ONLY PROPOSES");
+  expect(suggest.description).toContain("set_unit_price");
+  expect(suggest.description).toContain("based_on.price_book_id");
 });
 
 it("says in the description when to use it and what it does on screen", () => {

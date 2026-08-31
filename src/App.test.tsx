@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
-import { bidderReadTools } from "./webmcp/tools";
+import { bidderTools } from "./webmcp/tools";
 
 const WS = "33333333-3333-4333-8333-333333333333";
 
@@ -82,8 +82,12 @@ it("shows the 14 positions with quantity and unit, no prices and a zero total", 
   expect(radiators.getByText("03.04")).toBeInTheDocument();
   expect(radiators.getByText("4")).toBeInTheDocument();
 
-  // Price and total columns are empty on arrival: the empty column is the ask.
-  expect(screen.getAllByText("—")).toHaveLength(28);
+  // The empty price column is the ask: every cell editable, every one blank.
+  const inputs = screen.getAllByLabelText(/^Unit price for /);
+  expect(inputs).toHaveLength(14);
+  expect(inputs.every((input) => (input as HTMLInputElement).value === "")).toBe(true);
+  // And no line totals yet.
+  expect(screen.getAllByText("—")).toHaveLength(14);
   // Net total and contingency total, both zero.
   expect(screen.getAllByText("0,00 €")).toHaveLength(2);
   expect(screen.getByText("0 of 12")).toBeInTheDocument();
@@ -118,8 +122,8 @@ it("counts the registered tools from the registry when WebMCP is present", async
   render(<App />);
 
   // Counted from the block, not written down: the panel does the same.
-  await screen.findByText(`WebMCP detected · ${bidderReadTools.length} tools registered`);
-  for (const registered of bidderReadTools) {
+  await screen.findByText(`WebMCP detected · ${bidderTools.length} tools registered`);
+  for (const registered of bidderTools) {
     expect(screen.getByText(registered.name)).toBeInTheDocument();
   }
 

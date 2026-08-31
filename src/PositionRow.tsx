@@ -1,14 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatEuro, formatMonthYear, formatQuantity } from "./format";
-import type { Position, Suggestion } from "./types";
+import type { Position, PriceRejection, Suggestion, SuggestionSource } from "./types";
 
 /**
  * One line of the bill of quantities, with its proposal if there is one.
  *
- * The staging is deliberate and follows the suggestion mode of a word processor:
- * somebody proposes, the proposal is visibly attached to a source, and the
- * document stays the human's until they take it over. So a proposed price never
- * appears in the price cell -- it sits beside it, on a chip.
+ * The staging follows the suggestion mode of a word processor: somebody
+ * proposes, the proposal is visibly attached to a source, and the document stays
+ * the human's until they take it over. A proposed price therefore never appears
+ * in the price cell on its own -- it sits beside it, on a chip, with a button.
  *
  * Three states are visible, and they are states, not degrees:
  *   - a value with a source chip: taken from the price book,
@@ -20,17 +20,76 @@ import type { Position, Suggestion } from "./types";
  * back door, and it would tempt a reader to skim the "strong" ones. matched_terms
  * and matched_on are real data and appear when the chip is opened.
  */
+
+/** Accepts "8,40" and "8.40" alike. Returns null when it is not a number. */
+export function parsePrice(raw: string): number | null {
+  const cleaned = raw.trim().replace(/\s/g, "").replace(",", ".");
+  if (cleaned.length === 0) return null;
+  const value = Number(cleaned);
+  return Number.isFinite(value) ? value : null;
+}
+
+const formatForInput = (value: number | null) =>
+  value === null ? "" : value.toFixed(2).replace(".", ",");
+
 export default function PositionRow({
   position,
-  suggestion
+  suggestion,
+  rejection,
+  onAccept,
+  onEnter
 }: {
   position: Position;
   suggestion: Suggestion | undefined;
+  rejection: PriceRejection | undefined;
+  onAccept: (suggestion: Suggestion) => void;
+  onEnter: (oz: string, unitPrice: number) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(() => formatForInput(position.my_unit_price));
+
+  // A price written by the agent has to show up in the cell the person is
+  // looking at, unless they are in the middle of typing their own.
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    if (!editing) setDraft(formatForInput(position.my_unit_price));
+  }, [position.my_unit_price, editing]);
+
   const entered = position.my_unit_price !== null;
-  const proposed = !entered && suggestion?.unit_price != null;
+  const proposal = !entered && suggestion?.unit_price != null ? suggestion : null;
   const noMatch = !entered && suggestion !== undefined && suggestion.unit_price === null;
+
+  // What the chip shows. For an entered value it comes from the database, so the
+  // provenance is still there after a reload; matched_terms is added only while
+  // the proposal that produced it is still in memory.
+  const chip: ChipData | null = entered
+    ? position.source === null
+      ? null
+      : {
+          unit_price: position.my_unit_price!,
+          source: position.source,
+          matched:
+            suggestion?.based_on?.price_book_id === position.source.price_book_id
+              ? { terms: suggestion.matched_terms, on: suggestion.matched_on }
+              : null
+        }
+    : proposal === null
+      ? null
+      : {
+          unit_price: proposal.unit_price!,
+          source: proposal.based_on!,
+          matched: { terms: proposal.matched_terms, on: proposal.matched_on }
+        };
+
+  function commit() {
+    setEditing(false);
+    const value = parsePrice(draft);
+    if (value === null || value === position.my_unit_price) {
+      setDraft(formatForInput(position.my_unit_price));
+      return;
+    }
+    onEnter(position.oz, value);
+  }
 
   return (
     <>
@@ -48,28 +107,72 @@ export default function PositionRow({
           {formatQuantity(position.quantity)}
         </td>
         <td className="py-2 pr-3 text-slate-500">{position.unit}</td>
-        <td className="py-2 pr-3 text-right">
-          {entered ? (
-            <span className="tabular-nums">{formatEuro(position.my_unit_price!)}</span>
-          ) : proposed ? (
-            <SourceChip suggestion={suggestion!} open={open} onToggle={() => setOpen(!open)} />
-          ) : noMatch ? (
-            // A gap waiting for a hand, not a warning. No icon, no colour.
-            <span className="text-slate-500">no comparable entry</span>
-          ) : (
-            <span className="text-slate-400">—</span>
-          )}
+
+        <td className="py-2 pr-3">
+          <div className="flex flex-col items-end gap-1">
+            <label className="sr-only" htmlFor={`price-${position.oz}`}>
+              Unit price for {position.oz}
+            </label>
+            <input
+              id={`price-${position.oz}`}
+              inputMode="decimal"
+              value={draft}
+              placeholder="—"
+              onFocus={() => setEditing(true)}
+              onChange={(event) => setDraft(event.target.value)}
+              onBlur={commit}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+                if (event.key === "Escape") {
+                  setEditing(false);
+                  setDraft(formatForInput(position.my_unit_price));
+                }
+              }}
+              className="w-24 rounded border border-transparent px-1.5 py-0.5 text-right tabular-nums hover:border-slate-300 focus:border-slate-400 focus:outline-none"
+            />
+
+            {/* The source stays visible after the value is in the cell. The
+                provenance must not disappear at the moment it starts to count. */}
+            {chip && (
+              <span className="flex max-w-full items-center gap-1">
+                <SourceChip chip={chip} open={open} onToggle={() => setOpen(!open)} />
+                {proposal && (
+                  <button
+                    type="button"
+                    onClick={() => onAccept(proposal)}
+                    className="shrink-0 rounded border border-slate-300 px-1.5 py-0.5 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
+                  >
+                    Use
+                  </button>
+                )}
+              </span>
+            )}
+
+            {noMatch && (
+              // A gap waiting for a hand, not a warning. No icon, no colour.
+              <span className="text-xs text-slate-500">no comparable entry</span>
+            )}
+
+            {rejection && (
+              // Stays in the row with its reason. A message that fades away is a
+              // message nobody read.
+              <span className="text-right text-xs text-slate-500">
+                not written · <span className="font-mono">{rejection.reason}</span>
+              </span>
+            )}
+          </div>
         </td>
+
         <td className="py-2 text-right tabular-nums text-slate-400">
           {position.line_total === null ? "—" : formatEuro(position.line_total)}
         </td>
       </tr>
 
-      {open && proposed && (
+      {open && chip && (
         <tr className="border-b border-slate-100 bg-slate-50">
           <td />
           <td colSpan={5} className="px-0 py-2 pr-3">
-            <OriginalLine suggestion={suggestion!} />
+            <OriginalLine chip={chip} />
           </td>
         </tr>
       )}
@@ -77,16 +180,22 @@ export default function PositionRow({
   );
 }
 
+type ChipData = {
+  unit_price: number;
+  source: SuggestionSource;
+  matched: { terms: number; on: string[] } | null;
+};
+
 function SourceChip({
-  suggestion,
+  chip,
   open,
   onToggle
 }: {
-  suggestion: Suggestion;
+  chip: ChipData;
   open: boolean;
   onToggle: () => void;
 }) {
-  const source = suggestion.based_on!;
+  const source = chip.source;
   return (
     <button
       type="button"
@@ -94,7 +203,7 @@ function SourceChip({
       aria-expanded={open}
       className="inline-flex max-w-full items-baseline gap-1.5 rounded border border-slate-300 px-1.5 py-0.5 text-left text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
     >
-      <span className="tabular-nums">{formatEuro(suggestion.unit_price!)}</span>
+      <span className="tabular-nums">{formatEuro(chip.unit_price)}</span>
       <span className="truncate text-slate-500">
         {source.source_project}, {formatMonthYear(source.source_date)}
       </span>
@@ -102,20 +211,22 @@ function SourceChip({
   );
 }
 
-/** The past line a proposal came from, verbatim. This is the whole promise. */
-function OriginalLine({ suggestion }: { suggestion: Suggestion }) {
-  const source = suggestion.based_on!;
+/** The past line a price came from, verbatim. This is the whole promise. */
+function OriginalLine({ chip }: { chip: ChipData }) {
+  const source = chip.source;
   return (
     <div className="text-xs text-slate-600">
       <p className="text-slate-900">{source.source_position_text}</p>
       <p className="mt-0.5">
         {source.source_project} · {formatMonthYear(source.source_date)} ·{" "}
-        {formatEuro(suggestion.unit_price!)} ·{" "}
+        {formatEuro(chip.unit_price)} ·{" "}
         <span className="font-mono text-[11px]">{source.price_book_id}</span>
       </p>
-      <p className="mt-0.5 text-slate-500">
-        matched_terms {suggestion.matched_terms} · matched_on {suggestion.matched_on.join(", ")}
-      </p>
+      {chip.matched && (
+        <p className="mt-0.5 text-slate-500">
+          matched_terms {chip.matched.terms} · matched_on {chip.matched.on.join(", ")}
+        </p>
+      )}
     </div>
   );
 }

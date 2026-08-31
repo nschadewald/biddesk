@@ -1,4 +1,4 @@
-<!-- SNAPSHOT für die Übergabe, erzeugt 31.08.2026 11:51 aus docs/03-spec-biddesk.md. Quelle der Wahrheit bleibt docs/03-spec-biddesk.md. -->
+<!-- SNAPSHOT 31.08.2026 13:15 aus docs/03-spec-biddesk.md -->
 
 # BidDesk – Build-Spec (v0.1, 28.08.2026)
 
@@ -51,7 +51,7 @@ Regeln: Bedarfspositionen zählen nicht in die Angebotssumme (nur ausgewiesen). 
 **Quelle im MVP: vorbereitete Beispieldatenbank, kein Upload.** PDF-/Altangebots-Parsen ist die wahrscheinlichste Stelle, an der eine Live-Demo scheitert, und frisst das Zeitbudget. Ein einfacher Tabellen-Import („alte Angebotszeilen einfügen") ist Stretch nach DoD.
 
 Jeder Eintrag ist eine **echte historische Zeile** und trägt seine Herkunft mit, damit jeder Vorschlag belegbar ist:
-`{ id, bidder_id, source_project, source_date, source_position_text, category, keywords[], unit, unit_price, last_used }`. Bieter A hat zu jeder Kategorie/Einheit Einträge; Bieter C ohne `metal` und ohne `h`. `suggest_prices` matcht deterministisch und erklärbar (kein LLM im Backend). Drei Regeln, alle drei nötig:
+`{ id, bidder_id, source_project, source_date, source_position_text, category, keywords[], unit, unit_price }`. Bieter A hat zu jeder Kategorie/Einheit Einträge; Bieter C ohne `metal` und ohne `h`. `suggest_prices` matcht deterministisch und erklärbar (kein LLM im Backend). Drei Regeln, alle drei nötig:
 
 1. **Kategorie UND Einheit müssen übereinstimmen.** Sonst kein Vorschlag.
 2. **Keyword-Treffer als Teilstring**, nicht als Wortgleichheit – deutsche Komposita: „Schimmelbehandlung" enthält „schimmel" und „behandlung", ist ihnen aber nicht gleich. Vorher normalisieren (Kleinschreibung, ä→ae, ö→oe, ü→ue, ß→ss).
@@ -111,7 +111,8 @@ Alle `inputSchema` als JSON Schema draft-07 mit `additionalProperties:false` und
    - Nebenwirkung: öffnet den Tender im UI (Navigation) – im Description erwähnen.
 3. `get_price_book` – readOnlyHint
    - input: `{ category?: string, query?: string }`
-   - output: `{ entries: [{ id, category, keywords, unit, unit_price, last_used }] }`
+   - output: `{ entries: [{ id, category, keywords, unit, unit_price, source_project, source_date, source_position_text }] }`
+   - **Kein `last_used`** – das Feld gab es im Datenmodell nie (Korrektur 31.08.). Die drei Herkunftsfelder sind das, was den Chip belegbar macht.
 4. `suggest_prices` – readOnlyHint
    - input: `{ tender_id: string, oz?: string[] }`
    - output: `{ suggestions: [{ oz, unit_price|null, confidence: "high"|"medium"|"low"|"none", based_on: { price_book_id, source_project, source_date, source_position_text }|null, reason }] }`
@@ -408,6 +409,12 @@ Zusätzlich wird das Ausgabefeld umbenannt: statt `confidence` nun **`matched_te
 **Darstellung: alle belegten Quellen-Chips sehen gleich aus.** Der frühere Vorschlag (gefüllt ab zwei Treffern, umrandet bei einem) war eine Konfidenzskala durch die Hintertür und ist gestrichen. `matched_terms` und `matched_on` bleiben überprüfbare Werkzeugdaten und erscheinen **erst beim Öffnen des Chips**, zusammen mit der Originalzeile. Zwei Gründe: Eine visuelle Abstufung wäre genau die Selbsteinschätzung, die wir abgeschafft haben – und sie würde den Menschen dazu verleiten, über die „starken" Chips hinwegzulesen. Einheitliche Chips erzwingen dieselbe Behandlung jedes vorgeschlagenen Werts.
 
 **Unterschieden werden nur Zustände, keine Grade.** Drei sind sichtbar und müssen unverwechselbar bleiben: Wert mit Quellen-Chip (aus dem Preisbuch übernommen), Wert ohne Chip (vom Menschen eingetragen), kein Wert mit dem Hinweis „no comparable entry". Das ist eine Zustandsunterscheidung, keine Skala.
+
+### 13.3b Zwei Präzisierungen aus dem Bau (31.08.)
+
+- **Gleichstand:** Haben zwei Preisbuch-Einträge dieselbe Trefferzahl, gewinnt der frühere (`ORDER BY id`, also Seed-Reihenfolge). Deterministisch und getestet.
+- **`matched_on` unterscheidet zwei Arten von Lücke:** `[]` heißt „kein Eintrag dieser Bauart im Preisbuch", `["category","unit"]` heißt „richtige Bauart vorhanden, aber die Wortwahl passte nicht". Der Preis bleibt in beiden Fällen `null`. Für Farbwerk Meier sind beide Lücken der erste Fall.
+- **Vorschlagen ist nicht Eintragen.** `suggest_prices` ist `readOnlyHint` und ändert deshalb NICHTS am Dokument: Der Preis steht auf dem Chip, die Zelle bleibt leer, die Summenleiste bei 0,00 €. Eingetragen wird ausschließlich über `set_unit_price` – per Übernehmen-Knopf durch den Menschen oder durch den Agenten. Ein Lese-Werkzeug, das die Tabelle füllt, wäre eine Lüge über `readOnlyHint`.
 
 ### 13.4 Live-Log – Inhalt und bewusste Auslassungen
 

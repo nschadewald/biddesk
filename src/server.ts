@@ -6,9 +6,17 @@ import {
   normalise,
   type PriceBookEntry
 } from "./matching";
+import {
+  MAX_ROWS_PER_CALL,
+  planPriceWrites,
+  type PriceWriteInput,
+  type SetBy
+} from "./pricing";
 import type {
   BidStatus,
+  BidTotals,
   Position,
+  PreviousPrice,
   PriceBookRow,
   RequiredDocument,
   Suggestion,
@@ -74,6 +82,11 @@ type PositionRow = {
   category: string;
   contingency: number;
   my_unit_price: number | null;
+  set_by: "agent" | "human" | null;
+  source_id: string | null;
+  source_project: string | null;
+  source_date: string | null;
+  source_position_text: string | null;
 };
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
@@ -102,7 +115,17 @@ const toPosition = (row: PositionRow): Position => ({
   category: row.category,
   contingency: row.contingency === 1,
   my_unit_price: row.my_unit_price,
-  line_total: row.my_unit_price === null ? null : round2(row.quantity * row.my_unit_price)
+  line_total: row.my_unit_price === null ? null : round2(row.quantity * row.my_unit_price),
+  set_by: row.set_by,
+  source:
+    row.source_id === null
+      ? null
+      : {
+          price_book_id: row.source_id,
+          source_project: row.source_project ?? "",
+          source_date: row.source_date ?? "",
+          source_position_text: row.source_position_text ?? ""
+        }
 });
 
 const TENDER_COLUMNS = `
@@ -275,7 +298,8 @@ app.get("/api/tenders/:id", async (c) => {
     c.env.DB.prepare(
       `SELECT p.oz, p.text_en, p.text_de, p.long_text_en, p.long_text_de,
               p.quantity, p.unit, p.category, p.contingency,
-              bp.unit_price AS my_unit_price
+              bp.unit_price AS my_unit_price, bp.set_by,
+              pb.id AS source_id, pb.source_project, pb.source_date, pb.source_position_text
          FROM positions p
          LEFT JOIN bids b
            ON b.workspace_id = p.workspace_id
@@ -285,6 +309,9 @@ app.get("/api/tenders/:id", async (c) => {
            ON bp.workspace_id = p.workspace_id
           AND bp.bid_id = b.id
           AND bp.oz = p.oz
+         LEFT JOIN price_book pb
+           ON pb.workspace_id = p.workspace_id
+          AND pb.id = bp.price_book_id
         WHERE p.workspace_id = ?1 AND p.tender_id = ?2
         ORDER BY p.sort_no`
     )
@@ -443,6 +470,303 @@ app.get("/api/tenders/:id/suggestions", async (c) => {
     });
 
   return c.json({ ok: true, bidder_id: bidderId, tender_id: tenderId, suggestions });
+});
+
+type BidRow = { id: string; status: "draft" | "submitted" };
+
+async function findBid(db: D1Database, workspaceId: string, tenderId: string, bidderId: string) {
+  return db
+    .prepare(
+      "SELECT id, status FROM bids WHERE workspace_id = ?1 AND tender_id = ?2 AND bidder_id = ?3"
+    )
+    .bind(workspaceId, tenderId, bidderId)
+    .first<BidRow>();
+}
+
+/** Net, contingency and how much of the bill of quantities is covered. */
+async function readTotals(
+  db: D1Database,
+  workspaceId: string,
+  tenderId: string,
+  bidderId: string
+): Promise<BidTotals> {
+  const row = await db
+    .prepare(
+      `SELECT
+         COALESCE(SUM(CASE WHEN p.contingency = 0 THEN p.quantity * bp.unit_price END), 0) AS net,
+         COALESCE(SUM(CASE WHEN p.contingency = 1 THEN p.quantity * bp.unit_price END), 0) AS contingency,
+         COUNT(CASE WHEN p.contingency = 0 AND bp.unit_price IS NOT NULL THEN 1 END) AS positions_priced,
+         COUNT(CASE WHEN p.contingency = 0 THEN 1 END) AS positions_billable
+       FROM positions p
+       LEFT JOIN bids b
+         ON b.workspace_id = p.workspace_id AND b.tender_id = p.tender_id AND b.bidder_id = ?3
+       LEFT JOIN bid_prices bp
+         ON bp.workspace_id = p.workspace_id AND bp.bid_id = b.id AND bp.oz = p.oz
+      WHERE p.workspace_id = ?1 AND p.tender_id = ?2`
+    )
+    .bind(workspaceId, tenderId, bidderId)
+    .first<{
+      net: number;
+      contingency: number;
+      positions_priced: number;
+      positions_billable: number;
+    }>();
+
+  const net = round2(row?.net ?? 0);
+  const contingency = round2(row?.contingency ?? 0);
+  const priced = row?.positions_priced ?? 0;
+  const billable = row?.positions_billable ?? 0;
+
+  // Contingency positions are quoted but never counted into the bid total.
+  return {
+    net,
+    contingency,
+    positions_priced: priced,
+    positions_open: billable - priced
+  };
+}
+
+app.post("/api/tenders/:id/prices", async (c) => {
+  const workspaceId = c.get("workspaceId");
+  const tenderId = c.req.param("id");
+  const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
+
+  const body = await c.req
+    .json<{ prices?: unknown; set_by?: unknown }>()
+    .catch(() => ({}) as { prices?: unknown; set_by?: unknown });
+
+  const rows = Array.isArray(body.prices) ? (body.prices as PriceWriteInput[]) : null;
+  if (rows === null || rows.length === 0) {
+    return c.json(fail("no_prices", "Send prices as a non-empty array of rows."), 400);
+  }
+  if (rows.length > MAX_ROWS_PER_CALL) {
+    return c.json(
+      fail("too_many_prices", `At most ${MAX_ROWS_PER_CALL} rows per call, got ${rows.length}.`),
+      400
+    );
+  }
+  const setBy: SetBy = body.set_by === "human" ? "human" : "agent";
+
+  const [positionRows, priceBook, bid] = await Promise.all([
+    c.env.DB.prepare(
+      "SELECT oz, quantity, contingency FROM positions WHERE workspace_id = ?1 AND tender_id = ?2"
+    )
+      .bind(workspaceId, tenderId)
+      .all<{ oz: string; quantity: number; contingency: number }>(),
+    readPriceBook(c.env.DB, workspaceId, bidderId),
+    findBid(c.env.DB, workspaceId, tenderId, bidderId)
+  ]);
+
+  if (positionRows.results.length === 0) {
+    return c.json(fail("tender_not_found", `No tender ${tenderId} in this workspace.`), 404);
+  }
+
+  const plan = planPriceWrites(rows, {
+    positions: new Map(
+      positionRows.results.map((row) => [
+        row.oz,
+        { quantity: row.quantity, contingency: row.contingency === 1 }
+      ])
+    ),
+    priceBook: new Map(priceBook.map((entry) => [entry.id, { unit_price: entry.unit_price }])),
+    setBy,
+    bidSubmitted: bid?.status === "submitted"
+  });
+
+  if (plan.applied.length > 0) {
+    const bidId = bid?.id ?? crypto.randomUUID();
+    const createdBid = bid === null;
+
+    // What the rows looked like before, so undo can put them back exactly.
+    const { results: previous } = await c.env.DB.prepare(
+      `SELECT oz, unit_price, note, set_by, price_book_id
+         FROM bid_prices
+        WHERE workspace_id = ?1 AND bid_id = ?2`
+    )
+      .bind(workspaceId, bidId)
+      .all<{
+        oz: string;
+        unit_price: number;
+        note: string | null;
+        set_by: string;
+        price_book_id: string | null;
+      }>();
+    const before = new Map(previous.map((row) => [row.oz, row]));
+
+    const statements = [];
+    if (createdBid) {
+      statements.push(
+        c.env.DB.prepare(
+          "INSERT INTO bids (workspace_id, id, tender_id, bidder_id, status) VALUES (?1, ?2, ?3, ?4, 'draft')"
+        ).bind(workspaceId, bidId, tenderId, bidderId)
+      );
+    }
+
+    for (const row of plan.applied) {
+      statements.push(
+        c.env.DB.prepare(
+          `INSERT INTO bid_prices (workspace_id, bid_id, oz, unit_price, note, set_by, price_book_id)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+           ON CONFLICT (workspace_id, bid_id, oz)
+           DO UPDATE SET unit_price = excluded.unit_price,
+                         note = excluded.note,
+                         set_by = excluded.set_by,
+                         price_book_id = excluded.price_book_id`
+        ).bind(
+          workspaceId,
+          bidId,
+          row.oz,
+          row.unit_price,
+          row.note,
+          row.set_by,
+          row.price_book_id
+        )
+      );
+    }
+
+    // One write is one block in the change log, so undo takes back the whole
+    // batch rather than a single line of it.
+    statements.push(
+      c.env.DB.prepare(
+        "INSERT INTO change_log (workspace_id, bid_id, kind, payload) VALUES (?1, ?2, 'set_unit_price', ?3)"
+      ).bind(
+        workspaceId,
+        bidId,
+        JSON.stringify({
+          tender_id: tenderId,
+          bidder_id: bidderId,
+          created_bid: createdBid,
+          entries: plan.applied.map((row) => ({
+            oz: row.oz,
+            previous: before.get(row.oz) ?? null
+          }))
+        })
+      )
+    );
+
+    // Every valid row travels in one batch: no infrastructure hiccup can leave
+    // half a block behind.
+    await c.env.DB.batch(statements);
+  }
+
+  // The chip has to survive the write, so the source travels back with the row.
+  const sources = new Map(priceBook.map((entry) => [entry.id, entry]));
+
+  return c.json({
+    ok: true,
+    bidder_id: bidderId,
+    tender_id: tenderId,
+    applied: plan.applied.map((row) => {
+      const entry = row.price_book_id === null ? undefined : sources.get(row.price_book_id);
+      return {
+        ...row,
+        source: entry
+          ? {
+              price_book_id: entry.id,
+              source_project: entry.source_project,
+              source_date: entry.source_date,
+              source_position_text: entry.source_position_text
+            }
+          : null
+      };
+    }),
+    rejected: plan.rejected,
+    totals: await readTotals(c.env.DB, workspaceId, tenderId, bidderId)
+  });
+});
+
+app.post("/api/tenders/:id/undo", async (c) => {
+  const workspaceId = c.get("workspaceId");
+  const tenderId = c.req.param("id");
+  const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
+
+  const body = await c.req.json<{ steps?: unknown }>().catch(() => ({}) as { steps?: unknown });
+  const steps = body.steps === undefined ? 1 : body.steps;
+  if (typeof steps !== "number" || !Number.isInteger(steps) || steps < 1 || steps > 20) {
+    return c.json(fail("invalid_steps", "steps must be a whole number between 1 and 20."), 400);
+  }
+
+  const bid = await findBid(c.env.DB, workspaceId, tenderId, bidderId);
+  if (bid === null) {
+    return c.json({
+      ok: true,
+      undone: 0,
+      totals: await readTotals(c.env.DB, workspaceId, tenderId, bidderId)
+    });
+  }
+  if (bid.status === "submitted") {
+    return c.json(
+      fail("bid_already_submitted", "This bid has been handed in and cannot be changed."),
+      409
+    );
+  }
+
+  const { results: blocks } = await c.env.DB.prepare(
+    `SELECT id, payload FROM change_log
+      WHERE workspace_id = ?1 AND bid_id = ?2
+      ORDER BY id DESC LIMIT ?3`
+  )
+    .bind(workspaceId, bid.id, steps)
+    .all<{ id: number; payload: string }>();
+
+  const statements = [];
+  for (const block of blocks) {
+    const payload = JSON.parse(block.payload) as {
+      entries: { oz: string; previous: PreviousPrice | null }[];
+    };
+    // Newest block first, so an older block's state is restored on top.
+    for (const entry of payload.entries) {
+      statements.push(
+        entry.previous === null
+          ? c.env.DB.prepare(
+              "DELETE FROM bid_prices WHERE workspace_id = ?1 AND bid_id = ?2 AND oz = ?3"
+            ).bind(workspaceId, bid.id, entry.oz)
+          : c.env.DB.prepare(
+              `INSERT INTO bid_prices (workspace_id, bid_id, oz, unit_price, note, set_by, price_book_id)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+               ON CONFLICT (workspace_id, bid_id, oz)
+               DO UPDATE SET unit_price = excluded.unit_price,
+                             note = excluded.note,
+                             set_by = excluded.set_by,
+                             price_book_id = excluded.price_book_id`
+            ).bind(
+              workspaceId,
+              bid.id,
+              entry.oz,
+              entry.previous.unit_price,
+              entry.previous.note,
+              entry.previous.set_by,
+              entry.previous.price_book_id
+            )
+      );
+    }
+    statements.push(
+      c.env.DB.prepare("DELETE FROM change_log WHERE workspace_id = ?1 AND id = ?2").bind(
+        workspaceId,
+        block.id
+      )
+    );
+  }
+
+  if (statements.length > 0) {
+    // An empty draft that only exists because of the undone block goes too, so
+    // the tender reads "no bid yet" again rather than "draft with nothing in it".
+    statements.push(
+      c.env.DB.prepare(
+        `DELETE FROM bids
+          WHERE workspace_id = ?1 AND id = ?2 AND status = 'draft'
+            AND NOT EXISTS (SELECT 1 FROM bid_prices
+                             WHERE workspace_id = ?1 AND bid_id = ?2)`
+      ).bind(workspaceId, bid.id)
+    );
+    await c.env.DB.batch(statements);
+  }
+
+  return c.json({
+    ok: true,
+    undone: blocks.length,
+    totals: await readTotals(c.env.DB, workspaceId, tenderId, bidderId)
+  });
 });
 
 app.all("/api/*", (c) => c.json(fail("not_found", "Unknown API route."), 404));

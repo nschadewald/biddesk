@@ -1,12 +1,12 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Role } from "../types";
 import { getTools, registerToolBlock, registryStore } from "./registry";
-import { bidderReadTools } from "./tools";
+import { bidderTools } from "./tools";
 import type { ModelContextSource, ToolDefinition } from "./types";
 
 /** Which block belongs to which role. The client block arrives with its tools. */
 function toolsForRole(role: Role): ToolDefinition[] {
-  return role === "bidder" ? bidderReadTools : [];
+  return role === "bidder" ? bidderTools : [];
 }
 
 export type WebMCPStatus = {

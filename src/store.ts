@@ -6,16 +6,23 @@ import {
   readPriceBook,
   readSuggestions,
   resetWorkspace,
+  undoChanges,
+  writeUnitPrices,
   type PriceBookFilters,
+  type PriceWrite,
   type TenderFilters
 } from "./api";
 import type {
+  AppliedPrice,
   PriceBookResponse,
+  PriceRejection,
   Role,
+  SetPricesResponse,
   Suggestion,
   SuggestionsResponse,
   TenderDetail,
-  TenderList
+  TenderList,
+  UndoResponse
 } from "./types";
 import { logStore } from "./webmcp/log";
 
@@ -36,6 +43,12 @@ export type AppState = {
   detail: TenderDetail | null;
   /** Proposals for the open tender, keyed by item number. Never entered values. */
   suggestions: Record<string, Suggestion>;
+  /**
+   * Rows a write refused, keyed by item number. They stay in the row with their
+   * reason until that row is written successfully -- a message that disappears
+   * by itself is a message nobody read.
+   */
+  rejections: Record<string, PriceRejection>;
   failure: string | null;
 };
 
@@ -47,6 +60,7 @@ let state: AppState = {
   tenderId: DEMO_TENDER,
   detail: null,
   suggestions: {},
+  rejections: {},
   failure: null
 };
 
@@ -101,6 +115,7 @@ export async function openTender(tenderId: string): Promise<TenderDetail> {
     // Proposals belong to the tender they were made for. Opening another one
     // must not leave someone else's chips hanging on these rows.
     suggestions: detail.tender.id === state.tenderId ? state.suggestions : {},
+    rejections: detail.tender.id === state.tenderId ? state.rejections : {},
     failure: null
   });
   return detail;
@@ -142,6 +157,99 @@ export async function getPriceBook(filters: PriceBookFilters = {}): Promise<Pric
   return data;
 }
 
+/** Someone asked not to be animated at. Then we do not animate. */
+function prefersReducedMotion(): boolean {
+  try {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
+  }
+}
+
+const ROLL_IN_MS = 70;
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function writeRow(tenderId: string, row: AppliedPrice) {
+  if (state.detail === null || state.detail.tender.id !== tenderId) return;
+  const positions = state.detail.positions.map((position) =>
+    position.oz === row.oz
+      ? {
+          ...position,
+          my_unit_price: row.unit_price,
+          line_total: row.line_total,
+          // Provenance travels with the value. The chip must not vanish at the
+          // moment the number starts to count.
+          set_by: row.set_by,
+          source: row.source
+        }
+      : position
+  );
+  const rejections = { ...state.rejections };
+  delete rejections[row.oz];
+  set({ detail: { ...state.detail, positions }, rejections });
+}
+
+/**
+ * One call stays one call. On screen it unrolls line by line, roughly 70 ms
+ * apart, so the eye can follow and the totals bar visibly climbs with it. The
+ * two positions that stay empty only mean something against that contrast:
+ * everything fills, two rows stay put.
+ */
+async function rollIn(tenderId: string, rows: AppliedPrice[]) {
+  if (prefersReducedMotion()) {
+    for (const row of rows) writeRow(tenderId, row);
+    return;
+  }
+  for (const row of rows) {
+    writeRow(tenderId, row);
+    await wait(ROLL_IN_MS);
+  }
+}
+
+/**
+ * The one way a price gets into a bid. The tool calls it, the accept button on a
+ * chip calls it, and "apply all" calls it. `setBy` says who produced the value,
+ * and the Worker refuses an agent price that carries no price book line.
+ */
+export async function setUnitPrices(
+  tenderId: string,
+  prices: PriceWrite[],
+  setBy: "agent" | "human"
+): Promise<SetPricesResponse> {
+  const workspaceId = await requireWorkspace();
+  const { workspaceId: current, data } = await writeUnitPrices(
+    workspaceId,
+    tenderId,
+    prices,
+    setBy
+  );
+
+  const patch: Partial<AppState> = current === workspaceId ? {} : { workspaceId: current };
+  if (data.rejected.length > 0 && tenderId === state.tenderId) {
+    const rejections = { ...state.rejections };
+    for (const rejection of data.rejected) rejections[rejection.oz] = rejection;
+    patch.rejections = rejections;
+  }
+  set(patch);
+
+  // The caller gets the result at once; the screen catches up on its own.
+  void rollIn(tenderId, data.applied);
+
+  return data;
+}
+
+/** Takes back whole blocks, never single rows out of one. */
+export async function undoLastChange(steps = 1): Promise<UndoResponse> {
+  const workspaceId = await requireWorkspace();
+  const tenderId = state.tenderId;
+  const { workspaceId: current, data } = await undoChanges(workspaceId, tenderId, steps);
+  if (current !== workspaceId) set({ workspaceId: current });
+  // Re-read rather than guess: undo restores whatever the block replaced.
+  await openTender(tenderId);
+  set({ rejections: {} });
+  return data;
+}
+
 export async function boot(): Promise<void> {
   try {
     await openTender(state.tenderId);
@@ -162,6 +270,6 @@ export async function resetDemo(): Promise<void> {
   const workspaceId = await requireWorkspace();
   await resetWorkspace(workspaceId);
   logStore.clear();
-  set({ tenderId: DEMO_TENDER, suggestions: {} });
+  set({ tenderId: DEMO_TENDER, suggestions: {}, rejections: {} });
   await openTender(DEMO_TENDER);
 }

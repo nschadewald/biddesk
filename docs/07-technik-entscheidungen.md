@@ -248,3 +248,77 @@ Chip belegbar macht.
 - `check_bid`, `ask_clarification`, `submit_bid`, Client-Rolle.
 - Bieterwahl im Kopfbereich (die API kann es über `X-Bidder-Id` bereits: B-B hat null Lücken,
   B-C hat sechs – live gegengeprüft).
+
+## Schritt 5 – Preise schreiben (Mo 31.08.2026)
+
+**Ergebnis:** `set_unit_price` und `undo_last_change` laufen, der menschliche Weg ist
+gleichwertig. Gegen die produktive URL geprüft: **netto 13.213,50 €, Bedarfspositionen
+370,00 €, 11 von 12 bepreist, 03.04 und 04.02 leer.** Danach trägt der Mensch 03.04 mit
+61,00 € ein → 13.457,50 €, 12 von 12.
+
+### Die Invariante ist erzwungen, nicht nur beschriftet
+
+CLAUDE.md verlangt: jeder Wert in `bid_prices` hat `price_book_id` ODER `set_by='human'`.
+Das lässt sich auf zwei Arten erfüllen – ehrlich oder durch Umetikettieren. Ein Agent, der
+einen Preis erfindet und die Zeile als `human` verbucht, erfüllt die Bedingung und bricht
+trotzdem den Leitsatz.
+
+Deshalb: **Was über ein Werkzeug kommt, wird `set_by='agent'` verbucht und braucht zwingend
+eine `price_book_id`** – und der Preis muss dem der genannten Zeile *entsprechen*. Damit ist
+`set_by='agent'` gleichbedeutend mit „hat eine Herkunft", und `set_by='human'` kann nur über
+die Oberfläche entstehen. Die Bedingung gilt dann durch Bauart, nicht durch Beschriftung.
+
+Drei Abweisungsgründe über die in §11.2 genannten hinaus, alle drei aus diesem Grund:
+
+| Grund | Wann |
+|---|---|
+| `price_without_source` | Agent schreibt ohne `price_book_id` |
+| `unknown_price_book_entry` | die genannte Zeile gibt es im Preisbuch dieses Bieters nicht |
+| `price_does_not_match_source` | Preis weicht von der genannten Zeile ab (Toleranz 0,5 Cent) |
+
+**Folge, die ins Write-up gehört:** „Trag bei 03.04 61 € ein" über den Agenten geht **nicht**.
+Der Mensch tippt es in die Tabelle. Das ist genau die Szene aus §12.1 („der Mensch trägt sie
+ein") und keine fehlende Funktion. Umkehrbar in einer Zeile, falls das je stören sollte –
+dann fällt aber der Beweis.
+
+### Ein Aufruf, ein Block, ein Undo
+
+Der Schreibvorgang geht als **ein** D1-Batch raus (Angebot anlegen + alle gültigen Zeilen +
+ein `change_log`-Eintrag). Der Log-Eintrag trägt den vorherigen Zustand jeder berührten Zeile,
+also nimmt `undo_last_change` den Block als Ganzes zurück – auch das Anlegen des Entwurfs:
+Bleibt nach dem Undo kein Preis übrig, verschwindet der leere Entwurf mit, damit die
+Ausschreibung wieder „kein Angebot" meldet statt „Entwurf ohne Inhalt".
+
+Kein Rollback wegen einzelner schlechter Zeilen (§11.2): geprüft wurde mit einem Aufruf aus
+neun Zeilen, von denen acht aus acht verschiedenen Gründen fielen – die neunte wurde
+geschrieben.
+
+**Dubletten werden beide abgewiesen.** Bei zweimal derselben OZ im selben Aufruf ist nicht
+entscheidbar, welche gemeint war; eine davon auszuwählen wäre geraten.
+
+### Gestaffeltes Einlaufen
+
+Ein Aufruf bleibt technisch ein Aufruf: Das Werkzeug antwortet nach ~250 ms mit dem
+vollständigen Ergebnis, die Tabelle läuft danach von selbst zu, ~70 ms je Zeile, von oben
+nach unten. `prefers-reduced-motion` setzt alles sofort. Live nachgemessen: Reihenfolge exakt
+01.01 → 04.01, und ein Screenshot mitten im Lauf zeigt die Summenleiste beim Klettern.
+
+**Messnotiz:** Über die Automatisierungsbrücke werden die Timer der Seite ausgehungert; die
+Staffelung ist deshalb im Unit-Test mit `vi.useFakeTimers()` festgeschrieben (nach dem ersten
+Tick genau eine Zeile, nach 80 ms zwei) und live nur über Reihenfolge und Zwischen-Screenshot
+belegt, nicht über gemessene Abstände.
+
+### Korrektur, live gefunden
+
+Der erste Durchlauf zeigte: Nach dem Schreiben **verschwand der Herkunfts-Chip**, weil die
+Store-Aktion nur Preis und Summe in die Zeile schrieb, nicht die Herkunft – die Zeile sah
+danach aus wie von Hand eingetragen. Behoben, indem der Worker die Preisbuchzeile **mit der
+`applied`-Antwort zurückgibt**; damit steht die Herkunft ohne Nachfrage in der Zeile und
+überlebt auch einen Reload (die Tabellenabfrage liest sie ohnehin aus der Datenbank). Als
+Test festgeschrieben.
+
+### Offen
+
+- `check_bid`, `ask_clarification`, `submit_bid` mit Bestätigungsdialog und Abmeldung.
+- Client-Rolle mit `get_price_comparison`, `list_clarifications`, `answer_clarification`.
+- Rollen- und Bieterwahl im Kopfbereich, Origin-Trial-Token, `/how-to-test`.

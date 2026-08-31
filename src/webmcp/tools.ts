@@ -1,9 +1,16 @@
-import { ApiFailure, type TenderFilters } from "../api";
-import { getPriceBook, openTender, readTenders, suggestPrices } from "../store";
+import { ApiFailure, type PriceWrite, type TenderFilters } from "../api";
+import {
+  getPriceBook,
+  openTender,
+  readTenders,
+  setUnitPrices,
+  suggestPrices,
+  undoLastChange
+} from "../store";
 import type { ToolDefinition, ToolFailure, ToolResult } from "./types";
 
 /**
- * The bidder's read tools.
+ * The bidder's tools.
  *
  * The descriptions are product work, not decoration: an agent decides from them
  * whether to reach for a tool at all, and the jury reads them. Each one says
@@ -235,14 +242,16 @@ const suggestPricesTool: ToolDefinition = {
   title: "Propose prices from the price book",
   description:
     "Proposes a unit price for positions of a tender by looking each one up in this " +
-    "contractor's own price book. A proposal is only made when a past line matches in " +
-    "category AND unit AND at least one search term; otherwise the position comes back " +
-    "with unit_price null and the reason \"no comparable entry in your price book\". " +
-    "Nothing is ever estimated, interpolated or averaged, so a null is a real gap and must " +
-    "be reported to the user rather than filled in by you. Every proposal carries based_on, " +
-    "the exact past line it came from. Use it after get_tender and before pricing. " +
-    "Visible effect: each proposal appears as a source chip next to its row; the price " +
-    "cells stay empty, because proposing is not entering.",
+    "contractor's own price book. THIS TOOL ONLY PROPOSES: it writes nothing into the bid, " +
+    "and the price cells stay empty. To actually price the tender, follow it with " +
+    "set_unit_price, passing each proposal's unit_price together with its " +
+    "based_on.price_book_id. A proposal is only made when a past line matches in category " +
+    "AND unit AND at least one search term; otherwise the position comes back with " +
+    "unit_price null and the reason \"no comparable entry in your price book\". Nothing is " +
+    "ever estimated, interpolated or averaged, so a null is a real gap: name those " +
+    "positions to the user and leave them empty, never fill one in yourself. Use it after " +
+    "get_tender and before set_unit_price. Visible effect: each proposal appears as a " +
+    "source chip beside its row, with a button the person can press instead of you.",
   inputSchema: {
     type: "object",
     properties: {
@@ -292,10 +301,174 @@ const suggestPricesTool: ToolDefinition = {
   }
 };
 
-/** Registered while the visitor is in the bidder role. */
-export const bidderReadTools: ToolDefinition[] = [
+const PRICE_ROW_FIELDS = ["oz", "unit_price", "price_book_id", "note"];
+
+const setUnitPriceTool: ToolDefinition = {
+  name: "set_unit_price",
+  title: "Write unit prices into the bid",
+  description:
+    "Writes unit prices into this contractor's draft bid, up to 50 positions in one call. " +
+    "Every price MUST carry the price_book_id of the price book line it came from, and must " +
+    "be that line's price unchanged: an agent may transcribe a price, never invent, adjust " +
+    "or average one. A row without a source, or with a price that differs from its source, " +
+    "is refused. If a position has no comparable entry, say so and let the person type it " +
+    "into the table themselves. Rows are judged one by one: the good ones are written " +
+    "together and the rest come back under rejected with a machine-readable reason, so " +
+    "correct those rows and call again rather than repeating the whole batch. Visible " +
+    "effect: the priced rows fill in one after another, the totals bar climbs with them, " +
+    "each row keeps the source chip it came from, and refused rows are marked in place. " +
+    "The whole call counts as one undo step.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      tender_id: {
+        type: "string",
+        description: 'The tender whose bid is being priced, for example "T-2026-014".'
+      },
+      prices: {
+        type: "array",
+        minItems: 1,
+        maxItems: 50,
+        description: "The rows to write, one per position. Between one and fifty.",
+        items: {
+          type: "object",
+          properties: {
+            oz: {
+              type: "string",
+              description: 'The item number of the position, for example "02.01".'
+            },
+            unit_price: {
+              type: "number",
+              minimum: 0,
+              maximum: 1000000,
+              description:
+                "The price of one unit, in euro. Must equal the price of the price book line named in price_book_id."
+            },
+            price_book_id: {
+              type: "string",
+              description:
+                "The price book line this price comes from, copied from a proposal's based_on.price_book_id, for example PB-A-004. A price with no source is refused."
+            },
+            note: {
+              type: "string",
+              description: "An optional short remark stored with the row."
+            }
+          },
+          required: ["oz", "unit_price", "price_book_id"],
+          additionalProperties: false
+        }
+      }
+    },
+    required: ["tender_id", "prices"],
+    additionalProperties: false
+  },
+  annotations: { readOnlyHint: false },
+  async execute(input): Promise<ToolResult> {
+    const parsed = readObject(input, ["tender_id", "prices"]);
+    if (isFailure(parsed)) return parsed;
+
+    const tenderId = parsed.tender_id;
+    if (typeof tenderId !== "string" || tenderId.trim().length === 0) {
+      return invalid("tender_id is required and must be a non-empty string.");
+    }
+    if (!Array.isArray(parsed.prices) || parsed.prices.length === 0) {
+      return invalid("prices must be a non-empty array of rows.");
+    }
+    if (parsed.prices.length > 50) {
+      return invalid(`At most 50 rows per call, got ${parsed.prices.length}.`);
+    }
+
+    // Shape only. Whether a row may be written is decided in one place, on the
+    // server, so the tool and the buttons in the table cannot drift apart.
+    const rows: PriceWrite[] = [];
+    for (const entry of parsed.prices as unknown[]) {
+      if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+        return invalid("Every row must be an object with oz, unit_price and price_book_id.");
+      }
+      const row = entry as Record<string, unknown>;
+      const unexpected = Object.keys(row).filter((key) => !PRICE_ROW_FIELDS.includes(key));
+      if (unexpected.length > 0) {
+        return invalid(
+          `Unknown field${unexpected.length > 1 ? "s" : ""} ${unexpected.join(", ")} in a row. Allowed: ${PRICE_ROW_FIELDS.join(", ")}.`
+        );
+      }
+      rows.push({
+        oz: typeof row.oz === "string" ? row.oz : "",
+        unit_price: row.unit_price as number,
+        price_book_id: typeof row.price_book_id === "string" ? row.price_book_id : null,
+        ...(typeof row.note === "string" ? { note: row.note } : {})
+      });
+    }
+
+    try {
+      const result = await setUnitPrices(tenderId.trim(), rows, "agent");
+      return {
+        ok: true,
+        applied: result.applied,
+        rejected: result.rejected,
+        totals: result.totals
+      };
+    } catch (caught) {
+      return asFailure(caught);
+    }
+  }
+};
+
+const undoLastChangeTool: ToolDefinition = {
+  name: "undo_last_change",
+  title: "Undo the last write",
+  description:
+    "Takes back the most recent writes to this bid. One call to set_unit_price counts as " +
+    "one step, however many rows it carried, so undoing never leaves half a batch behind. " +
+    "Use it when the person asks to revert what was just done. Visible effect: the affected " +
+    "rows return to what they held before and the totals bar follows. It cannot touch a bid " +
+    "that has already been handed in.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      steps: {
+        type: "integer",
+        minimum: 1,
+        maximum: 20,
+        description: "How many writes to take back, newest first. Defaults to one."
+      }
+    },
+    required: [],
+    additionalProperties: false
+  },
+  annotations: { readOnlyHint: false },
+  async execute(input): Promise<ToolResult> {
+    const parsed = readObject(input, ["steps"]);
+    if (isFailure(parsed)) return parsed;
+
+    let steps = 1;
+    if (parsed.steps !== undefined) {
+      if (
+        typeof parsed.steps !== "number" ||
+        !Number.isInteger(parsed.steps) ||
+        parsed.steps < 1 ||
+        parsed.steps > 20
+      ) {
+        return invalid("steps must be a whole number between 1 and 20.");
+      }
+      steps = parsed.steps;
+    }
+
+    try {
+      const result = await undoLastChange(steps);
+      return { ok: true, undone: result.undone, totals: result.totals };
+    } catch (caught) {
+      return asFailure(caught);
+    }
+  }
+};
+
+/** The block registered while the visitor is in the bidder role. */
+export const bidderTools: ToolDefinition[] = [
   listTendersTool,
   getTenderTool,
   getPriceBookTool,
-  suggestPricesTool
+  suggestPricesTool,
+  setUnitPriceTool,
+  undoLastChangeTool
 ];

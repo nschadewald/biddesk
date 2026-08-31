@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import AgentPanel from "./AgentPanel";
 import { formatDate, formatEuro } from "./format";
 import PositionRow from "./PositionRow";
-import { boot, resetDemo, useAppState } from "./store";
-import type { Position } from "./types";
+import { boot, resetDemo, setUnitPrices, undoLastChange, useAppState } from "./store";
+import type { Position, Suggestion } from "./types";
 import { useWebMCP } from "./webmcp/useWebMCP";
 
 export default function App() {
@@ -41,7 +41,7 @@ export default function App() {
 }
 
 function BidScreen() {
-  const { detail, suggestions } = useAppState();
+  const { detail, suggestions, rejections, tenderId } = useAppState();
   if (!detail) return null;
 
   const { tender, positions } = detail;
@@ -49,6 +49,33 @@ function BidScreen() {
   const contingency = sum(positions.filter((position) => position.contingency));
   const billable = positions.filter((position) => !position.contingency);
   const priced = billable.filter((position) => position.my_unit_price !== null).length;
+
+  // The open proposals, in the order of the bill of quantities. A gap has no
+  // price and is therefore never part of what "apply all" applies.
+  const openProposals = positions
+    .map((position) => suggestions[position.oz])
+    .filter(
+      (suggestion): suggestion is Suggestion =>
+        suggestion !== undefined &&
+        suggestion.unit_price !== null &&
+        positions.find((position) => position.oz === suggestion.oz)?.my_unit_price === null
+    );
+
+  // The button and the tool go through the same store action. There is no
+  // second path into the bid, so the two cannot drift apart.
+  const apply = (proposals: Suggestion[]) =>
+    void setUnitPrices(
+      tenderId,
+      proposals.map((proposal) => ({
+        oz: proposal.oz,
+        unit_price: proposal.unit_price!,
+        price_book_id: proposal.based_on!.price_book_id
+      })),
+      "human"
+    );
+
+  const enter = (oz: string, unitPrice: number) =>
+    void setUnitPrices(tenderId, [{ oz, unit_price: unitPrice }], "human");
 
   return (
     <>
@@ -68,6 +95,25 @@ function BidScreen() {
         <Total label="Net total" value={formatEuro(net)} strong />
         <Total label="Contingency positions" value={formatEuro(contingency)} />
         <Total label="Priced" value={`${priced} of ${billable.length}`} />
+
+        <span className="ml-auto flex items-center gap-2">
+          {openProposals.length > 0 && (
+            <button
+              type="button"
+              onClick={() => apply(openProposals)}
+              className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
+            >
+              Apply all suggestions ({openProposals.length})
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => void undoLastChange(1)}
+            className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
+          >
+            Undo
+          </button>
+        </span>
       </section>
 
       <table className="w-full border-collapse text-sm">
@@ -87,6 +133,9 @@ function BidScreen() {
               key={position.oz}
               position={position}
               suggestion={suggestions[position.oz]}
+              rejection={rejections[position.oz]}
+              onAccept={(proposal) => apply([proposal])}
+              onEnter={enter}
             />
           ))}
         </tbody>

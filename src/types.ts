@@ -18,6 +18,14 @@ export type Tender = {
   my_bid_status: BidStatus;
 };
 
+/** Where a suggested price comes from. Never absent when a price is offered. */
+export type SuggestionSource = {
+  price_book_id: string;
+  source_project: string;
+  source_date: string;
+  source_position_text: string;
+};
+
 export type Position = {
   oz: string;
   text: string;
@@ -31,6 +39,13 @@ export type Position = {
   /** Null until this bidder has priced the position. */
   my_unit_price: number | null;
   line_total: number | null;
+  /** Who produced the value. Null while the position is unpriced. */
+  set_by: "agent" | "human" | null;
+  /**
+   * The price book line the value came from, or null when a person typed it.
+   * Read back from the database, so provenance survives a reload.
+   */
+  source: SuggestionSource | null;
 };
 
 /**
@@ -77,14 +92,6 @@ export type PriceBookResponse = {
   entries: PriceBookRow[];
 };
 
-/** Where a suggested price comes from. Never absent when a price is offered. */
-export type SuggestionSource = {
-  price_book_id: string;
-  source_project: string;
-  source_date: string;
-  source_position_text: string;
-};
-
 /**
  * A proposal, not an entry. `unit_price` is null whenever nothing qualified;
  * there is no estimate and no `confidence` field -- `matched_terms` and
@@ -116,4 +123,49 @@ export type ApiError = {
   ok: false;
   error: string;
   hint: string;
+};
+
+/** Contingency positions are shown but never counted into `net`. */
+export type BidTotals = {
+  net: number;
+  contingency: number;
+  positions_priced: number;
+  positions_open: number;
+};
+
+/** A bid_prices row as it stood before a block was written. Undo restores it. */
+export type PreviousPrice = {
+  oz: string;
+  unit_price: number;
+  note: string | null;
+  set_by: string;
+  price_book_id: string | null;
+};
+
+export type AppliedPrice = {
+  oz: string;
+  unit_price: number;
+  line_total: number;
+  note: string | null;
+  set_by: "agent" | "human";
+  price_book_id: string | null;
+  /** The price book line, so the chip stays on the row after the write. */
+  source: SuggestionSource | null;
+};
+
+export type PriceRejection = { oz: string; reason: string; hint: string };
+
+export type SetPricesResponse = {
+  ok: true;
+  bidder_id: string;
+  tender_id: string;
+  applied: AppliedPrice[];
+  rejected: PriceRejection[];
+  totals: BidTotals;
+};
+
+export type UndoResponse = {
+  ok: true;
+  undone: number;
+  totals: BidTotals;
 };

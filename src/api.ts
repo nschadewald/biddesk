@@ -1,9 +1,11 @@
 import type {
   ApiError,
   PriceBookResponse,
+  SetPricesResponse,
   SuggestionsResponse,
   TenderDetail,
-  TenderList
+  TenderList,
+  UndoResponse
 } from "./types";
 
 const STORAGE_KEY = "biddesk.workspace";
@@ -120,6 +122,57 @@ export async function readSuggestions(workspaceId: string, tenderId: string, oz?
     `/api/tenders/${encodeURIComponent(tenderId)}/suggestions${suffix}`,
     workspaceId
   );
+}
+
+async function post<T extends { ok: true }>(
+  path: string,
+  workspaceId: string,
+  body: unknown
+): Promise<{ workspaceId: string; data: T }> {
+  const send = (id: string) =>
+    fetch(path, {
+      method: "POST",
+      headers: { "content-type": "application/json", "X-Workspace-Id": id },
+      body: JSON.stringify(body)
+    }).then((response) => response.json() as Promise<T | ApiError>);
+
+  let currentWorkspaceId = workspaceId;
+  let result = await send(currentWorkspaceId);
+
+  if (result.ok === false && result.error === "unknown_workspace") {
+    currentWorkspaceId = await ensureWorkspace(false);
+    result = await send(currentWorkspaceId);
+  }
+  if (result.ok === false) {
+    throw new ApiFailure(result.error, result.hint);
+  }
+  return { workspaceId: currentWorkspaceId, data: result };
+}
+
+export type PriceWrite = {
+  oz: string;
+  unit_price: number;
+  note?: string;
+  price_book_id?: string | null;
+};
+
+export async function writeUnitPrices(
+  workspaceId: string,
+  tenderId: string,
+  prices: PriceWrite[],
+  setBy: "agent" | "human"
+) {
+  return post<SetPricesResponse>(
+    `/api/tenders/${encodeURIComponent(tenderId)}/prices`,
+    workspaceId,
+    { prices, set_by: setBy }
+  );
+}
+
+export async function undoChanges(workspaceId: string, tenderId: string, steps: number) {
+  return post<UndoResponse>(`/api/tenders/${encodeURIComponent(tenderId)}/undo`, workspaceId, {
+    steps
+  });
 }
 
 export async function loadTender(tenderId: string, workspaceId: string) {
