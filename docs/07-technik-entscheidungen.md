@@ -68,3 +68,55 @@ Der Token kommt aus `CLOUDFLARE_API_TOKEN` in der Umgebung.
 - **Origin-Trial-Token** für `biddesk.n-schadewald.workers.dev` (Spec §10.2) – die finale
   Origin steht jetzt fest, das Token kann beantragt werden.
 - Schema, Seed, Workspace-Isolation, Werkzeuge, Oberfläche: Schritt 2.
+
+## Schritt 2 – Daten, Workspace, öffentliches Repo (Mo 31.08.2026)
+
+**Ergebnis:** Schema steht in D1, jeder Besucher bekommt eine eigene geseedete Kopie,
+die Startseite zeigt die 14 Positionen von T-2026-014.
+
+### Der Workspace steht im Header, nicht in der URL
+
+Spec §11.3 verbietet `?ws=` in der Seiten-URL. Die API braucht die Kennung trotzdem.
+Gewählt: Anfragekopf **`X-Workspace-Id`** auf den Lese-Routen. Damit bleibt die URL
+konstruktionsbedingt zustandsfrei – eine kopierte Adresse kann keinen fremden Zustand
+mitschleppen. `POST /api/workspace` nimmt die gespeicherte Kennung im Rumpf entgegen
+(`{ id }`) und liefert sie zurück, wenn es sie noch gibt, sonst eine frische. Für den
+Besucher existiert kein Fehlerpfad: unbekannt heißt neu, nie Fehlerbildschirm.
+
+### Der Seed geht als gebundener Parameter in die Datenbank, nicht als Textersetzung
+
+`seed/seed.sql` wird über `?raw` in den Worker gebündelt (28 KB), zeilenweise zerlegt,
+und `'{{WS}}'` wird durch `?1` ersetzt. Die Workspace-Kennung wird **gebunden**, statt in
+den SQL-Text hineinkopiert zu werden. Grund: Bei `/reset` kommt die Kennung aus dem
+Pfad. Zusätzlich wird sie gegen ein UUID-Muster geprüft. `src/workspace.test.ts` hält
+das fest (127 Anweisungen, alle mit `?1`, kein `{{WS}}` mehr übrig).
+
+**Reset ist ein einziger Batch aus Löschen und Neuseeden.** Nicht zwei Batches: sonst gäbe
+es einen Moment, in dem der Workspace halb weg ist. Idempotent – ein Reset auf eine
+Kennung, die es nicht mehr gibt, legt sie wieder an und setzt damit auch die 7-Tage-Uhr neu.
+
+### Zwei Fallstricke, die Zeit gekostet haben
+
+1. **D1 begrenzt die Anzahl der Terme in einem zusammengesetzten SELECT.**
+   Neun `UNION ALL`-Zweige quittiert D1 mit `too many terms in compound SELECT`
+   (`SQLITE_ERROR 7500`). Ausweg: skalare Unterabfragen in einer Zeile. Relevant für
+   `get_price_comparison` in Schritt 3 – dort nicht über `UNION ALL` bauen.
+2. **Cloudflare beantwortet `Python-urllib` mit Fehler 1010.** Jedes Prüfskript gegen die
+   produktive URL braucht einen eigenen `User-Agent`. Browser sind nicht betroffen,
+   die Eval-Skripte am Mittwoch schon.
+
+### Schema wird von Hand eingespielt, nicht vom Worker
+
+`wrangler d1 execute biddesk --remote --file=seed/schema.sql` (und einmal `--local` für
+`npm run dev`). Bewusst keine Migration-Ordner und kein „Schema beim ersten Zugriff
+anlegen" im Worker: Das Schema kommt aus `seed/`, das aus `seed.json` erzeugt wird
+(`seed/README.md`), und ein zweiter Erzeugungsweg im Code wäre eine zweite Wahrheit.
+
+### Offen
+
+- Der **Origin-Trial-Meta-Tag** ist registriert (`origin-trial-token.txt`, gültig bis
+  17.11.2026), aber **noch nicht in `index.html` eingebaut** – der Einbau gehört zu dem
+  Schritt, in dem die Selbstdiagnose ihn gegenprüfen kann.
+- Reset-Knopf in der Oberfläche: kommt mit dem Agent-Panel in Schritt 3. Der Endpunkt läuft.
+- Preisspalte, Summenlogik und Bieterwahl: Schritt 3. Heute steht die Spalte leer, weil
+  Farbwerk Meier im Seed noch kein Angebot auf T-2026-014 hat – so ist es gewollt.

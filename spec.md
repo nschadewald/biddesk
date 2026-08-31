@@ -1,4 +1,4 @@
-<!-- SNAPSHOT für die Übergabe, erzeugt 31.08.2026 10:37 aus docs/03-spec-biddesk.md. Quelle der Wahrheit bleibt docs/03-spec-biddesk.md. -->
+<!-- SNAPSHOT für die Übergabe, erzeugt 31.08.2026 11:51 aus docs/03-spec-biddesk.md. Quelle der Wahrheit bleibt docs/03-spec-biddesk.md. -->
 
 # BidDesk – Build-Spec (v0.1, 28.08.2026)
 

@@ -47,6 +47,11 @@ Zusätzlich, entlang der Kriterien: **Impact** (Zielgruppe: Handwerksbetriebe un
 - [ ] Prior work statement: "Built from scratch during the submission period (Aug 28 – Sep 3, 2026)."
 - [ ] Lizenz: MIT (LICENSE-Datei im Root)
 
+## Zwei Betriebsrisiken, die am Mittwoch beißen können
+
+- **Propagations-Verzögerung nach dem Deploy** (am 31.08. beobachtet): In den ersten ~20 Sekunden liefert `/` noch 404 und `/api/*` den Cloudflare-Fehler 1042. Nach dem Freeze-Deploy also **warten und erneut prüfen**, nicht in Panik verfallen und nicht sofort nachdeployen.
+- **Repo muss öffentlich sein und früh gepusht.** Die Lizenz muss im About erkannt werden – und die Commit-Historie ab dem 31.08. ist zugleich der Beleg, dass die Arbeit im Einreichungszeitraum entstanden ist (Regel: neu erstellt oder nachweislich erweitert). Deshalb heute pushen, nicht am Mittwoch.
+
 ## Vor dem Absenden
 - [ ] Frischer Browser, frischer Workspace: Prompts 1–5 in ChatGPT-Desktop, dann in Chrome
 - [ ] Zweite Person testet nur mit README

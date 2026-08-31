@@ -15,6 +15,7 @@ Agent-ready tender room for building trades. Einreichung für die WebMCP Challen
 ## Stack (fest)
 - Frontend React + Vite + TypeScript + Tailwind; Backend Hono auf Cloudflare Workers; D1; ein Worker für API + Assets; `wrangler deploy`.
 - Basis-Template: `cloudflare/agents` → `examples/webmcp-react`. Cloudflare-Konto „MERKUR Impulse"; benutzerweiter `CLOUDFLARE_API_TOKEN` auf NB-NSC hat Workers-Edit-Rechte.
+- **Produktive URL: https://biddesk.n-schadewald.workers.dev** · D1 `biddesk` (WEUR), Binding `DB` · Konfiguration ist **`wrangler.jsonc`** (nicht .toml).
 - Kein LLM im Backend. Heuristiken deterministisch und erklärbar.
 - Lizenz MIT. Repo öffentlich auf GitHub (Devpost verlangt sichtbare Lizenzdatei).
 
@@ -27,7 +28,7 @@ Agent-ready tender room for building trades. Einreichung für die WebMCP Challen
 - Kontextabhängig registrieren (Rolle Bidder/Client) → `toolchange` feuert.
 - Jeder Tool-Aufruf landet im Agent-Panel-Log (Zeit, Tool, Input, Output-Kurzform, Dauer).
 - Tools und manuelle Bedienung nutzen dieselben Store-Aktionen (eine Wahrheit, UI aktualisiert live).
-- Permissions-Policy `tools=self`. Keine Cross-Origin-iframes.
+- **Permissions-Policy: KEIN eigener Header.** Laut Chrome-Doku ist `tools` bereits per Default auf `self` – ein selbst gesetzter Header kann die Werkzeugerkennung nur kaputtmachen. Wir setzen keine Cross-Origin-iframes ein und verlassen uns auf den Default; das gehört so ins Write-up (im Tool Inspector gegenprüfen).
 
 ## Produktregeln
 - **Leitsatz, dem sich alles unterordnet:** „Ein Agent wird im Betrieb erst dann brauchbar, wenn er nichts erfindet, was im Angebot landet, und nichts allein verbindlich macht – dann aber sofort." Was ihn nicht stützt, fliegt raus.
@@ -58,5 +59,5 @@ Agent-ready tender room for building trades. Einreichung für die WebMCP Challen
 ## Nicht tun
 - Keine externen Datenquellen für die Einreichung (DÖE-API nur als Stretch nach DoD).
 - Keine Features außerhalb von Spec §1–§7, bevor die DoD (§7) erfüllt ist.
-- Keine Secrets ins Repo (wrangler.toml ohne Tokens; `.dev.vars` in `.gitignore`).
+- Keine Secrets ins Repo (`wrangler.jsonc` ohne Tokens; `.dev.vars` in `.gitignore`).
 - Keine unbelegten Zahlen in README/Devpost-Text.
