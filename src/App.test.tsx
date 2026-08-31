@@ -24,7 +24,9 @@ const positions = [
   text_de: position.text,
   long_text: null,
   long_text_de: null,
-  category: "prep"
+  category: "prep",
+  my_unit_price: null,
+  line_total: null
 }));
 
 function stubApi() {
@@ -36,6 +38,7 @@ function stubApi() {
         : new Response(
             JSON.stringify({
               ok: true,
+              bidder_id: "B-A",
               tender: {
                 id: "T-2026-014",
                 title: "Staircase painting works – Rheinallee 12",
@@ -45,9 +48,11 @@ function stubApi() {
                 trade: "painting",
                 status: "open",
                 due_date: "2026-09-10",
-                positions_count: 14
+                positions_count: 14,
+                my_bid_status: "none"
               },
-              positions
+              positions,
+              required_documents: []
             })
           )
     ) as unknown as typeof fetch
@@ -87,4 +92,33 @@ it("marks the two contingency positions", async () => {
   stubApi();
   render(<App />);
   await waitFor(() => expect(screen.getAllByText("contingency")).toHaveLength(2));
+});
+
+it("diagnoses a browser without WebMCP and names both ways to get it", async () => {
+  stubApi();
+  render(<App />);
+
+  await screen.findByText("WebMCP not available in this browser");
+  expect(screen.getByText(/ChatGPT desktop app browser/)).toBeInTheDocument();
+  expect(screen.getByText("chrome://flags/#enable-webmcp-testing")).toBeInTheDocument();
+  expect(
+    screen.getByText("This log stays in your browser. Nothing is sent anywhere.")
+  ).toBeInTheDocument();
+  expect(screen.getByText("tool calls appear here")).toBeInTheDocument();
+});
+
+it("counts the registered tools from the registry when WebMCP is present", async () => {
+  stubApi();
+  Object.defineProperty(document, "modelContext", {
+    configurable: true,
+    value: { registerTool: () => Promise.resolve() }
+  });
+
+  render(<App />);
+
+  await screen.findByText("WebMCP detected · 2 tools registered");
+  expect(screen.getByText("list_tenders")).toBeInTheDocument();
+  expect(screen.getByText("get_tender")).toBeInTheDocument();
+
+  Reflect.deleteProperty(document, "modelContext");
 });

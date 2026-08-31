@@ -120,3 +120,72 @@ anlegen" im Worker: Das Schema kommt aus `seed/`, das aus `seed.json` erzeugt wi
 - Reset-Knopf in der Oberfläche: kommt mit dem Agent-Panel in Schritt 3. Der Endpunkt läuft.
 - Preisspalte, Summenlogik und Bieterwahl: Schritt 3. Heute steht die Spalte leer, weil
   Farbwerk Meier im Seed noch kein Angebot auf T-2026-014 hat – so ist es gewollt.
+
+## Schritt 3 – Werkzeug-Wrapper und die beiden Lese-Werkzeuge (Mo 31.08.2026)
+
+**Ergebnis:** `list_tenders` und `get_tender` sind registriert, das Agent-Panel steht rechts,
+die Selbstdiagnose zählt live. Gegen das ausgelieferte Bundle geprüft.
+
+### Was der Wrapper leistet, damit die Werkzeuge es nicht einzeln tun müssen
+
+`src/webmcp/registry.ts` ist die einzige Stelle, die Werkzeuge anmeldet. Vier Zusagen gelten
+dadurch für jedes Werkzeug, ohne dass eines davon sie wiederholen muss:
+
+1. **Es wirft nie.** `execute` läuft in einem `try`, jeder geworfene Wert wird zu
+   `{ ok:false, error, hint }`. Stacktraces werden verworfen – sie verraten interne Pfade.
+2. **Die Ausgabe ist reines JSON.** Kein HTML, kein Markdown, keine Anweisungen.
+3. **Der Aufruf steht im Live-Log**, samt Dauer, Lese-/Schreib-Kennzeichen und Ausgang.
+   Auch Fehlschläge – ein Log, das nur Erfolge zeigt, ist Werbung.
+4. **Anmeldung über einen `AbortController` je Block.** Damit ist das spätere Abmelden von
+   `submit_bid` eine Zeile und kein neuer Mechanismus.
+
+`document.modelContext` zuerst, `navigator.modelContext` als Rückfall, beide Zugriffe in
+`try/catch`: Ein Browser ohne WebMCP muss die Seite als normale Webseite bekommen, nie als
+kaputte. Der wahrscheinlichste Ausfall der ganzen Einreichung ist ein Juror, der die Seite
+in einem gewöhnlichen Browser öffnet – deshalb ist „kein WebMCP" ein Zustand, den wir
+darstellen, kein Fehler, den wir werfen.
+
+Zusätzlich, defensiv: Fehlt `registerTool`, wird `provideContext({tools})` versucht (die
+ältere, seitenweite Form). Ungetestet – in Chrome 149+ greift der erste Weg.
+
+### Die Selbstdiagnose zählt, sie behauptet nicht
+
+`getTools()` fragt **zuerst den Browser** (`modelContext.getTools()`) und schneidet unsere
+Buchführung darauf zu; nur wenn der Browser nicht antwortet, gilt unsere eigene Liste.
+Nirgends steht eine Zahl im Code. Eine fest verdrahtete Zahl wäre in dem Moment falsch,
+in dem das erste Werkzeug abgemeldet wird – und genau das ist die Vorführung am Dienstag.
+
+### Beschreibungen sind Produktarbeit
+
+Beide `description`-Texte sagen **wann** ein Agent zugreift und **welche sichtbare Wirkung**
+das hat. `get_tender` nennt die Navigation ausdrücklich („Visible effect: the tender you name
+becomes the tender shown on screen"), `list_tenders` sagt ebenso ausdrücklich, dass es
+**nichts** öffnet. Ein Test hält beides fest, damit es beim Umformulieren nicht verloren geht.
+
+`additionalProperties:false` wird auch **durchgesetzt**, nicht nur deklariert: Ein unbekanntes
+Argument wird mit Namen abgewiesen. Ein Agent, der einen Grund bekommt, korrigiert sich;
+einer, dessen Argument still verschluckt wird, kann das nicht.
+
+### Eine Wahrheit für Maus und Agent
+
+`src/store.ts` hält den Zustand; `openTender()` ist derselbe Weg für einen Klick und für
+`get_tender`. Deshalb wandert die Tabelle sichtbar mit, wenn der Agent einen anderen Tender
+öffnet – ohne dass es dafür einen Agenten-Sonderpfad gäbe.
+
+### Korrektur an Schritt 2
+
+Der Reset leerte das Live-Log nicht. Spec §11.1 verlangt „leeres Log" als Abnahmekriterium.
+Behoben in `resetDemo()`, mit Test.
+
+### Wie das gegen die Produktion geprüft wurde
+
+Der eingebaute Browser hier ist Chrome 148, WebMCP kommt erst mit 149. Geprüft wurde deshalb
+über einen **gleichnamigen `srcdoc`-Rahmen auf derselben Origin**, der einen Modellkontext
+installiert, *bevor* das Modulskript der Seite läuft, und danach das **ausgelieferte Bundle**
+lädt. Damit sind echte Anmeldung, echte Aufrufe und echtes Log geprüft, nicht ein Mock im Test.
+
+### Offen
+
+- Origin-Trial-Token einbauen (jetzt sinnvoll: die Selbstdiagnose kann es gegenprüfen).
+- Rollen- und Bieterwahl im Kopfbereich; die API nimmt `X-Bidder-Id` bereits entgegen.
+- Die restlichen zehn Werkzeuge, Preislogik, Herkunfts-Chips.

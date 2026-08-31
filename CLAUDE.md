@@ -16,6 +16,12 @@ Agent-ready tender room for building trades. Einreichung für die WebMCP Challen
 - Frontend React + Vite + TypeScript + Tailwind; Backend Hono auf Cloudflare Workers; D1; ein Worker für API + Assets; `wrangler deploy`.
 - Basis-Template: `cloudflare/agents` → `examples/webmcp-react`. Cloudflare-Konto „MERKUR Impulse"; benutzerweiter `CLOUDFLARE_API_TOKEN` auf NB-NSC hat Workers-Edit-Rechte.
 - **Produktive URL: https://biddesk.n-schadewald.workers.dev** · D1 `biddesk` (WEUR), Binding `DB` · Konfiguration ist **`wrangler.jsonc`** (nicht .toml).
+- **Repo: https://github.com/nschadewald/biddesk** (öffentlich, MIT erkannt). gh-Cache nennt noch das alte Konto `nuelsde` – gleiche User-ID, kein Handlungsbedarf; die Devpost-URL lautet `nschadewald/biddesk`.
+- **Workspace reist im Header `X-Workspace-Id`**, nicht in der URL. Alle Tool-Fetches müssen ihn aus dem Store mitsenden.
+
+## Zwei Fallstricke aus der Praxis (31.08., docs/07)
+- **D1 begrenzt Terme in zusammengesetzten SELECTs.** Neun `UNION ALL`-Zweige → `too many terms in compound SELECT` (SQLITE_ERROR 7500). **`get_price_comparison` NICHT über UNION ALL bauen**, sondern mit skalaren Unterabfragen.
+- **Cloudflare beantwortet python-urllib mit Fehler 1010.** Jedes Eval-/Prüfskript braucht einen eigenen User-Agent. Browser sind nicht betroffen.
 - Kein LLM im Backend. Heuristiken deterministisch und erklärbar.
 - Lizenz MIT. Repo öffentlich auf GitHub (Devpost verlangt sichtbare Lizenzdatei).
 
