@@ -63,6 +63,8 @@ export type LogEntry = {
   /** Read tools carry readOnlyHint; everything else writes. */
   access: "read" | "write";
   duration_ms: number;
+  /** Time the call spent waiting for a person to confirm. Reported apart. */
+  waited_for_human_ms: number;
   outcome: "ok" | "error";
   /** The tool returns text written by other parties. Capped and labelled. */
   untrusted: boolean;

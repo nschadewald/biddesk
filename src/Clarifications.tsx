@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from "react";
-import type { Clarification } from "./types";
+import { useEffect, useState, type FormEvent } from "react";
+import type { Clarification, Role } from "./types";
+import { declareFormTool } from "./webmcp/registry";
 
 /**
  * Asking the client a question, and reading what has been answered.
@@ -16,17 +17,30 @@ import type { Clarification } from "./types";
  * untrustedContentHint. This is the prompt-injection boundary.
  */
 export default function Clarifications({
-  tenderId,
+  role,
   questions,
-  onAsk
+  onAsk,
+  onAnswer
 }: {
-  tenderId: string;
+  role: Role;
   questions: Clarification[];
   onAsk: (input: { oz: string | null; question: string }) => Promise<unknown>;
+  onAnswer: (questionId: string, answer: string) => Promise<unknown>;
 }) {
   const [oz, setOz] = useState("");
   const [question, setQuestion] = useState("");
   const [failure, setFailure] = useState<string | null>(null);
+
+  // The form IS the tool while it is on the page. Telling the registry keeps
+  // the self-diagnosis honest about what the page offers, in both API styles.
+  useEffect(() => {
+    if (role !== "bidder") return;
+    return declareFormTool({
+      name: "ask_clarification",
+      title: "Ask the client a question about the tender",
+      readOnly: false
+    });
+  }, [role]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -65,6 +79,7 @@ export default function Clarifications({
         Questions to the client
       </h3>
 
+      {role === "bidder" && (
       <form
         className="flex flex-wrap items-end gap-2"
         toolname="ask_clarification"
@@ -109,6 +124,7 @@ export default function Clarifications({
           Ask client
         </button>
       </form>
+      )}
 
       {failure && <p className="text-xs text-slate-600">{failure}</p>}
 
@@ -131,6 +147,9 @@ export default function Clarifications({
                     {entry.answer}
                   </p>
                 )}
+                {role === "client" && entry.answer === null && (
+                  <AnswerBox questionId={entry.id} onAnswer={onAnswer} />
+                )}
               </li>
             ))}
           </ul>
@@ -140,5 +159,53 @@ export default function Clarifications({
         </>
       )}
     </section>
+  );
+}
+
+/** The client answers once, and the answer goes to every bidder. */
+function AnswerBox({
+  questionId,
+  onAnswer
+}: {
+  questionId: string;
+  onAnswer: (questionId: string, answer: string) => Promise<unknown>;
+}) {
+  const [answer, setAnswer] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <form
+      className="mt-1 flex items-end gap-2"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (answer.trim().length === 0) return;
+        setBusy(true);
+        try {
+          await onAnswer(questionId, answer.trim());
+          setAnswer("");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <label className="sr-only" htmlFor={`answer-${questionId}`}>
+        Answer for {questionId}
+      </label>
+      <input
+        id={`answer-${questionId}`}
+        value={answer}
+        maxLength={500}
+        onChange={(event) => setAnswer(event.target.value)}
+        placeholder="Answer, published to all bidders"
+        className="min-w-64 flex-1 rounded border border-slate-300 px-1.5 py-1 text-xs focus:border-slate-400 focus:outline-none"
+      />
+      <button
+        type="submit"
+        disabled={busy}
+        className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:opacity-50"
+      >
+        Answer
+      </button>
+    </form>
   );
 }

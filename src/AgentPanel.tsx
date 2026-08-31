@@ -1,6 +1,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { logStore } from "./webmcp/log";
-import type { LogEntry, ToolDefinition } from "./webmcp/types";
+import type { ListedTool } from "./webmcp/registry";
+import type { LogEntry } from "./webmcp/types";
 import type { WebMCPStatus } from "./webmcp/useWebMCP";
 
 /**
@@ -143,7 +144,7 @@ function SelfDiagnosis({ webmcp }: { webmcp: WebMCPStatus }) {
   );
 }
 
-function ToolNames({ tools }: { tools: ToolDefinition[] }) {
+function ToolNames({ tools }: { tools: ListedTool[] }) {
   if (tools.length === 0) return null;
   return (
     <ul className="mt-1.5 flex flex-wrap gap-1">
@@ -154,8 +155,13 @@ function ToolNames({ tools }: { tools: ToolDefinition[] }) {
           title={tool.title}
         >
           {tool.name}
-          {tool.annotations.readOnlyHint && (
+          {tool.readOnly && (
             <span className="ml-1 font-sans text-[10px] uppercase text-emerald-700">read</span>
+          )}
+          {tool.kind === "declarative" && (
+            // Declared by a form in the page rather than by a registration
+            // call. Both API styles, side by side, in the same list.
+            <span className="ml-1 font-sans text-[10px] uppercase text-emerald-700">form</span>
           )}
         </li>
       ))}
@@ -219,7 +225,16 @@ function LogRow({ entry }: { entry: LogEntry }) {
             untrusted content
           </span>
         )}
-        <span className="ml-auto font-mono text-[11px] text-slate-400">{entry.duration_ms} ms</span>
+        <span className="ml-auto font-mono text-[11px] text-slate-400">
+          {entry.duration_ms} ms
+          {entry.waited_for_human_ms > 0 && (
+            // Kept apart from the tool's own time: waiting for a person is not
+            // the application being slow, it is the application being careful.
+            <span className="ml-1 text-slate-500">
+              + {(entry.waited_for_human_ms / 1000).toFixed(1)} s waiting for a person
+            </span>
+          )}
+        </span>
       </button>
       <p className="pl-1 text-[11px] text-slate-500">
         <span className="text-slate-400">in </span>

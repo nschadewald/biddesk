@@ -47,6 +47,24 @@ export function appendLogEntry(entry: Omit<LogEntry, "id">): LogEntry {
   return stored;
 }
 
+/**
+ * Time a tool spent waiting for a person, kept apart from the time it spent
+ * working. `submit_bid` sits in the dialog until somebody decides, and a log
+ * that folded that into "duration" would make the application look slow when it
+ * was in fact being careful.
+ */
+let humanWait = 0;
+
+export function recordHumanWait(ms: number) {
+  humanWait += ms;
+}
+
+export function takeHumanWait(): number {
+  const waited = humanWait;
+  humanWait = 0;
+  return waited;
+}
+
 export function formatClockTime(at: Date): string {
   const pad = (value: number) => String(value).padStart(2, "0");
   return `${pad(at.getHours())}:${pad(at.getMinutes())}:${pad(at.getSeconds())}`;

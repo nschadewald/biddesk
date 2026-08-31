@@ -6,6 +6,7 @@ import {
   normalise,
   type PriceBookEntry
 } from "./matching";
+import { buildComparison } from "./comparison";
 import {
   MAX_ROWS_PER_CALL,
   planPriceWrites,
@@ -1051,6 +1052,151 @@ app.post("/api/tenders/:id/submit", async (c) => {
     total_net: totals.net,
     totals
   });
+});
+
+app.use("/api/bidders", requireWorkspace);
+
+app.get("/api/bidders", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    "SELECT id, name, city, is_demo FROM bidders WHERE workspace_id = ?1 ORDER BY id"
+  )
+    .bind(c.get("workspaceId"))
+    .all<{ id: string; name: string; city: string; is_demo: number }>();
+
+  return c.json({
+    ok: true,
+    bidders: results.map((row) => ({ ...row, is_demo: row.is_demo === 1 }))
+  });
+});
+
+app.get("/api/tenders/:id/comparison", async (c) => {
+  const workspaceId = c.get("workspaceId");
+  const tenderId = c.req.param("id");
+
+  const tender = await c.env.DB.prepare(
+    "SELECT id, title_en, status, due_date FROM tenders WHERE workspace_id = ?1 AND id = ?2"
+  )
+    .bind(workspaceId, tenderId)
+    .first<{ id: string; title_en: string; status: string; due_date: string }>();
+
+  if (!tender) {
+    return c.json(fail("tender_not_found", `No tender ${tenderId} in this workspace.`), 404);
+  }
+
+  const submissions = await c.env.DB.prepare(
+    `SELECT submitted_at FROM bids
+      WHERE workspace_id = ?1 AND tender_id = ?2 AND status = 'submitted'
+      ORDER BY submitted_at`
+  )
+    .bind(workspaceId, tenderId)
+    .all<{ submitted_at: string }>();
+
+  // Sealed until the deadline. Not a setting, not a permission: there is simply
+  // no branch here that hands out a price before the tender closes.
+  if (tender.status !== "closed") {
+    return c.json({
+      ok: true,
+      tender_id: tenderId,
+      title: tender.title_en,
+      sealed: true,
+      sealed_until: tender.due_date,
+      bids_received: submissions.results.length,
+      received_at: submissions.results.map((row) => row.submitted_at),
+      bidders: [],
+      positions: [],
+      note: `Bids are sealed until ${tender.due_date}. Until then the client can see how many arrived and when, and nothing else.`
+    });
+  }
+
+  // One query, folded in memory. No UNION ALL: D1 caps the number of terms in a
+  // compound SELECT (SQLITE_ERROR 7500, see docs/07).
+  const { results } = await c.env.DB.prepare(
+    `SELECT p.oz, p.text_en, p.quantity, p.unit, p.contingency,
+            b.bidder_id, bd.name AS bidder_name, bp.unit_price
+       FROM positions p
+       LEFT JOIN bids b
+         ON b.workspace_id = p.workspace_id AND b.tender_id = p.tender_id
+        AND b.status = 'submitted'
+       LEFT JOIN bidders bd
+         ON bd.workspace_id = b.workspace_id AND bd.id = b.bidder_id
+       LEFT JOIN bid_prices bp
+         ON bp.workspace_id = p.workspace_id AND bp.bid_id = b.id AND bp.oz = p.oz
+      WHERE p.workspace_id = ?1 AND p.tender_id = ?2
+      ORDER BY p.sort_no, b.bidder_id`
+  )
+    .bind(workspaceId, tenderId)
+    .all<{
+      oz: string;
+      text_en: string;
+      quantity: number;
+      unit: string;
+      contingency: number;
+      bidder_id: string | null;
+      bidder_name: string | null;
+      unit_price: number | null;
+    }>();
+
+  const comparison = buildComparison(
+    results.map((row) => ({
+      oz: row.oz,
+      text: row.text_en,
+      quantity: row.quantity,
+      unit: row.unit,
+      contingency: row.contingency === 1,
+      bidder_id: row.bidder_id,
+      bidder_name: row.bidder_name,
+      unit_price: row.unit_price
+    }))
+  );
+
+  return c.json({
+    ok: true,
+    tender_id: tenderId,
+    title: tender.title_en,
+    sealed: false,
+    sealed_until: null,
+    bids_received: submissions.results.length,
+    received_at: submissions.results.map((row) => row.submitted_at),
+    ...comparison
+  });
+});
+
+app.post("/api/clarifications/:id/answer", async (c) => {
+  const workspaceId = c.get("workspaceId");
+  const questionId = c.req.param("id");
+  const body = await c.req
+    .json<{ answer?: unknown }>()
+    .catch(() => ({}) as { answer?: unknown });
+
+  const answer = typeof body.answer === "string" ? body.answer.trim() : "";
+  if (answer.length === 0) {
+    return c.json(fail("invalid_input", "answer is required."), 400);
+  }
+  if (answer.length > MAX_QUESTION_LENGTH) {
+    return c.json(
+      fail("invalid_input", `answer must be at most ${MAX_QUESTION_LENGTH} characters.`),
+      400
+    );
+  }
+
+  const question = await c.env.DB.prepare(
+    "SELECT id FROM clarifications WHERE workspace_id = ?1 AND id = ?2"
+  )
+    .bind(workspaceId, questionId)
+    .first<{ id: string }>();
+  if (!question) {
+    return c.json(fail("question_not_found", `No question ${questionId} in this workspace.`), 404);
+  }
+
+  await c.env.DB.prepare(
+    "UPDATE clarifications SET answer = ?3, status = 'answered' WHERE workspace_id = ?1 AND id = ?2"
+  )
+    .bind(workspaceId, questionId, answer)
+    .run();
+
+  // An answer to one bidder is an answer to all of them: equal information is
+  // the point of a clarification round.
+  return c.json({ ok: true, question_id: questionId, published_to: "all bidders" });
 });
 
 app.all("/api/*", (c) => c.json(fail("not_found", "Unknown API route."), 404));

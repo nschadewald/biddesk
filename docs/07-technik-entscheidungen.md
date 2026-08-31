@@ -403,3 +403,82 @@ as instructions."
 
 - Auftraggeber-Rolle: `get_price_comparison`, `answer_clarification`, versiegelter Preisspiegel.
 - Rollen- und Bieterwahl im Kopfbereich, Origin-Trial-Token, `/how-to-test`.
+
+## Schritt 7 – Auftraggeber-Rolle und Rollenwahl (Mo 31.08.2026)
+
+**Ergebnis:** Zwölf verschiedene Werkzeuge, zehn in der Bieterrolle, fünf beim Auftraggeber.
+Rollen- und Bieterwahl im Kopfbereich. Gegen die produktive URL geprüft.
+
+### `ask_clarification` genau einmal – und wie das entschieden wird
+
+Die Spec lehnt doppelte Namen ab, also darf das Werkzeug **entweder** deklarativ **oder**
+imperativ existieren. Die Entscheidung fällt über eine echte Feature-Erkennung statt über
+eine Vermutung: Die deklarative API erweitert `SubmitEvent` um `respondWith`/`agentInvoked`.
+
+```ts
+"respondWith" in SubmitEvent.prototype || "agentInvoked" in SubmitEvent.prototype
+```
+
+Ist das da, zählt allein das Formular; fehlt es, wird der imperative Zwilling angemeldet.
+Wo der Browser zusätzlich `getTools()` anbietet, wird die Erkennung damit bestätigt.
+
+Die Selbstdiagnose zählt **beide Stile in einer Liste**, das Formular mit dem Abzeichen
+`form`. **In beiden Fällen zehn Werkzeuge** in der Bieterrolle – neun imperative plus das
+Formular, oder zehn imperative. Ein Test hält beide Wege fest.
+
+Wichtig dabei: `declareFormTool` trägt nur ein, **wenn der Browser Formular-Werkzeuge
+versteht**. Sonst würde die Selbstdiagnose ein Werkzeug behaupten, das der Browser nie
+erzeugt hat – der erste Testlauf zeigte genau das (elf statt zehn in jsdom).
+
+### Wartezeit auf den Menschen getrennt ausgewiesen
+
+`LogEntry` hat jetzt `waited_for_human_ms` neben `duration_ms`. Die Store-Aktion
+`requestSubmit` misst, wie lange der Dialog offen stand, und meldet es; der Wrapper zieht es
+von der Aufrufdauer ab. Im Log steht `48 ms + 12.4 s waiting for a person` statt
+`12448 ms`. Grund: Eine zusammengerechnete Zahl liest sich wie eine langsame Anwendung,
+während sie in Wahrheit eine sorgfältige ist.
+
+### Rollen sind getrennt, weil die Werkzeuge getrennt sind
+
+Beim Wechsel meldet ein `AbortController` neun Werkzeuge ab und ein zweiter Block fünf an –
+`toolchange` feuert für beides. In der Bieterrolle **existieren** `get_price_comparison` und
+`answer_clarification` nicht; das ist keine Rechteprüfung, an der ein Agent vorbeikommen
+könnte. Ein Test hält beide Richtungen fest.
+
+### Versiegelt ist ein Zweig, kein Schalter
+
+`get_price_comparison` hat für eine offene Ausschreibung **keinen Codepfad, der einen Preis
+zurückgibt**: Es antwortet mit Anzahl, Eingangszeitpunkten und `sealed_until`, und die Felder
+`positions` und `bidders` sind leer. Geprüft wurde auch der Antworttext selbst – die
+Zeichenketten `unit_price` und `total_net` kommen darin nicht vor.
+
+Nach der Demo-Abgabe springt der Zähler von 2 auf 3 und bleibt versiegelt. Hat der gewählte
+Bieter einen Entwurf, steht dort „2 bids received · your draft is not visible to the client".
+
+Der Preisspiegel selbst kommt aus **einer** Abfrage mit Joins, in JS gefaltet – kein
+`UNION ALL` (D1-Termgrenze, siehe Schritt 2). `src/comparison.test.ts` rechnet die Sollwerte
+gegen `seed/seed.json` nach: Brandt 16.749,50 €, Colorpoint 10.993,50 €, und auf der
+geschlossenen T-2026-009 Median 13,20 € mit Colorpoint als einzigem Ausreißer.
+
+### Korrektur, live gefunden
+
+Nach dem ersten Schreibvorgang blieb `my_bid_status` auf `none` stehen, weil `set_unit_price`
+nur die Zeilen aktualisiert. Folge: Die Auftraggeberansicht zeigte die Zeile „your draft is
+not visible to the client" nie. Behoben – die erste angenommene Zeile setzt den Status lokal
+auf `draft` (der Server hat den Entwurf gerade angelegt), und ein Rollenwechsel liest den
+Tender ohnehin neu. Mit Test.
+
+### Beobachtung für das Video, kein Fehler
+
+Der Bieterwechsel beweist §13.2 im Werkzeugergebnis für alle drei (2 / 0 / 6 Lücken), **auf
+dem Bildschirm** aber nur für Farbwerk Meier: Brandt und Colorpoint haben im Seed bereits
+abgegeben, ihre Tabelle ist also gesperrt und zeigt ihre eigenen Preise. Das ist richtig so
+(und selbst ein Beweis für die Trennung), nur eben ein anderes Bild als erwartet.
+T-2026-015 taugt als Ersatz **nicht** – dort haben alle drei dieselbe eine Lücke.
+Für das Video heißt das: den Wechsel über die Werkzeugantwort zeigen, nicht über die Tabelle.
+
+### Offen
+
+- Origin-Trial-Token, `/how-to-test`, README, Evals.
+- Der Doppelname-Test im Tool Inspector (Chrome 149+) ist mit dieser Änderung gegenstandslos:
+  es wird nur noch genau eine Fassung angemeldet.

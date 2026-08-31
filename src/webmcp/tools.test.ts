@@ -1,11 +1,18 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getAppState } from "../store";
-import { bidderTools, submitTools } from "./tools";
+import {
+  allTools,
+  askClarificationFallback,
+  bidderOnlyTools,
+  clientTools,
+  sharedTools,
+  submitTools
+} from "./tools";
 
 const WS = "44444444-4444-4444-8444-444444444444";
 
-const listTenders = bidderTools.find((tool) => tool.name === "list_tenders")!;
-const getTender = bidderTools.find((tool) => tool.name === "get_tender")!;
+const listTenders = allTools.find((tool) => tool.name === "list_tenders")!;
+const getTender = allTools.find((tool) => tool.name === "get_tender")!;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -76,7 +83,7 @@ afterEach(() => {
 });
 
 it("declares titles, closed schemas and a description for every field", () => {
-  for (const tool of bidderTools) {
+  for (const tool of allTools) {
     expect(tool.title.length).toBeGreaterThan(0);
     expect(tool.inputSchema.additionalProperties).toBe(false);
     for (const property of Object.values(tool.inputSchema.properties)) {
@@ -85,26 +92,64 @@ it("declares titles, closed schemas and a description for every field", () => {
   }
 });
 
-it("registers exactly the ten tools of the bidder role", () => {
-  // Nine in the role block plus submit_bid, which rides on its own controller
-  // so that handing the bid in withdraws that one tool and nothing else.
-  expect([...bidderTools, ...submitTools].map((tool) => tool.name)).toEqual([
+it("cuts twelve distinct tools into the blocks each role registers", () => {
+  const names = (tools: typeof allTools) => tools.map((tool) => tool.name);
+
+  expect(names(allTools)).toHaveLength(12);
+  expect(new Set(names(allTools)).size).toBe(12);
+
+  // Bidder: three shared, five of its own, ask_clarification (declared by the
+  // form; this list holds its fallback twin) and submit_bid on its own
+  // controller. Ten.
+  expect(
+    names([...sharedTools, ...bidderOnlyTools, ...askClarificationFallback, ...submitTools])
+  ).toHaveLength(10);
+
+  // Client: three shared plus two of its own. Five.
+  expect(names([...sharedTools, ...clientTools])).toEqual([
     "list_tenders",
     "get_tender",
-    "get_price_book",
-    "suggest_prices",
-    "set_unit_price",
-    "check_bid",
-    "ask_clarification",
     "list_clarifications",
-    "undo_last_change",
-    "submit_bid"
+    "get_price_comparison",
+    "answer_clarification"
   ]);
+
   expect(submitTools).toHaveLength(1);
+  expect(askClarificationFallback).toHaveLength(1);
+});
+
+it("keeps the client out of the bidder tools and the bidder out of the client tools", () => {
+  const bidderNames = [
+    ...sharedTools,
+    ...bidderOnlyTools,
+    ...askClarificationFallback,
+    ...submitTools
+  ].map((tool) => tool.name);
+  const clientNames = [...sharedTools, ...clientTools].map((tool) => tool.name);
+
+  // Roles are separated by what exists, not by what is permitted.
+  expect(bidderNames).not.toContain("get_price_comparison");
+  expect(bidderNames).not.toContain("answer_clarification");
+  expect(clientNames).not.toContain("set_unit_price");
+  expect(clientNames).not.toContain("submit_bid");
+  expect(clientNames).not.toContain("suggest_prices");
+});
+
+it("says in get_price_comparison that open bids are sealed", () => {
+  const compare = clientTools.find((tool) => tool.name === "get_price_comparison")!;
+  expect(compare.description).toContain("sealed");
+  expect(compare.description).toContain("no prices at all");
+  expect(compare.annotations.readOnlyHint).toBe(true);
+});
+
+it("says in answer_clarification that the answer reaches every bidder", () => {
+  const answer = clientTools.find((tool) => tool.name === "answer_clarification")!;
+  expect(answer.description).toContain("EVERY bidder");
+  expect(answer.annotations.readOnlyHint).toBe(false);
 });
 
 it("marks the reading tools read-only and the writing tools not", () => {
-  const all = [...bidderTools, ...submitTools];
+  const all = allTools;
   const readOnly = all
     .filter((tool) => tool.annotations.readOnlyHint === true)
     .map((tool) => tool.name);
@@ -112,24 +157,26 @@ it("marks the reading tools read-only and the writing tools not", () => {
     .filter((tool) => tool.annotations.readOnlyHint !== true)
     .map((tool) => tool.name);
 
-  expect(readOnly).toEqual([
-    "list_tenders",
-    "get_tender",
-    "get_price_book",
-    "suggest_prices",
+  expect([...readOnly].sort()).toEqual([
     "check_bid",
-    "list_clarifications"
+    "get_price_book",
+    "get_price_comparison",
+    "get_tender",
+    "list_clarifications",
+    "list_tenders",
+    "suggest_prices"
   ]);
-  expect(writing).toEqual([
-    "set_unit_price",
+  expect([...writing].sort()).toEqual([
+    "answer_clarification",
     "ask_clarification",
-    "undo_last_change",
-    "submit_bid"
+    "set_unit_price",
+    "submit_bid",
+    "undo_last_change"
   ]);
 });
 
 it("declares untrustedContentHint on the tool that returns other people's text", () => {
-  const withForeignText = [...bidderTools, ...submitTools]
+  const withForeignText = allTools
     .filter((tool) => tool.annotations.untrustedContentHint === true)
     .map((tool) => tool.name);
   expect(withForeignText).toEqual(["list_clarifications"]);
@@ -143,7 +190,7 @@ it("marks submit_bid as destructive and says a person has to confirm it", () => 
 });
 
 it("tells the agent that suggest_prices only proposes and names what applies it", () => {
-  const suggest = bidderTools.find((tool) => tool.name === "suggest_prices")!;
+  const suggest = allTools.find((tool) => tool.name === "suggest_prices")!;
   // Without this, prompt 1 ends at "here are the prices" and the table stays empty.
   expect(suggest.description).toContain("ONLY PROPOSES");
   expect(suggest.description).toContain("set_unit_price");

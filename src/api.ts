@@ -1,9 +1,12 @@
 import type {
   ApiError,
+  AnswerResponse,
   AskClarificationResponse,
+  Bidder,
   CheckResult,
   ClarificationList,
   PriceBookResponse,
+  PriceComparison,
   SetPricesResponse,
   SubmitResponse,
   SuggestionsResponse,
@@ -13,6 +16,22 @@ import type {
 } from "./types";
 
 const STORAGE_KEY = "biddesk.workspace";
+
+/**
+ * Which bidder the requests are for. Set once when the visitor picks one in the
+ * header; the Worker falls back to the demo bidder when it is not sent. Keeping
+ * it here rather than threading it through ten signatures means there is one
+ * place where it can be wrong.
+ */
+let bidderId: string | null = null;
+
+export function setBidder(id: string | null) {
+  bidderId = id;
+}
+
+function headers(extra: Record<string, string> = {}): Record<string, string> {
+  return bidderId === null ? extra : { ...extra, "X-Bidder-Id": bidderId };
+}
 
 // Private windows and the embedded ChatGPT browser can refuse localStorage.
 // That is not an error: the visitor simply gets a fresh workspace each load,
@@ -66,7 +85,7 @@ export class ApiFailure extends Error {
 }
 
 async function get<T>(path: string, workspaceId: string): Promise<T | ApiError> {
-  const response = await fetch(path, { headers: { "X-Workspace-Id": workspaceId } });
+  const response = await fetch(path, { headers: headers({ "X-Workspace-Id": workspaceId }) });
   return (await response.json()) as T | ApiError;
 }
 
@@ -136,7 +155,7 @@ async function post<T extends { ok: true }>(
   const send = (id: string) =>
     fetch(path, {
       method: "POST",
-      headers: { "content-type": "application/json", "X-Workspace-Id": id },
+      headers: headers({ "content-type": "application/json", "X-Workspace-Id": id }),
       body: JSON.stringify(body)
     }).then((response) => response.json() as Promise<T | ApiError>);
 
@@ -212,6 +231,25 @@ export async function submitBid(workspaceId: string, tenderId: string) {
     `/api/tenders/${encodeURIComponent(tenderId)}/submit`,
     workspaceId,
     {}
+  );
+}
+
+export async function readBidders(workspaceId: string) {
+  return readThroughWorkspace<{ ok: true; bidders: Bidder[] }>("/api/bidders", workspaceId);
+}
+
+export async function readComparison(workspaceId: string, tenderId: string) {
+  return readThroughWorkspace<PriceComparison>(
+    `/api/tenders/${encodeURIComponent(tenderId)}/comparison`,
+    workspaceId
+  );
+}
+
+export async function writeAnswer(workspaceId: string, questionId: string, answer: string) {
+  return post<AnswerResponse>(
+    `/api/clarifications/${encodeURIComponent(questionId)}/answer`,
+    workspaceId,
+    { answer }
   );
 }
 

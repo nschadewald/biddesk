@@ -3,12 +3,16 @@ import {
   ensureWorkspace,
   listTenders,
   loadTender,
+  readBidders,
   readCheck,
   readClarifications,
+  readComparison,
   readPriceBook,
   readSuggestions,
   resetWorkspace,
+  setBidder,
   submitBid,
+  writeAnswer,
   writeClarification,
   undoChanges,
   writeUnitPrices,
@@ -18,24 +22,28 @@ import {
   type TenderFilters
 } from "./api";
 import type {
+  AnswerResponse,
   AppliedPrice,
   AskClarificationResponse,
+  Bidder,
   BidTotals,
   CheckResult,
   Clarification,
   ClarificationList,
   PriceBookResponse,
+  PriceComparison,
   PriceRejection,
   Role,
   SetPricesResponse,
   SubmitResponse,
   Suggestion,
   SuggestionsResponse,
+  Tender,
   TenderDetail,
   TenderList,
   UndoResponse
 } from "./types";
-import { logStore } from "./webmcp/log";
+import { logStore, recordHumanWait } from "./webmcp/log";
 
 /**
  * One truth. Tools and the mouse both go through these actions, so a tender
@@ -66,6 +74,12 @@ export type AppState = {
   clarifications: Clarification[];
   /** Open confirmation dialog. A bid is handed in by a hand, never by a tool. */
   pendingSubmit: { tenderId: string; totals: BidTotals } | null;
+  /** Who can be picked in the header. Same tender, three different outcomes. */
+  bidders: Bidder[];
+  /** The tender list, for the client dashboard. */
+  tenders: Tender[];
+  /** The client's view of a tender. Sealed while the tender is still open. */
+  comparison: PriceComparison | null;
   failure: string | null;
 };
 
@@ -81,6 +95,9 @@ let state: AppState = {
   check: null,
   clarifications: [],
   pendingSubmit: null,
+  bidders: [],
+  tenders: [],
+  comparison: null,
   failure: null
 };
 
@@ -147,7 +164,12 @@ export async function openTender(tenderId: string): Promise<TenderDetail> {
 export async function readTenders(filters: TenderFilters = {}): Promise<TenderList> {
   const workspaceId = await requireWorkspace();
   const { workspaceId: current, data } = await listTenders(workspaceId, filters);
-  if (current !== workspaceId) set({ workspaceId: current });
+  set({
+    ...(current === workspaceId ? {} : { workspaceId: current }),
+    // Only an unfiltered read describes the whole room, so only that one feeds
+    // the dashboard list.
+    ...(Object.keys(filters).length === 0 ? { tenders: data.tenders } : {})
+  });
   return data;
 }
 
@@ -253,6 +275,20 @@ export async function setUnitPrices(
     for (const rejection of data.rejected) rejections[rejection.oz] = rejection;
     patch.rejections = rejections;
   }
+  // The first accepted row creates the draft bid. Saying so here costs no
+  // request and keeps everything that reads the status honest -- including the
+  // client's "your draft is not visible to the client".
+  if (
+    data.applied.length > 0 &&
+    state.detail !== null &&
+    state.detail.tender.id === tenderId &&
+    state.detail.tender.my_bid_status === "none"
+  ) {
+    patch.detail = {
+      ...state.detail,
+      tender: { ...state.detail.tender, my_bid_status: "draft" }
+    };
+  }
   set(patch);
 
   // The caller gets the result at once; the screen catches up on its own.
@@ -285,6 +321,55 @@ export async function runCheck(tenderId: string): Promise<CheckResult> {
 }
 
 /** Puts the check result away. The bid is untouched; this is a view concern. */
+/**
+ * Switching the bidder is the cheapest proof that nothing is hard-coded: the
+ * same fourteen lines produce three different outcomes. Everything that depends
+ * on who is bidding is re-read, and nothing is carried over.
+ */
+export async function selectBidder(id: string): Promise<void> {
+  setBidder(id);
+  set({ bidderId: id, suggestions: {}, rejections: {}, check: null, comparison: null });
+  await openTender(state.tenderId);
+}
+
+export async function selectRole(role: Role): Promise<void> {
+  if (role === state.role) return;
+  // Leaving a role puts its findings away with it.
+  set({ role, check: null, comparison: null, pendingSubmit: null });
+  // Re-read, so the other side never works from what this side happened to
+  // have in memory.
+  await openTender(state.tenderId).catch(() => undefined);
+  if (role === "client") await loadComparison(state.tenderId).catch(() => undefined);
+}
+
+export async function loadBidders(): Promise<Bidder[]> {
+  const workspaceId = await requireWorkspace();
+  const { workspaceId: current, data } = await readBidders(workspaceId);
+  set({ ...(current === workspaceId ? {} : { workspaceId: current }), bidders: data.bidders });
+  return data.bidders;
+}
+
+export async function loadComparison(tenderId: string): Promise<PriceComparison> {
+  const workspaceId = await requireWorkspace();
+  const { workspaceId: current, data } = await readComparison(workspaceId, tenderId);
+  set({
+    ...(current === workspaceId ? {} : { workspaceId: current }),
+    ...(tenderId === state.tenderId ? { comparison: data } : {})
+  });
+  return data;
+}
+
+export async function answerClarification(
+  questionId: string,
+  answer: string
+): Promise<AnswerResponse> {
+  const workspaceId = await requireWorkspace();
+  const { workspaceId: current, data } = await writeAnswer(workspaceId, questionId, answer);
+  if (current !== workspaceId) set({ workspaceId: current });
+  await loadClarifications({ tender_id: state.tenderId });
+  return data;
+}
+
 export function closeCheck(): void {
   set({ check: null });
 }
@@ -322,9 +407,15 @@ export async function askClarification(body: {
 let awaitingConfirmation: ((value: SubmitResponse | null) => void) | null = null;
 
 export function requestSubmit(tenderId: string, totals: BidTotals) {
+  const openedAt = Date.now();
   return new Promise<SubmitResponse | null>((resolve) => {
     awaitingConfirmation?.(null);
-    awaitingConfirmation = resolve;
+    awaitingConfirmation = (value) => {
+      // The time a person took to decide is reported apart from the time the
+      // tool spent working, so the log does not read as a slow application.
+      recordHumanWait(Date.now() - openedAt);
+      resolve(value);
+    };
     set({ pendingSubmit: { tenderId, totals } });
   });
 }
@@ -353,6 +444,7 @@ export function cancelSubmit(): void {
 export async function boot(): Promise<void> {
   try {
     await openTender(state.tenderId);
+    void loadBidders();
   } catch (caught) {
     set({
       status: "failed",
@@ -375,7 +467,8 @@ export async function resetDemo(): Promise<void> {
     suggestions: {},
     rejections: {},
     check: null,
-    pendingSubmit: null
+    pendingSubmit: null,
+    comparison: null
   });
   await openTender(DEMO_TENDER);
 }

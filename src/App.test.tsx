@@ -1,7 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
-import { bidderTools } from "./webmcp/tools";
 
 const WS = "33333333-3333-4333-8333-333333333333";
 
@@ -36,7 +35,18 @@ function stubApi() {
     vi.fn(async (input: string) =>
       input.startsWith("/api/clarifications")
         ? new Response(JSON.stringify({ ok: true, questions: [] }))
-        : input === "/api/workspace"
+        : input === "/api/bidders"
+          ? new Response(
+              JSON.stringify({
+                ok: true,
+                bidders: [
+                  { id: "B-A", name: "Farbwerk Meier GmbH", city: "D", is_demo: true },
+                  { id: "B-B", name: "Malerei Brandt & Sohn", city: "N", is_demo: false },
+                  { id: "B-C", name: "Colorpoint Anstrich UG", city: "D", is_demo: false }
+                ]
+              })
+            )
+          : input === "/api/workspace"
         ? new Response(JSON.stringify({ ok: true, workspace_id: WS, created: true }))
         : new Response(
             JSON.stringify({
@@ -124,10 +134,23 @@ it("counts the registered tools from the registry when WebMCP is present", async
   render(<App />);
 
   // Counted from the block, not written down: the panel does the same.
-  // The bidder block plus submit_bid, which rides on its own controller.
-  await screen.findByText(`WebMCP detected · ${bidderTools.length + 1} tools registered`);
-  for (const registered of bidderTools) {
-    expect(screen.getByText(registered.name)).toBeInTheDocument();
+  // Nine imperative tools plus ask_clarification, which the form declares.
+  // Ten either way: nine imperative plus the form where a browser declares it,
+  // ten imperative where it does not. jsdom is the second case.
+  await screen.findByText("WebMCP detected · 10 tools registered");
+  for (const name of [
+    "list_tenders",
+    "get_tender",
+    "list_clarifications",
+    "get_price_book",
+    "suggest_prices",
+    "set_unit_price",
+    "check_bid",
+    "undo_last_change",
+    "submit_bid",
+    "ask_clarification"
+  ]) {
+    expect(screen.getByText(name)).toBeInTheDocument();
   }
 
   Reflect.deleteProperty(document, "modelContext");
@@ -148,6 +171,7 @@ it("labels a log entry from an untrusted tool and caps the foreign text", async 
     access: "read",
     untrusted: true,
     duration_ms: 4,
+    waited_for_human_ms: 0,
     outcome: "ok",
     inputSummary: "{}",
     outputSummary: "1 questions",

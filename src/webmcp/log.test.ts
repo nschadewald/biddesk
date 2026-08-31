@@ -14,6 +14,7 @@ const entry = (tool: string) => ({
   access: "read" as const,
   untrusted: false,
   duration_ms: 1,
+  waited_for_human_ms: 0,
   outcome: "ok" as const,
   inputSummary: "{}",
   outputSummary: "ok",

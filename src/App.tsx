@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import AgentPanel from "./AgentPanel";
 import CheckPanel from "./CheckPanel";
 import Clarifications from "./Clarifications";
+import ClientScreen from "./ClientScreen";
+import Header from "./Header";
 import { formatDate, formatEuro } from "./format";
 import PositionRow from "./PositionRow";
 import SubmitDialog from "./SubmitDialog";
 import {
+  answerClarification,
   askClarification,
   boot,
   cancelSubmit,
@@ -14,6 +17,8 @@ import {
   requestSubmit,
   resetDemo,
   runCheck,
+  selectBidder,
+  selectRole,
   setUnitPrices,
   undoLastChange,
   useAppState
@@ -44,10 +49,19 @@ export default function App() {
   return (
     <div className="flex min-h-screen text-slate-900">
       <main className="flex min-w-0 flex-1 flex-col gap-4 px-6 py-8">
+        <Header
+          role={state.role}
+          bidders={state.bidders}
+          bidderId={state.bidderId}
+          onRole={(role) => void selectRole(role)}
+          onBidder={(id) => void selectBidder(id)}
+        />
         {state.status === "failed" ? (
           <p className="text-sm text-slate-600">{state.failure}</p>
         ) : state.detail === null ? (
           <p className="text-sm text-slate-500">Loading tender…</p>
+        ) : state.role === "client" ? (
+          <ClientScreen />
         ) : (
           <BidScreen />
         )}
@@ -114,17 +128,13 @@ function BidScreen() {
 
   return (
     <>
-      <header className="border-b border-slate-200 pb-4">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-base font-semibold tracking-tight">BidDesk</h1>
-          <span className="text-xs text-slate-400">{tender.client}</span>
-        </div>
-        <h2 className="mt-3 text-lg font-medium">{tender.title}</h2>
+      <section className="border-b border-slate-200 pb-4">
+        <h2 className="text-lg font-medium">{tender.title}</h2>
         <p className="mt-1 text-xs text-slate-500">
-          {tender.id} · {tender.city} · {positions.length} positions · due{" "}
+          {tender.id} · {tender.client} · {tender.city} · {positions.length} positions · due{" "}
           {formatDate(tender.due_date)}
         </p>
-      </header>
+      </section>
 
       {locked && (
         <p className="border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-700">
@@ -195,9 +205,10 @@ function BidScreen() {
       </table>
 
       <Clarifications
-        tenderId={tenderId}
+        role="bidder"
         questions={clarifications}
         onAsk={(input) => askClarification({ tender_id: tenderId, ...input })}
+        onAnswer={(questionId, answer) => answerClarification(questionId, answer)}
       />
     </>
   );

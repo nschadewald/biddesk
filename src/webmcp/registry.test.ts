@@ -188,6 +188,65 @@ it("counts a block only once when React registers it twice", async () => {
   expect(getTools()).toHaveLength(1);
 });
 
+it("lists a tool declared by a form beside the registered ones", async () => {
+  const { declareFormTool } = await import("./registry");
+  // jsdom has no declarative form API, so stand one in: a form is a tool only
+  // where the browser makes it one.
+  Object.defineProperty(SubmitEvent.prototype, "respondWith", {
+    configurable: true,
+    value: () => undefined
+  });
+  stubModelContext("document");
+  await registerToolBlock([tool("get_tender", async () => ({ ok: true }))], newSignal());
+  const undeclare = declareFormTool({
+    name: "ask_clarification",
+    title: "Ask the client",
+    readOnly: false
+  });
+
+  const listed = getTools();
+  expect(listed.map((entry) => entry.name)).toEqual(["get_tender", "ask_clarification"]);
+  expect(listed.find((entry) => entry.name === "ask_clarification")?.kind).toBe("declarative");
+  expect(listed.find((entry) => entry.name === "get_tender")?.kind).toBe("imperative");
+
+  undeclare();
+  expect(getTools().map((entry) => entry.name)).toEqual(["get_tender"]);
+  Reflect.deleteProperty(SubmitEvent.prototype, "respondWith");
+});
+
+it("does not list a form as a tool in a browser that cannot declare one", async () => {
+  const { declareFormTool, supportsDeclarativeTools } = await import("./registry");
+  expect(supportsDeclarativeTools()).toBe(false);
+
+  stubModelContext("document");
+  await registerToolBlock([tool("get_tender", async () => ({ ok: true }))], newSignal());
+  declareFormTool({ name: "ask_clarification", title: "Ask", readOnly: false });
+
+  // Counting it would claim a tool the browser never created.
+  expect(getTools().map((entry) => entry.name)).toEqual(["get_tender"]);
+});
+
+it("reports the time a person took separately from the tool's own time", async () => {
+  const { recordHumanWait } = await import("./log");
+  const seen = stubModelContext("document");
+  await registerToolBlock(
+    [
+      tool("submit_bid", async () => {
+        recordHumanWait(4200);
+        return { ok: true };
+      })
+    ],
+    newSignal()
+  );
+
+  await seen[0]!.tool.execute({});
+  const entry = logStore.getSnapshot()[0]!;
+
+  expect(entry.waited_for_human_ms).toBe(4200);
+  // Waiting for a person is not the application being slow.
+  expect(entry.duration_ms).toBeLessThan(4200);
+});
+
 it("trusts the browser's own getTools over our bookkeeping", async () => {
   Object.defineProperty(document, "modelContext", {
     configurable: true,

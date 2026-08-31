@@ -1,25 +1,45 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Role } from "../types";
-import { getTools, registerToolBlock, registryStore } from "./registry";
-import { bidderTools, submitTools } from "./tools";
+import {
+  browserToolNames,
+  getTools,
+  registerToolBlock,
+  registryStore,
+  supportsDeclarativeTools,
+  type ListedTool
+} from "./registry";
+import {
+  askClarificationFallback,
+  bidderOnlyTools,
+  clientTools,
+  sharedTools,
+  submitTools
+} from "./tools";
 import type { ModelContextSource, ToolDefinition } from "./types";
 
-/** Which block belongs to which role. The client block arrives with its tools. */
+/**
+ * Which block belongs to which role. Roles are separated by what is registered,
+ * not by permissions: in the bidder role the client tools do not exist at all,
+ * so there is nothing for an agent to reach past.
+ */
 function toolsForRole(role: Role): ToolDefinition[] {
-  return role === "bidder" ? bidderTools : [];
+  return role === "bidder"
+    ? [...sharedTools, ...bidderOnlyTools]
+    : [...sharedTools, ...clientTools];
 }
 
 export type WebMCPStatus = {
   supported: boolean;
   source: ModelContextSource;
   error: string | null;
-  tools: ToolDefinition[];
+  tools: ListedTool[];
 };
 
 /**
- * Registers the block that belongs to the current role, and withdraws it again
- * when the role changes. One AbortController per block is what makes the later
- * withdrawal of submit_bid a two-line change rather than a new mechanism.
+ * Registers the blocks that belong to the current role and withdraws them again
+ * when it changes, which is what makes `toolchange` fire. One AbortController
+ * per block is what makes the withdrawal of submit_bid a two-line change rather
+ * than a new mechanism.
  */
 export function useWebMCP(role: Role, canSubmit: boolean): WebMCPStatus {
   const [state, setState] = useState<{
@@ -48,6 +68,22 @@ export function useWebMCP(role: Role, canSubmit: boolean): WebMCPStatus {
     void registerToolBlock(submitTools, controller.signal);
     return () => controller.abort();
   }, [role, canSubmit]);
+
+  // ask_clarification is declared by the form on the page. The imperative twin
+  // is registered ONLY where a form cannot declare a tool, because one name has
+  // to mean one tool. The declarative API extends SubmitEvent, so its presence
+  // there is the signal; a browser that also lists its tools confirms it.
+  useEffect(() => {
+    if (role !== "bidder") return;
+    const known = browserToolNames();
+    const declarativeWorks =
+      supportsDeclarativeTools() && (known === null || known.has("ask_clarification"));
+    if (declarativeWorks) return;
+
+    const controller = new AbortController();
+    void registerToolBlock(askClarificationFallback, controller.signal);
+    return () => controller.abort();
+  }, [role]);
 
   // Re-renders whenever a block is registered or withdrawn, so the count in the
   // panel is read from the registry rather than from a literal.

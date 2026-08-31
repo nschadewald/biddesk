@@ -239,3 +239,49 @@ export type SubmitResponse = {
   total_net: number;
   totals: BidTotals;
 };
+
+export type BidderTotalRow = {
+  bidder_id: string;
+  name: string;
+  total_net: number;
+  complete: boolean;
+  rank: number;
+};
+
+export type ComparedPositionRow = {
+  oz: string;
+  text: string;
+  quantity: number;
+  unit: string;
+  contingency: boolean;
+  prices: { bidder_id: string; unit_price: number; line_total: number }[];
+  min: number | null;
+  max: number | null;
+  median: number | null;
+  outliers: string[];
+};
+
+/**
+ * Sealed while the tender is open: a count and arrival times, no prices. The
+ * client cannot see inside a bid before the deadline, and neither can an agent.
+ */
+export type PriceComparison = {
+  ok: true;
+  tender_id: string;
+  title: string;
+  sealed: boolean;
+  sealed_until: string | null;
+  bids_received: number;
+  received_at: string[];
+  bidders: BidderTotalRow[];
+  positions: ComparedPositionRow[];
+  note?: string;
+};
+
+export type AnswerResponse = {
+  ok: true;
+  question_id: string;
+  published_to: string;
+};
+
+export type Bidder = { id: string; name: string; city: string; is_demo: boolean };

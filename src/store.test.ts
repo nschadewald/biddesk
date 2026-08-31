@@ -172,3 +172,22 @@ it("keeps refused rows in the row and clears one when it is written later", asyn
 
   expect(getAppState().rejections["02.01"]).toBeUndefined();
 });
+
+it("marks the bid a draft as soon as the first row is written", async () => {
+  writeResponse = {
+    ok: true,
+    bidder_id: "B-A",
+    tender_id: "T-2026-014",
+    applied: [applied("01.01", 2.9, 29)],
+    rejected: [],
+    totals: { net: 29, contingency: 0, positions_priced: 1, positions_open: 1 }
+  };
+  vi.stubGlobal("matchMedia", () => ({ matches: true }));
+
+  expect(getAppState().detail!.tender.my_bid_status).toBe("none");
+  await setUnitPrices("T-2026-014", [], "agent");
+
+  // Without this the client side would keep saying "no bid yet" while a draft
+  // sits on screen.
+  expect(getAppState().detail!.tender.my_bid_status).toBe("draft");
+});

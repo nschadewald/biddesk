@@ -3,7 +3,8 @@ import {
   capStrings,
   formatClockTime,
   summariseInput,
-  summariseOutput
+  summariseOutput,
+  takeHumanWait
 } from "./log";
 import { detectModelContext } from "./modelContext";
 import type {
@@ -26,7 +27,17 @@ import type {
  *    fires.
  */
 
+export type ListedTool = {
+  name: string;
+  title: string;
+  /** How the browser learned about it: a registration call, or a form. */
+  kind: "imperative" | "declarative";
+  readOnly: boolean;
+};
+
 let registered: ToolDefinition[] = [];
+/** Tools the page declares through a form carrying `toolname`. */
+let declared: ListedTool[] = [];
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -53,22 +64,76 @@ export const registryStore = {
  * The browser is asked first, because its answer is the one that matters. Our
  * own list is the fallback for builds that do not expose getTools().
  */
-export function getTools(): ToolDefinition[] {
+function listed(): ListedTool[] {
+  return [
+    ...registered.map((tool) => ({
+      name: tool.name,
+      title: tool.title,
+      kind: "imperative" as const,
+      readOnly: tool.annotations.readOnlyHint === true
+    })),
+    ...declared
+  ];
+}
+
+/** The names the browser itself reports, or null when it cannot say. */
+export function browserToolNames(): Set<string> | null {
   try {
     const { context } = detectModelContext();
     const fromBrowser = context?.getTools?.();
-    if (Array.isArray(fromBrowser)) {
-      const names = new Set(
-        fromBrowser
-          .map((tool) => (tool as { name?: unknown } | null)?.name)
-          .filter((name): name is string => typeof name === "string")
-      );
-      return registered.filter((tool) => names.has(tool.name));
-    }
+    if (!Array.isArray(fromBrowser)) return null;
+    return new Set(
+      fromBrowser
+        .map((tool) => (tool as { name?: unknown } | null)?.name)
+        .filter((name): name is string => typeof name === "string")
+    );
   } catch {
-    // A browser that cannot answer does not get to break the panel.
+    return null;
   }
-  return registered;
+}
+
+export function getTools(): ListedTool[] {
+  const names = browserToolNames();
+  const all = listed();
+  return names === null ? all : all.filter((tool) => names.has(tool.name));
+}
+
+/**
+ * A form on the page carrying `toolname` IS a tool, created by the browser from
+ * the markup. Registering it here keeps the self-diagnosis honest: it counts
+ * what the page offers, whichever of the two API styles offered it.
+ */
+export function declareFormTool(tool: Omit<ListedTool, "kind">): () => void {
+  // Only where the browser turns a form into a tool. Elsewhere the markup is
+  // just a form, the imperative twin is registered instead, and counting it
+  // here would make the self-diagnosis claim a tool that does not exist.
+  if (!supportsDeclarativeTools()) return () => undefined;
+
+  declared = [
+    ...declared.filter((entry) => entry.name !== tool.name),
+    { ...tool, kind: "declarative" }
+  ];
+  emit();
+  return () => {
+    declared = declared.filter((entry) => entry.name !== tool.name);
+    emit();
+  };
+}
+
+/**
+ * Whether this browser understands a form that declares a tool. The declarative
+ * API extends SubmitEvent, so its presence there is the honest signal -- more
+ * reliable than guessing from getTools(), which not every build exposes.
+ */
+export function supportsDeclarativeTools(): boolean {
+  try {
+    return (
+      typeof SubmitEvent !== "undefined" &&
+      ("respondWith" in SubmitEvent.prototype || "agentInvoked" in SubmitEvent.prototype)
+    );
+  } catch {
+    return false;
+  }
 }
 
 function toFailure(caught: unknown): ToolFailure {
@@ -99,6 +164,7 @@ function wrap(definition: ToolDefinition): WebMCPTool {
     annotations: definition.annotations,
     async execute(input: unknown) {
       const startedAt = Date.now();
+      takeHumanWait();
       let output: ToolResult;
 
       try {
@@ -107,12 +173,15 @@ function wrap(definition: ToolDefinition): WebMCPTool {
         output = toFailure(caught) as unknown as ToolResult;
       }
 
+      const waited = takeHumanWait();
+
       appendLogEntry({
         time: formatClockTime(new Date()),
         tool: definition.name,
         access,
         untrusted,
-        duration_ms: Date.now() - startedAt,
+        duration_ms: Math.max(0, Date.now() - startedAt - waited),
+        waited_for_human_ms: waited,
         outcome: output?.ok === false ? "error" : "ok",
         inputSummary: summariseInput(input),
         outputSummary: summariseOutput(output),
