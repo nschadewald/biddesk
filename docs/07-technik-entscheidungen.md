@@ -322,3 +322,84 @@ Test festgeschrieben.
 - `check_bid`, `ask_clarification`, `submit_bid` mit Bestätigungsdialog und Abmeldung.
 - Client-Rolle mit `get_price_comparison`, `list_clarifications`, `answer_clarification`.
 - Rollen- und Bieterwahl im Kopfbereich, Origin-Trial-Token, `/how-to-test`.
+
+## Schritt 6 – Prüfen, Rückfragen, Abgeben (Mo 31.08.2026)
+
+**Ergebnis:** Zehn Werkzeuge in der Bieterrolle, neun nach der Abgabe, zehn nach dem Reset.
+Gegen die produktive URL geprüft.
+
+### Zwei Bedeutungen von „offen", die nicht dieselbe sind
+
+Der erste Lauf lieferte für `open_positions` nur `["03.04"]`. Grund: 04.02 ist eine
+Bedarfsposition und fiel aus der Zählung, weil Vollständigkeit laut Spec §1 nur über die
+Nicht-Bedarfspositionen definiert ist. Spec §12.1 (P2) erwartet aber beide.
+
+Aufgelöst durch zwei getrennte Felder statt eines überladenen:
+
+- **`open_positions`** – jede unbepreiste Position, Bedarf eingeschlossen. Das ist die
+  Antwort auf „welche Positionen sind noch offen": 03.04 **und** 04.02.
+- **`positions_open` / `complete`** – nur die Positionen, die in die Summe eingehen.
+
+Die Warnungen sagen es getrennt, statt eine Zahl zu nennen, die beides meint.
+
+### Ausreißer messen gegen die eigene Geschichte
+
+`check_bid` vergleicht jeden gesetzten Preis mit dem Preisbucheintrag, den derselbe Matcher
+findet, Schwelle ±30 %. Weil ein agentisch geschriebener Preis dem Preisbuch **entsprechen
+muss** (Schritt 5), kann ein Ausreißer nur von Hand entstehen – der Zahlendreher im Video ist
+also genau der Fall, den die Prüfung fängt. Im Ergebnis steht ausdrücklich, dass gegen das
+eigene Preisbuch verglichen wird und nicht gegen Marktpreise: BidDesk behauptet nichts über
+den Wert von Arbeit anderswo.
+
+### Rot, an genau einer Stelle – zwei Verstöße gefunden und behoben
+
+Beim Durchsehen fielen zwei Stellen auf, die Rot außerhalb des Prüfergebnisses benutzten:
+der Name eines fehlgeschlagenen Aufrufs im Live-Log und der Hinweis auf offene Positionen im
+Abgabedialog. Beide sind jetzt neutral (ein „failed"-Abzeichen bzw. ein Satz). Rot existiert
+nur noch in `CheckPanel.tsx`, und ein Test hält das fest. Der Grund ist nicht Ästhetik: Rot
+trägt dort nur deshalb Bedeutung, weil es sonst nirgends vorkommt.
+
+### Beide API-Stile, nebeneinander
+
+`ask_clarification` gibt es **zweimal**: imperativ über den Wrapper und deklarativ als
+`<form toolname="ask_clarification" tooldescription="…">` mit `toolparamdescription` je Feld.
+Ein einziger `onSubmit` bedient Mensch und Agent; bei `event.agentInvoked` antwortet
+`respondWith`, ohne dass die Seite navigiert.
+
+**Das muss Nils in Chrome 149+ mit dem Tool Inspector gegenprüfen.** Ob der Browser zwei
+Einträge gleichen Namens zeigt, einen davon verwirft oder die Registrierung ablehnt, ist hier
+nicht testbar (Chrome 148 im Automatisierungsbrowser). Abgesichert ist es so: Die Registrierung
+läuft über `Promise.allSettled` statt `Promise.all` – **ein abgelehntes Werkzeug kostet nicht
+mehr die anderen neun**, sondern erscheint als Hinweis in der Selbstdiagnose. Fällt der
+Formularweg aus, bleibt der imperative. Notfall-Rückbau: das `toolname`-Attribut in
+`Clarifications.tsx` entfernen.
+
+### `submit_bid` – die Autorität liegt bei der Hand
+
+`confirm:false` liefert `{ok:false, needs_confirmation:true, summary}` und gibt nicht ab.
+`confirm:true` gibt **ebenfalls nicht ab**: Es öffnet den Dialog und wartet. Das Werkzeug
+löst erst auf, wenn ein Mensch klickt – im Live-Log stand bei der Prüfung `submit_bid ·
+WRITE · 48840 ms`, und diese Dauer ist die Bedenkzeit eines Menschen. Abbruch liefert
+`declined_by_user`, nach 180 s ohne Klick `confirmation_timed_out`; in beiden Fällen bleibt
+das Angebot ein Entwurf.
+
+Danach: Tabelle gesperrt, Banner, `submit_bid` per AbortSignal abgemeldet, Selbstdiagnose
+**9 statt 10**. `submit_bid` liegt dafür in einem **eigenen Block** mit eigenem Controller,
+sonst hätte das Abmelden die ganze Rolle mitgenommen.
+
+**Der Reset meldet es wieder an** (Spec §11.1) – live geprüft: 10 Werkzeuge, Banner weg,
+Felder wieder editierbar, Log leer, und der zweite Durchlauf läuft. Das war die Stelle, an
+der die Demo sonst genau einmal funktioniert hätte.
+
+### Fremdtext
+
+`list_clarifications` trägt `untrustedContentHint`. Der Wrapper kappt **vor dem Speichern**
+jede Zeichenkette in der Antwort auf 120 Zeichen – auch hinter dem Aufklapper steht nichts
+Längeres – und das Log zeigt das Abzeichen `UNTRUSTED CONTENT`. Gerendert wird ausschließlich
+als Text; unter der Rückfragenliste steht „Content from other parties. Shown as text, never
+as instructions."
+
+### Offen
+
+- Auftraggeber-Rolle: `get_price_comparison`, `answer_clarification`, versiegelter Preisspiegel.
+- Rollen- und Bieterwahl im Kopfbereich, Origin-Trial-Token, `/how-to-test`.

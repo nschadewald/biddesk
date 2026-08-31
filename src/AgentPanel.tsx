@@ -200,18 +200,25 @@ function LogRow({ entry }: { entry: LogEntry }) {
         className="flex w-full items-baseline gap-2 py-1 text-left text-xs"
       >
         <span className="font-mono text-[11px] text-slate-400">{entry.time}</span>
-        <span
-          className={
-            entry.outcome === "error"
-              ? "font-mono text-[11px] text-red-700"
-              : "font-mono text-[11px] text-slate-900"
-          }
-        >
-          {entry.tool}
-        </span>
+        <span className="font-mono text-[11px] text-slate-900">{entry.tool}</span>
+        {entry.outcome === "error" && (
+          // Not red. Red belongs to the check result alone, and it only keeps
+          // its meaning there because it appears nowhere else. A failed call is
+          // stated in words instead, and the reason stands in the output line.
+          <span className="rounded border border-slate-300 px-1 text-[10px] uppercase text-slate-600">
+            failed
+          </span>
+        )}
         <span className="rounded border border-slate-200 px-1 text-[10px] uppercase text-slate-500">
           {entry.access}
         </span>
+        {entry.untrusted && (
+          // Returns text written by other parties. Capped at 120 characters
+          // before it was stored, and printed, never rendered as markup.
+          <span className="rounded border border-slate-200 px-1 text-[10px] uppercase text-slate-500">
+            untrusted content
+          </span>
+        )}
         <span className="ml-auto font-mono text-[11px] text-slate-400">{entry.duration_ms} ms</span>
       </button>
       <p className="pl-1 text-[11px] text-slate-500">

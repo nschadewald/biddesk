@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   appendLogEntry,
+  capStrings,
   logStore,
   summariseInput,
   summariseOutput,
@@ -11,6 +12,7 @@ const entry = (tool: string) => ({
   time: "12:00:00",
   tool,
   access: "read" as const,
+  untrusted: false,
   duration_ms: 1,
   outcome: "ok" as const,
   inputSummary: "{}",
@@ -54,6 +56,17 @@ describe("summaries", () => {
     expect(summariseOutput({ ok: false, error: "tender_not_found", hint: "no" })).toBe(
       "error: tender_not_found"
     );
+  });
+
+  it("caps every string in what an untrusted tool returned, before it is stored", () => {
+    const long = "y".repeat(300);
+    const capped = capStrings({
+      questions: [{ id: "Q-001", question: long, answer: null, nested: { note: long } }]
+    }) as { questions: { question: string; answer: null; nested: { note: string } }[] };
+
+    expect(capped.questions[0]!.question).toHaveLength(121);
+    expect(capped.questions[0]!.nested.note).toHaveLength(121);
+    expect(capped.questions[0]!.answer).toBeNull();
   });
 
   it("cuts free text from other parties to 120 characters", () => {

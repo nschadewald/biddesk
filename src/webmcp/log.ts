@@ -59,6 +59,25 @@ export function truncateForeignText(text: string): string {
     : `${text.slice(0, FOREIGN_TEXT_LIMIT)}…`;
 }
 
+/**
+ * Caps every string in a structure. Applied to what an untrusted tool returns
+ * BEFORE it is stored, so nothing longer than 120 characters of other people's
+ * text ever reaches the panel, not even behind the expander.
+ */
+export function capStrings(value: unknown): unknown {
+  if (typeof value === "string") return truncateForeignText(value);
+  if (Array.isArray(value)) return value.map(capStrings);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+        key,
+        capStrings(entry)
+      ])
+    );
+  }
+  return value;
+}
+
 export function summariseInput(input: unknown): string {
   if (input === undefined || input === null) return "{}";
   if (typeof input !== "object") return truncateForeignText(String(input));

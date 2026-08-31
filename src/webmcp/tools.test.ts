@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getAppState } from "../store";
-import { bidderTools } from "./tools";
+import { bidderTools, submitTools } from "./tools";
 
 const WS = "44444444-4444-4444-8444-444444444444";
 
@@ -85,16 +85,61 @@ it("declares titles, closed schemas and a description for every field", () => {
   }
 });
 
+it("registers exactly the ten tools of the bidder role", () => {
+  // Nine in the role block plus submit_bid, which rides on its own controller
+  // so that handing the bid in withdraws that one tool and nothing else.
+  expect([...bidderTools, ...submitTools].map((tool) => tool.name)).toEqual([
+    "list_tenders",
+    "get_tender",
+    "get_price_book",
+    "suggest_prices",
+    "set_unit_price",
+    "check_bid",
+    "ask_clarification",
+    "list_clarifications",
+    "undo_last_change",
+    "submit_bid"
+  ]);
+  expect(submitTools).toHaveLength(1);
+});
+
 it("marks the reading tools read-only and the writing tools not", () => {
-  const readOnly = bidderTools
+  const all = [...bidderTools, ...submitTools];
+  const readOnly = all
     .filter((tool) => tool.annotations.readOnlyHint === true)
     .map((tool) => tool.name);
-  const writing = bidderTools
+  const writing = all
     .filter((tool) => tool.annotations.readOnlyHint !== true)
     .map((tool) => tool.name);
 
-  expect(readOnly).toEqual(["list_tenders", "get_tender", "get_price_book", "suggest_prices"]);
-  expect(writing).toEqual(["set_unit_price", "undo_last_change"]);
+  expect(readOnly).toEqual([
+    "list_tenders",
+    "get_tender",
+    "get_price_book",
+    "suggest_prices",
+    "check_bid",
+    "list_clarifications"
+  ]);
+  expect(writing).toEqual([
+    "set_unit_price",
+    "ask_clarification",
+    "undo_last_change",
+    "submit_bid"
+  ]);
+});
+
+it("declares untrustedContentHint on the tool that returns other people's text", () => {
+  const withForeignText = [...bidderTools, ...submitTools]
+    .filter((tool) => tool.annotations.untrustedContentHint === true)
+    .map((tool) => tool.name);
+  expect(withForeignText).toEqual(["list_clarifications"]);
+});
+
+it("marks submit_bid as destructive and says a person has to confirm it", () => {
+  const submit = submitTools[0]!;
+  expect(submit.annotations.destructiveHint).toBe(true);
+  expect(submit.description).toContain("does NOT submit");
+  expect(submit.description).toContain("only when a person clicks");
 });
 
 it("tells the agent that suggest_prices only proposes and names what applies it", () => {

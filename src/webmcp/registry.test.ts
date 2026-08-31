@@ -123,6 +123,50 @@ it("logs every call with its read/write marker, duration and outcome", async () 
   expect(write?.outputSummary).toBe("error: sealed");
 });
 
+it("keeps the other tools when the browser refuses one of them", async () => {
+  Object.defineProperty(document, "modelContext", {
+    configurable: true,
+    value: {
+      registerTool: (tool: WebMCPTool) =>
+        tool.name === "bad" ? Promise.reject(new Error("refused")) : Promise.resolve()
+    }
+  });
+
+  const result = await registerToolBlock(
+    [
+      tool("good", async () => ({ ok: true })),
+      tool("bad", async () => ({ ok: true })),
+      tool("also_good", async () => ({ ok: true }))
+    ],
+    newSignal()
+  );
+
+  expect(result.registered).toEqual(["good", "also_good"]);
+  expect(result.error).toContain("bad");
+  expect(getTools().map((entry) => entry.name)).toEqual(["good", "also_good"]);
+});
+
+it("caps foreign text in the log for a tool that declares untrustedContentHint", async () => {
+  const seen = stubModelContext("document");
+  const long = "z".repeat(400);
+  await registerToolBlock(
+    [
+      {
+        ...tool("list_clarifications", async () => ({ ok: true, questions: [{ question: long }] })),
+        annotations: { readOnlyHint: true, untrustedContentHint: true }
+      }
+    ],
+    newSignal()
+  );
+
+  await seen[0]!.tool.execute({});
+  const entry = logStore.getSnapshot()[0]!;
+
+  expect(entry.untrusted).toBe(true);
+  // Not even the expanded JSON carries the full text.
+  expect(JSON.stringify(entry.output)).not.toContain("z".repeat(200));
+});
+
 it("withdraws the whole block when its controller aborts", async () => {
   stubModelContext("document");
   const controller = new AbortController();

@@ -15,6 +15,7 @@ import {
 import type {
   BidStatus,
   BidTotals,
+  MissingDocument,
   Position,
   PreviousPrice,
   PriceBookRow,
@@ -766,6 +767,289 @@ app.post("/api/tenders/:id/undo", async (c) => {
     ok: true,
     undone: blocks.length,
     totals: await readTotals(c.env.DB, workspaceId, tenderId, bidderId)
+  });
+});
+
+/** A price is an outlier once it is more than 30 % away from the past line. */
+const OUTLIER_PCT = 30;
+const MAX_QUESTION_LENGTH = 500;
+
+app.get("/api/tenders/:id/check", async (c) => {
+  const workspaceId = c.get("workspaceId");
+  const tenderId = c.req.param("id");
+  const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
+
+  const tender = await c.env.DB.prepare(
+    `SELECT t.id, t.due_date,
+            CAST(julianday(t.due_date) - julianday('now') AS INTEGER) AS due_in_days
+       FROM tenders t WHERE t.workspace_id = ?1 AND t.id = ?2`
+  )
+    .bind(workspaceId, tenderId)
+    .first<{ id: string; due_date: string; due_in_days: number }>();
+
+  if (!tender) {
+    return c.json(fail("tender_not_found", `No tender ${tenderId} in this workspace.`), 404);
+  }
+
+  const bid = await findBid(c.env.DB, workspaceId, tenderId, bidderId);
+
+  const [positions, priceBook, documents, changes] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT p.oz, p.text_de, p.unit, p.category, p.contingency, p.sort_no,
+              bp.unit_price AS my_unit_price
+         FROM positions p
+         LEFT JOIN bid_prices bp
+           ON bp.workspace_id = p.workspace_id AND bp.bid_id = ?3 AND bp.oz = p.oz
+        WHERE p.workspace_id = ?1 AND p.tender_id = ?2
+        ORDER BY p.sort_no`
+    )
+      .bind(workspaceId, tenderId, bid?.id ?? "")
+      .all<{
+        oz: string;
+        text_de: string;
+        unit: string;
+        category: string;
+        contingency: number;
+        my_unit_price: number | null;
+      }>(),
+    readPriceBook(c.env.DB, workspaceId, bidderId),
+    c.env.DB.prepare(
+      `SELECT doc_type, valid_until, valid_until < date('now') AS expired
+         FROM bidder_documents WHERE workspace_id = ?1 AND bidder_id = ?2`
+    )
+      .bind(workspaceId, bidderId)
+      .all<{ doc_type: string; valid_until: string; expired: number }>(),
+    c.env.DB.prepare(
+      "SELECT COUNT(*) AS blocks FROM change_log WHERE workspace_id = ?1 AND bid_id = ?2"
+    )
+      .bind(workspaceId, bid?.id ?? "")
+      .first<{ blocks: number }>()
+  ]);
+
+  // "Open" means unpriced, and that includes the contingency positions: asked
+  // which positions are still open, the honest answer names 03.04 AND 04.02.
+  // Completeness is a different question -- only the billable ones decide that,
+  // because contingency positions never count towards the bid total.
+  const unpriced = positions.results.filter((row) => row.my_unit_price === null);
+  const openPositions = unpriced.map((row) => row.oz);
+  const openBillable = unpriced.filter((row) => row.contingency === 0);
+  const openContingency = unpriced.filter((row) => row.contingency === 1);
+
+  // Compared against this contractor's own past prices, not against a market:
+  // BidDesk makes no claim about what work is worth anywhere else.
+  const outliers = positions.results
+    .filter((row) => row.my_unit_price !== null)
+    .flatMap((row) => {
+      const match = findMatch(priceBook, row);
+      if (match === null) return [];
+      const reference = match.entry.unit_price;
+      const deviation = ((row.my_unit_price! - reference) / reference) * 100;
+      if (Math.abs(deviation) <= OUTLIER_PCT) return [];
+      return [
+        {
+          oz: row.oz,
+          unit_price: row.my_unit_price!,
+          price_book_price: reference,
+          price_book_id: match.entry.id,
+          deviation_pct: Math.round(deviation * 10) / 10
+        }
+      ];
+    });
+
+  const held = new Map(documents.results.map((row) => [row.doc_type, row]));
+  const missingDocuments = REQUIRED_DOCUMENTS.flatMap<MissingDocument>((required) => {
+    const row = held.get(required.doc_type);
+    if (row === undefined) {
+      return [{ ...required, valid_until: null, reason: "not_held" }];
+    }
+    if (row.expired === 1) {
+      return [{ ...required, valid_until: row.valid_until, reason: "expired" }];
+    }
+    return [];
+  });
+
+  const totals = await readTotals(c.env.DB, workspaceId, tenderId, bidderId);
+
+  // Wording, not facts. Every number in here was read or calculated, never
+  // produced: the agent may phrase, the application may not invent.
+  const warnings: string[] = [];
+  if (openBillable.length > 0) {
+    warnings.push(
+      `${openBillable.length} position${openBillable.length === 1 ? "" : "s"} without a price: ${openBillable.map((row) => row.oz).join(", ")}.`
+    );
+  }
+  if (openContingency.length > 0) {
+    warnings.push(
+      `${openContingency.length} contingency position${openContingency.length === 1 ? "" : "s"} without a price: ${openContingency.map((row) => row.oz).join(", ")}. These are quoted separately and do not count towards the total.`
+    );
+  }
+  for (const outlier of outliers) {
+    warnings.push(
+      `${outlier.oz} is ${outlier.deviation_pct > 0 ? "above" : "below"} your own past price of ${outlier.price_book_price} by ${Math.abs(outlier.deviation_pct)} %.`
+    );
+  }
+  for (const missing of missingDocuments) {
+    warnings.push(
+      missing.reason === "expired"
+        ? `${missing.label} expired on ${missing.valid_until}.`
+        : `${missing.label} is not on file.`
+    );
+  }
+  if (tender.due_in_days < 0) {
+    warnings.push(`The deadline passed ${Math.abs(tender.due_in_days)} days ago.`);
+  } else if (tender.due_in_days <= 3) {
+    warnings.push(`Only ${tender.due_in_days} days left until the deadline.`);
+  }
+
+  return c.json({
+    ok: true,
+    bidder_id: bidderId,
+    tender_id: tenderId,
+    status: bid?.status ?? "none",
+    complete: openBillable.length === 0,
+    open_positions: openPositions,
+    outliers,
+    missing_documents: missingDocuments,
+    due_date: tender.due_date,
+    due_in_days: tender.due_in_days,
+    totals,
+    positions_priced: totals.positions_priced,
+    positions_open: totals.positions_open,
+    undo_available: (changes?.blocks ?? 0) > 0,
+    warnings
+  });
+});
+
+app.use("/api/clarifications", requireWorkspace);
+app.use("/api/clarifications/*", requireWorkspace);
+
+app.get("/api/clarifications", async (c) => {
+  const workspaceId = c.get("workspaceId");
+  const tenderId = c.req.query("tender_id");
+  const status = c.req.query("status");
+
+  const where = ["c.workspace_id = ?1"];
+  const params: string[] = [workspaceId];
+  if (tenderId) {
+    params.push(tenderId);
+    where.push(`c.tender_id = ?${params.length}`);
+  }
+  if (status) {
+    params.push(status);
+    where.push(`c.status = ?${params.length}`);
+  }
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT c.id, c.tender_id, c.oz, c.question, c.answer, c.status, c.created_at,
+            b.name AS bidder
+       FROM clarifications c
+       LEFT JOIN bidders b ON b.workspace_id = c.workspace_id AND b.id = c.bidder_id
+      WHERE ${where.join(" AND ")}
+      ORDER BY c.created_at DESC, c.id DESC`
+  )
+    .bind(...params)
+    .all<{
+      id: string;
+      tender_id: string;
+      oz: string | null;
+      question: string;
+      answer: string | null;
+      status: string;
+      created_at: string;
+      bidder: string | null;
+    }>();
+
+  return c.json({ ok: true, questions: results });
+});
+
+app.post("/api/clarifications", async (c) => {
+  const workspaceId = c.get("workspaceId");
+  const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
+  const body = await c.req
+    .json<{ tender_id?: unknown; oz?: unknown; question?: unknown }>()
+    .catch(() => ({}) as Record<string, unknown>);
+
+  const tenderId = typeof body.tender_id === "string" ? body.tender_id.trim() : "";
+  const question = typeof body.question === "string" ? body.question.trim() : "";
+  const oz = typeof body.oz === "string" && body.oz.trim().length > 0 ? body.oz.trim() : null;
+
+  if (tenderId.length === 0) {
+    return c.json(fail("invalid_input", "tender_id is required."), 400);
+  }
+  if (question.length === 0) {
+    return c.json(fail("invalid_input", "question is required."), 400);
+  }
+  if (question.length > MAX_QUESTION_LENGTH) {
+    return c.json(
+      fail("invalid_input", `question must be at most ${MAX_QUESTION_LENGTH} characters.`),
+      400
+    );
+  }
+
+  const tender = await c.env.DB.prepare(
+    "SELECT id FROM tenders WHERE workspace_id = ?1 AND id = ?2"
+  )
+    .bind(workspaceId, tenderId)
+    .first<{ id: string }>();
+  if (!tender) {
+    return c.json(fail("tender_not_found", `No tender ${tenderId} in this workspace.`), 404);
+  }
+  if (oz !== null) {
+    const position = await c.env.DB.prepare(
+      "SELECT oz FROM positions WHERE workspace_id = ?1 AND tender_id = ?2 AND oz = ?3"
+    )
+      .bind(workspaceId, tenderId, oz)
+      .first<{ oz: string }>();
+    if (!position) {
+      return c.json(fail("unknown_position", `${oz} is not a position of ${tenderId}.`), 400);
+    }
+  }
+
+  const id = `Q-${crypto.randomUUID().slice(0, 8)}`;
+  await c.env.DB.prepare(
+    `INSERT INTO clarifications (workspace_id, id, tender_id, bidder_id, oz, question, status)
+          VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'open')`
+  )
+    .bind(workspaceId, id, tenderId, bidderId, oz, question)
+    .run();
+
+  return c.json({ ok: true, question_id: id, status: "open" }, 201);
+});
+
+app.post("/api/tenders/:id/submit", async (c) => {
+  const workspaceId = c.get("workspaceId");
+  const tenderId = c.req.param("id");
+  const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
+
+  const bid = await findBid(c.env.DB, workspaceId, tenderId, bidderId);
+  if (bid === null) {
+    return c.json(fail("no_bid", "There is nothing to hand in: no prices have been entered."), 400);
+  }
+  if (bid.status === "submitted") {
+    return c.json(fail("bid_already_submitted", "This bid has already been handed in."), 409);
+  }
+
+  await c.env.DB.prepare(
+    "UPDATE bids SET status = 'submitted', submitted_at = datetime('now') WHERE workspace_id = ?1 AND id = ?2"
+  )
+    .bind(workspaceId, bid.id)
+    .run();
+
+  const row = await c.env.DB.prepare(
+    "SELECT submitted_at FROM bids WHERE workspace_id = ?1 AND id = ?2"
+  )
+    .bind(workspaceId, bid.id)
+    .first<{ submitted_at: string }>();
+
+  const totals = await readTotals(c.env.DB, workspaceId, tenderId, bidderId);
+
+  return c.json({
+    ok: true,
+    tender_id: tenderId,
+    bidder_id: bidderId,
+    submitted_at: row?.submitted_at ?? "",
+    total_net: totals.net,
+    totals
   });
 });
 

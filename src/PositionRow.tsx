@@ -36,12 +36,15 @@ export default function PositionRow({
   position,
   suggestion,
   rejection,
+  locked,
   onAccept,
   onEnter
 }: {
   position: Position;
   suggestion: Suggestion | undefined;
   rejection: PriceRejection | undefined;
+  /** The bid has been handed in. Nothing here may change any more. */
+  locked: boolean;
   onAccept: (suggestion: Suggestion) => void;
   onEnter: (oz: string, unitPrice: number) => void;
 }) {
@@ -117,6 +120,7 @@ export default function PositionRow({
               id={`price-${position.oz}`}
               inputMode="decimal"
               value={draft}
+              readOnly={locked}
               placeholder="—"
               onFocus={() => setEditing(true)}
               onChange={(event) => setDraft(event.target.value)}
@@ -128,7 +132,11 @@ export default function PositionRow({
                   setDraft(formatForInput(position.my_unit_price));
                 }
               }}
-              className="w-24 rounded border border-transparent px-1.5 py-0.5 text-right tabular-nums hover:border-slate-300 focus:border-slate-400 focus:outline-none"
+              className={
+                locked
+                  ? "w-24 px-1.5 py-0.5 text-right tabular-nums text-slate-700"
+                  : "w-24 rounded border border-transparent px-1.5 py-0.5 text-right tabular-nums hover:border-slate-300 focus:border-slate-400 focus:outline-none"
+              }
             />
 
             {/* The source stays visible after the value is in the cell. The
@@ -136,7 +144,7 @@ export default function PositionRow({
             {chip && (
               <span className="flex max-w-full items-center gap-1">
                 <SourceChip chip={chip} open={open} onToggle={() => setOpen(!open)} />
-                {proposal && (
+                {proposal && !locked && (
                   <button
                     type="button"
                     onClick={() => onAccept(proposal)}

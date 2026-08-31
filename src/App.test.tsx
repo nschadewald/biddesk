@@ -34,7 +34,9 @@ function stubApi() {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string) =>
-      input === "/api/workspace"
+      input.startsWith("/api/clarifications")
+        ? new Response(JSON.stringify({ ok: true, questions: [] }))
+        : input === "/api/workspace"
         ? new Response(JSON.stringify({ ok: true, workspace_id: WS, created: true }))
         : new Response(
             JSON.stringify({
@@ -122,10 +124,40 @@ it("counts the registered tools from the registry when WebMCP is present", async
   render(<App />);
 
   // Counted from the block, not written down: the panel does the same.
-  await screen.findByText(`WebMCP detected · ${bidderTools.length} tools registered`);
+  // The bidder block plus submit_bid, which rides on its own controller.
+  await screen.findByText(`WebMCP detected · ${bidderTools.length + 1} tools registered`);
   for (const registered of bidderTools) {
     expect(screen.getByText(registered.name)).toBeInTheDocument();
   }
 
   Reflect.deleteProperty(document, "modelContext");
+});
+
+it("labels a log entry from an untrusted tool and caps the foreign text", async () => {
+  stubApi();
+  Object.defineProperty(document, "modelContext", {
+    configurable: true,
+    value: { registerTool: () => Promise.resolve() }
+  });
+
+  const { logStore, appendLogEntry } = await import("./webmcp/log");
+  logStore.clear();
+  appendLogEntry({
+    time: "12:00:00",
+    tool: "list_clarifications",
+    access: "read",
+    untrusted: true,
+    duration_ms: 4,
+    outcome: "ok",
+    inputSummary: "{}",
+    outputSummary: "1 questions",
+    input: {},
+    output: { ok: true, questions: [{ question: "a".repeat(300) }] }
+  });
+
+  render(<App />);
+
+  expect(await screen.findByText("untrusted content")).toBeInTheDocument();
+  Reflect.deleteProperty(document, "modelContext");
+  logStore.clear();
 });

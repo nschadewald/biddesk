@@ -1,4 +1,10 @@
-import { appendLogEntry, formatClockTime, summariseInput, summariseOutput } from "./log";
+import {
+  appendLogEntry,
+  capStrings,
+  formatClockTime,
+  summariseInput,
+  summariseOutput
+} from "./log";
 import { detectModelContext } from "./modelContext";
 import type {
   ModelContextSource,
@@ -83,6 +89,7 @@ function toFailure(caught: unknown): ToolFailure {
  */
 function wrap(definition: ToolDefinition): WebMCPTool {
   const access = definition.annotations.readOnlyHint === true ? "read" : "write";
+  const untrusted = definition.annotations.untrustedContentHint === true;
 
   return {
     name: definition.name,
@@ -104,12 +111,14 @@ function wrap(definition: ToolDefinition): WebMCPTool {
         time: formatClockTime(new Date()),
         tool: definition.name,
         access,
+        untrusted,
         duration_ms: Date.now() - startedAt,
         outcome: output?.ok === false ? "error" : "ok",
         inputSummary: summariseInput(input),
         outputSummary: summariseOutput(output),
         input,
-        output
+        // Foreign text is capped before it is stored, never after.
+        output: untrusted ? capStrings(output) : output
       });
 
       return output;
@@ -129,7 +138,7 @@ export type RegistrationResult = {
  * is how the role switch and the withdrawal of submit_bid are built.
  */
 export async function registerToolBlock(
-  definitions: ToolDefinition[],
+  requested: ToolDefinition[],
   signal: AbortSignal
 ): Promise<RegistrationResult> {
   const { context, source } = detectModelContext();
@@ -138,6 +147,8 @@ export async function registerToolBlock(
     return { source, supported: false, registered: [], error: null };
   }
 
+  let definitions = [...requested];
+  let registrationError: string | null = null;
   const wrapped = definitions.map(wrap);
   // Per-tool registration is the current shape; provideContext is the older,
   // page-wide one. Which of the two we used decides how abort undoes it.
@@ -145,7 +156,18 @@ export async function registerToolBlock(
 
   try {
     if (perTool) {
-      await Promise.all(wrapped.map((tool) => context.registerTool?.(tool, { signal })));
+      // allSettled, not all: a browser that refuses one tool must not cost us
+      // the other nine.
+      const outcomes = await Promise.allSettled(
+        wrapped.map((tool) => context.registerTool?.(tool, { signal }))
+      );
+      const refused = outcomes.flatMap((outcome, index) =>
+        outcome.status === "rejected" ? [definitions[index]!.name] : []
+      );
+      if (refused.length > 0) {
+        definitions = definitions.filter((tool) => !refused.includes(tool.name));
+        registrationError = `The browser refused ${refused.join(", ")}.`;
+      }
     } else if (typeof context.provideContext === "function") {
       await context.provideContext({ tools: [...registered.map(wrap), ...wrapped] });
     } else {
@@ -197,6 +219,6 @@ export async function registerToolBlock(
     source,
     supported: true,
     registered: definitions.map((tool) => tool.name),
-    error: null
+    error: registrationError
   };
 }

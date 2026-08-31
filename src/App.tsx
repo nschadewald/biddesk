@@ -1,14 +1,31 @@
 import { useEffect, useState } from "react";
 import AgentPanel from "./AgentPanel";
+import CheckPanel from "./CheckPanel";
+import Clarifications from "./Clarifications";
 import { formatDate, formatEuro } from "./format";
 import PositionRow from "./PositionRow";
-import { boot, resetDemo, setUnitPrices, undoLastChange, useAppState } from "./store";
+import SubmitDialog from "./SubmitDialog";
+import {
+  askClarification,
+  boot,
+  cancelSubmit,
+  closeCheck,
+  confirmSubmit,
+  requestSubmit,
+  resetDemo,
+  runCheck,
+  setUnitPrices,
+  undoLastChange,
+  useAppState
+} from "./store";
 import type { Position, Suggestion } from "./types";
 import { useWebMCP } from "./webmcp/useWebMCP";
 
 export default function App() {
   const state = useAppState();
-  const webmcp = useWebMCP(state.role);
+  const submitted = state.detail?.tender.my_bid_status === "submitted";
+  // submit_bid is registered only while there is still a bid to hand in.
+  const webmcp = useWebMCP(state.role, !submitted);
   const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
@@ -36,22 +53,31 @@ export default function App() {
         )}
       </main>
       <AgentPanel webmcp={webmcp} onReset={onReset} resetting={resetting} />
+
+      {state.pendingSubmit && (
+        <SubmitDialog
+          tenderId={state.pendingSubmit.tenderId}
+          totals={state.pendingSubmit.totals}
+          onConfirm={() => void confirmSubmit()}
+          onCancel={cancelSubmit}
+        />
+      )}
     </div>
   );
 }
 
 function BidScreen() {
-  const { detail, suggestions, rejections, tenderId } = useAppState();
+  const { detail, suggestions, rejections, tenderId, check, clarifications } = useAppState();
+  const [busy, setBusy] = useState(false);
   if (!detail) return null;
 
   const { tender, positions } = detail;
+  const locked = tender.my_bid_status === "submitted";
   const net = sum(positions.filter((position) => !position.contingency));
   const contingency = sum(positions.filter((position) => position.contingency));
   const billable = positions.filter((position) => !position.contingency);
   const priced = billable.filter((position) => position.my_unit_price !== null).length;
 
-  // The open proposals, in the order of the bill of quantities. A gap has no
-  // price and is therefore never part of what "apply all" applies.
   const openProposals = positions
     .map((position) => suggestions[position.oz])
     .filter(
@@ -61,7 +87,7 @@ function BidScreen() {
         positions.find((position) => position.oz === suggestion.oz)?.my_unit_price === null
     );
 
-  // The button and the tool go through the same store action. There is no
+  // The buttons and the tools go through the same store actions. There is no
   // second path into the bid, so the two cannot drift apart.
   const apply = (proposals: Suggestion[]) =>
     void setUnitPrices(
@@ -77,6 +103,15 @@ function BidScreen() {
   const enter = (oz: string, unitPrice: number) =>
     void setUnitPrices(tenderId, [{ oz, unit_price: unitPrice }], "human");
 
+  async function withBusy(work: () => Promise<unknown>) {
+    setBusy(true);
+    try {
+      await work();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
       <header className="border-b border-slate-200 pb-4">
@@ -91,30 +126,47 @@ function BidScreen() {
         </p>
       </header>
 
+      {locked && (
+        <p className="border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+          Submitted. The prices are locked and cannot be changed.
+        </p>
+      )}
+
       <section className="flex flex-wrap items-baseline gap-x-8 gap-y-2 border-b border-slate-200 py-3 text-xs">
         <Total label="Net total" value={formatEuro(net)} strong />
         <Total label="Contingency positions" value={formatEuro(contingency)} />
         <Total label="Priced" value={`${priced} of ${billable.length}`} />
 
         <span className="ml-auto flex items-center gap-2">
-          {openProposals.length > 0 && (
-            <button
-              type="button"
-              onClick={() => apply(openProposals)}
-              className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
-            >
+          {!locked && openProposals.length > 0 && (
+            <Action onClick={() => apply(openProposals)}>
               Apply all suggestions ({openProposals.length})
-            </button>
+            </Action>
           )}
-          <button
-            type="button"
-            onClick={() => void undoLastChange(1)}
-            className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
-          >
-            Undo
-          </button>
+          <Action disabled={busy} onClick={() => void withBusy(() => runCheck(tenderId))}>
+            Check bid
+          </Action>
+          {!locked && (
+            <>
+              <Action onClick={() => void undoLastChange(1)}>Undo</Action>
+              <Action
+                disabled={busy}
+                onClick={() =>
+                  void withBusy(async () => {
+                    const result = await runCheck(tenderId);
+                    if (result.status === "none") return;
+                    await requestSubmit(tenderId, result.totals);
+                  })
+                }
+              >
+                Submit bid
+              </Action>
+            </>
+          )}
         </span>
       </section>
+
+      {check && <CheckPanel check={check} onClose={closeCheck} />}
 
       <table className="w-full border-collapse text-sm">
         <thead>
@@ -134,12 +186,19 @@ function BidScreen() {
               position={position}
               suggestion={suggestions[position.oz]}
               rejection={rejections[position.oz]}
+              locked={locked}
               onAccept={(proposal) => apply([proposal])}
               onEnter={enter}
             />
           ))}
         </tbody>
       </table>
+
+      <Clarifications
+        tenderId={tenderId}
+        questions={clarifications}
+        onAsk={(input) => askClarification({ tender_id: tenderId, ...input })}
+      />
     </>
   );
 }
@@ -148,6 +207,27 @@ function BidScreen() {
 function sum(positions: Position[]): number {
   const total = positions.reduce((carry, position) => carry + (position.line_total ?? 0), 0);
   return Math.round(total * 100) / 100;
+}
+
+function Action({
+  children,
+  onClick,
+  disabled
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:opacity-50"
+    >
+      {children}
+    </button>
+  );
 }
 
 function Total({ label, value, strong }: { label: string; value: string; strong?: boolean }) {

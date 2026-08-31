@@ -42,6 +42,7 @@ function row(props: {
   position: Position;
   suggestion?: Suggestion;
   rejection?: PriceRejection;
+  locked?: boolean;
   onAccept?: (suggestion: Suggestion) => void;
   onEnter?: (oz: string, unitPrice: number) => void;
 }) {
@@ -52,6 +53,7 @@ function row(props: {
           position={props.position}
           suggestion={props.suggestion}
           rejection={props.rejection}
+          locked={props.locked ?? false}
           onAccept={props.onAccept ?? (() => {})}
           onEnter={props.onEnter ?? (() => {})}
         />
@@ -119,6 +121,7 @@ it("gives every chip the same look, whatever the number of matched terms", () =>
           position={position({ oz: "a" })}
           suggestion={proposal({ oz: "a", matched_terms: 1 })}
           rejection={undefined}
+          locked={false}
           onAccept={() => {}}
           onEnter={() => {}}
         />
@@ -126,6 +129,7 @@ it("gives every chip the same look, whatever the number of matched terms", () =>
           position={position({ oz: "b" })}
           suggestion={proposal({ oz: "b", matched_terms: 4 })}
           rejection={undefined}
+          locked={false}
           onAccept={() => {}}
           onEnter={() => {}}
         />
@@ -204,4 +208,17 @@ it("marks a refused row in place, with its machine-readable reason", () => {
   // The mark belongs to the row, and it is not red: red is for check_bid alone.
   expect(container.querySelector("tr[data-oz='02.01']")?.textContent).toContain("not written");
   expect(container.innerHTML).not.toMatch(/red|amber|yellow/);
+});
+
+it("locks the row once the bid has been handed in", () => {
+  row({
+    position: position({ my_unit_price: 480, line_total: 480, set_by: "agent", source: SOURCE }),
+    suggestion: proposal(),
+    locked: true
+  });
+
+  expect(screen.getByLabelText("Unit price for 01.01")).toHaveAttribute("readonly");
+  // The source is still there; only the ability to change anything is gone.
+  expect(screen.getByRole("button", { name: /Luegallee 40/ })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Use" })).not.toBeInTheDocument();
 });

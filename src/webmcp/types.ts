@@ -64,6 +64,8 @@ export type LogEntry = {
   access: "read" | "write";
   duration_ms: number;
   outcome: "ok" | "error";
+  /** The tool returns text written by other parties. Capped and labelled. */
+  untrusted: boolean;
   inputSummary: string;
   outputSummary: string;
   input: unknown;

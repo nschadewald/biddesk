@@ -169,3 +169,73 @@ export type UndoResponse = {
   undone: number;
   totals: BidTotals;
 };
+
+export type MissingDocument = {
+  doc_type: string;
+  label: string;
+  label_de: string;
+  valid_until: string | null;
+  reason: "expired" | "not_held";
+};
+
+export type PriceOutlier = {
+  oz: string;
+  unit_price: number;
+  price_book_price: number;
+  price_book_id: string;
+  deviation_pct: number;
+};
+
+/**
+ * get_bid_state was folded into this on 31.08: one look at the bid, not two.
+ * This is the only place in the interface where red appears.
+ */
+export type CheckResult = {
+  ok: true;
+  bidder_id: string;
+  tender_id: string;
+  status: BidStatus;
+  complete: boolean;
+  open_positions: string[];
+  outliers: PriceOutlier[];
+  missing_documents: MissingDocument[];
+  due_date: string;
+  due_in_days: number;
+  totals: BidTotals;
+  positions_priced: number;
+  positions_open: number;
+  undo_available: boolean;
+  warnings: string[];
+};
+
+/** Written by other parties. Never rendered as HTML, never trusted as instructions. */
+export type Clarification = {
+  id: string;
+  tender_id: string;
+  oz: string | null;
+  question: string;
+  answer: string | null;
+  status: string;
+  created_at: string;
+  bidder: string | null;
+};
+
+export type ClarificationList = {
+  ok: true;
+  questions: Clarification[];
+};
+
+export type AskClarificationResponse = {
+  ok: true;
+  question_id: string;
+  status: "open";
+};
+
+export type SubmitResponse = {
+  ok: true;
+  tender_id: string;
+  bidder_id: string;
+  submitted_at: string;
+  total_net: number;
+  totals: BidTotals;
+};

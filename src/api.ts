@@ -1,7 +1,11 @@
 import type {
   ApiError,
+  AskClarificationResponse,
+  CheckResult,
+  ClarificationList,
   PriceBookResponse,
   SetPricesResponse,
+  SubmitResponse,
   SuggestionsResponse,
   TenderDetail,
   TenderList,
@@ -173,6 +177,42 @@ export async function undoChanges(workspaceId: string, tenderId: string, steps: 
   return post<UndoResponse>(`/api/tenders/${encodeURIComponent(tenderId)}/undo`, workspaceId, {
     steps
   });
+}
+
+export async function readCheck(workspaceId: string, tenderId: string) {
+  return readThroughWorkspace<CheckResult>(
+    `/api/tenders/${encodeURIComponent(tenderId)}/check`,
+    workspaceId
+  );
+}
+
+export type ClarificationFilters = { tender_id?: string; status?: string };
+
+export async function readClarifications(
+  workspaceId: string,
+  filters: ClarificationFilters = {}
+) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (typeof value === "string" && value.length > 0) query.set(key, value);
+  }
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+  return readThroughWorkspace<ClarificationList>(`/api/clarifications${suffix}`, workspaceId);
+}
+
+export async function writeClarification(
+  workspaceId: string,
+  body: { tender_id: string; oz?: string | null; question: string }
+) {
+  return post<AskClarificationResponse>("/api/clarifications", workspaceId, body);
+}
+
+export async function submitBid(workspaceId: string, tenderId: string) {
+  return post<SubmitResponse>(
+    `/api/tenders/${encodeURIComponent(tenderId)}/submit`,
+    workspaceId,
+    {}
+  );
 }
 
 export async function loadTender(tenderId: string, workspaceId: string) {

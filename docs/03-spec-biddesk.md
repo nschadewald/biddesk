@@ -357,7 +357,8 @@ Der Widerspruch war echt: Die frühere „13" zählte `list_clarifications` dopp
 2. **Preisbuch stammt aus vorbereiteten Daten.** Import echter Altangebote (PDF, GAEB X84) fehlt. Der Beleg-Mechanismus ist echt, die Befüllung ist es nicht.
 3. **Keine Anmeldung, keine Autorisierung.** Der Rollenwechsel ist ein Demo-Mechanismus; jeder Besucher sieht beide Seiten. Rollen sind über Werkzeug-Registrierung getrennt, nicht über Rechte.
 4. **Das Matching ist bewusst konservativ.** Es opfert Trefferquote für Präzision: abweichende Formulierungen und Synonyme führen zu „no comparable entry" statt zu einem unsicheren Preis. Ein falscher Preis mit Herkunfts-Chip wäre schädlicher als eine Lücke.
-5. **Ein Bieter je Workspace, Desktop-first.** Gleichzeitiges Arbeiten mehrerer Bieter im selben Zustand ist nicht getestet; die Oberfläche ist für Desktop ausgelegt, weil der ChatGPT-Browser dort läuft.
+5. **Der Agent kann keinen frei genannten Preis eintragen.** Auch nicht, wenn der Mensch ihn im Chat diktiert – die Seite kann die Herkunft eines diktierten Werts nicht prüfen und verweigert deshalb, ihn als belegt zu verbuchen. Bewusst gewählt: lieber ein Weg weniger als ein Wert ohne Beleg. Freie Preise trägt der Mensch in die Tabelle ein.
+6. **Ein Bieter je Workspace, Desktop-first.** Gleichzeitiges Arbeiten mehrerer Bieter im selben Zustand ist nicht getestet; die Oberfläche ist für Desktop ausgelegt, weil der ChatGPT-Browser dort läuft.
 
 ### 12.4 GAEB – binärer Go/No-Go
 
@@ -413,6 +414,18 @@ Zusätzlich wird das Ausgabefeld umbenannt: statt `confidence` nun **`matched_te
 - **Gleichstand:** Haben zwei Preisbuch-Einträge dieselbe Trefferzahl, gewinnt der frühere (`ORDER BY id`, also Seed-Reihenfolge). Deterministisch und getestet.
 - **`matched_on` unterscheidet zwei Arten von Lücke:** `[]` heißt „kein Eintrag dieser Bauart im Preisbuch", `["category","unit"]` heißt „richtige Bauart vorhanden, aber die Wortwahl passte nicht". Der Preis bleibt in beiden Fällen `null`. Für Farbwerk Meier sind beide Lücken der erste Fall.
 - **Vorschlagen ist nicht Eintragen.** `suggest_prices` ist `readOnlyHint` und ändert deshalb NICHTS am Dokument: Der Preis steht auf dem Chip, die Zelle bleibt leer, die Summenleiste bei 0,00 €. Eingetragen wird ausschließlich über `set_unit_price` – per Übernehmen-Knopf durch den Menschen oder durch den Agenten. Ein Lese-Werkzeug, das die Tabelle füllt, wäre eine Lüge über `readOnlyHint`.
+
+### 13.3c Der Agent kann keinen Preis erfinden – durch Bauart, nicht durch Beschriftung (31.08.)
+
+Beim Bau von `set_unit_price` fiel auf, dass die Invariante „`price_book_id` ODER `set_by='human'`" auf zwei Arten erfüllbar ist: ehrlich – oder durch Umetikettieren. Ein Agent, der einen Preis erfindet und die Zeile als `human` verbucht, erfüllt die Bedingung und bricht trotzdem den Leitsatz.
+
+**Deshalb verschärft:** Was über ein Werkzeug kommt, wird `set_by='agent'` verbucht, **verlangt zwingend eine `price_book_id`**, und der Preis muss dem der genannten Preisbuchzeile entsprechen. `set_by='human'` kann nur über die Oberfläche entstehen. Damit gilt die Invariante durch Bauart.
+
+**Das ist der stärkste einzelne Satz über dieses Produkt** und gehört so ins Write-up: *The agent cannot write a price that is not traceable to a previous quote by this firm – not by policy, by construction.*
+
+**Der Preis dafür, bewusst bezahlt:** „Trag bei 03.04 61 € ein" über den Agenten wird abgewiesen; der Mensch tippt es in die Tabelle. Das ist genau die Szene aus §12.1 – aber ein Juror wird diesen Satz mit hoher Wahrscheinlichkeit ausprobieren. Deshalb ist die **Abweisung ein gestalteter Moment, kein Fehler**: Der Grund muss menschenlesbar und handlungsweisend sein, sinngemäß *„I can't write a price that isn't in your price book. Enter it in the table yourself, or add it to your price book first."* Gut formuliert ist das eine Demonstration; schlecht formuliert sieht es kaputt aus.
+
+Umkehrbar in einer Zeile (`src/pricing.ts`, `setBy === "agent"`-Block) – dann fällt allerdings der Beweis. Nicht ohne Not umkehren.
 
 ### 13.4 Live-Log – Inhalt und bewusste Auslassungen
 

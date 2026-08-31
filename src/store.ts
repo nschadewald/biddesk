@@ -3,21 +3,32 @@ import {
   ensureWorkspace,
   listTenders,
   loadTender,
+  readCheck,
+  readClarifications,
   readPriceBook,
   readSuggestions,
   resetWorkspace,
+  submitBid,
+  writeClarification,
   undoChanges,
   writeUnitPrices,
+  type ClarificationFilters,
   type PriceBookFilters,
   type PriceWrite,
   type TenderFilters
 } from "./api";
 import type {
   AppliedPrice,
+  AskClarificationResponse,
+  BidTotals,
+  CheckResult,
+  Clarification,
+  ClarificationList,
   PriceBookResponse,
   PriceRejection,
   Role,
   SetPricesResponse,
+  SubmitResponse,
   Suggestion,
   SuggestionsResponse,
   TenderDetail,
@@ -49,6 +60,12 @@ export type AppState = {
    * by itself is a message nobody read.
    */
   rejections: Record<string, PriceRejection>;
+  /** The last check. The only place in the interface where red appears. */
+  check: CheckResult | null;
+  /** Questions and answers. Written by other parties; printed, never obeyed. */
+  clarifications: Clarification[];
+  /** Open confirmation dialog. A bid is handed in by a hand, never by a tool. */
+  pendingSubmit: { tenderId: string; totals: BidTotals } | null;
   failure: string | null;
 };
 
@@ -61,6 +78,9 @@ let state: AppState = {
   detail: null,
   suggestions: {},
   rejections: {},
+  check: null,
+  clarifications: [],
+  pendingSubmit: null,
   failure: null
 };
 
@@ -116,8 +136,11 @@ export async function openTender(tenderId: string): Promise<TenderDetail> {
     // must not leave someone else's chips hanging on these rows.
     suggestions: detail.tender.id === state.tenderId ? state.suggestions : {},
     rejections: detail.tender.id === state.tenderId ? state.rejections : {},
+    // A check describes one bid at one moment. Another tender invalidates it.
+    check: detail.tender.id === state.tenderId ? state.check : null,
     failure: null
   });
+  void loadClarifications({ tender_id: detail.tender.id });
   return detail;
 }
 
@@ -250,6 +273,83 @@ export async function undoLastChange(steps = 1): Promise<UndoResponse> {
   return data;
 }
 
+/** Reads the bid back and says what is off. Nothing is written. */
+export async function runCheck(tenderId: string): Promise<CheckResult> {
+  const workspaceId = await requireWorkspace();
+  const { workspaceId: current, data } = await readCheck(workspaceId, tenderId);
+  set({
+    ...(current === workspaceId ? {} : { workspaceId: current }),
+    ...(tenderId === state.tenderId ? { check: data } : {})
+  });
+  return data;
+}
+
+/** Puts the check result away. The bid is untouched; this is a view concern. */
+export function closeCheck(): void {
+  set({ check: null });
+}
+
+export async function loadClarifications(
+  filters: ClarificationFilters = {}
+): Promise<ClarificationList> {
+  const workspaceId = await requireWorkspace();
+  const { workspaceId: current, data } = await readClarifications(workspaceId, filters);
+  const patch: Partial<AppState> = current === workspaceId ? {} : { workspaceId: current };
+  if (filters.tender_id === undefined || filters.tender_id === state.tenderId) {
+    patch.clarifications = data.questions;
+  }
+  set(patch);
+  return data;
+}
+
+export async function askClarification(body: {
+  tender_id: string;
+  oz?: string | null;
+  question: string;
+}): Promise<AskClarificationResponse> {
+  const workspaceId = await requireWorkspace();
+  const { workspaceId: current, data } = await writeClarification(workspaceId, body);
+  if (current !== workspaceId) set({ workspaceId: current });
+  await loadClarifications({ tender_id: body.tender_id });
+  return data;
+}
+
+/**
+ * Opens the confirmation dialog and waits for a person. This is the whole point
+ * of the destructive tool: `confirm:true` is a request to ask, not permission to
+ * act. Nothing is handed in until confirmSubmit runs, and only a click runs it.
+ */
+let awaitingConfirmation: ((value: SubmitResponse | null) => void) | null = null;
+
+export function requestSubmit(tenderId: string, totals: BidTotals) {
+  return new Promise<SubmitResponse | null>((resolve) => {
+    awaitingConfirmation?.(null);
+    awaitingConfirmation = resolve;
+    set({ pendingSubmit: { tenderId, totals } });
+  });
+}
+
+export async function confirmSubmit(): Promise<SubmitResponse | null> {
+  const pending = state.pendingSubmit;
+  if (pending === null) return null;
+
+  const workspaceId = await requireWorkspace();
+  const { workspaceId: current, data } = await submitBid(workspaceId, pending.tenderId);
+  set({ ...(current === workspaceId ? {} : { workspaceId: current }), pendingSubmit: null });
+  // Re-read: the table locks and submit_bid is withdrawn off the bid status.
+  await openTender(pending.tenderId);
+
+  awaitingConfirmation?.(data);
+  awaitingConfirmation = null;
+  return data;
+}
+
+export function cancelSubmit(): void {
+  set({ pendingSubmit: null });
+  awaitingConfirmation?.(null);
+  awaitingConfirmation = null;
+}
+
 export async function boot(): Promise<void> {
   try {
     await openTender(state.tenderId);
@@ -270,6 +370,12 @@ export async function resetDemo(): Promise<void> {
   const workspaceId = await requireWorkspace();
   await resetWorkspace(workspaceId);
   logStore.clear();
-  set({ tenderId: DEMO_TENDER, suggestions: {}, rejections: {} });
+  set({
+    tenderId: DEMO_TENDER,
+    suggestions: {},
+    rejections: {},
+    check: null,
+    pendingSubmit: null
+  });
   await openTender(DEMO_TENDER);
 }
