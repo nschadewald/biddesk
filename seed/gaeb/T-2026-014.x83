@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- BidDesk Demo-Datei. Handgebaute, strukturtreue GAEB-DA-XML-3.2-Probe (DA83),
+     KEIN Export aus einem zertifizierten AVA-Programm. Importer defensiv schreiben. -->
+<GAEB xmlns="http://www.gaeb.de/GAEB_DA_XML/DA83/3.2">
+  <GAEBInfo>
+    <Version>3.2</Version>
+    <VersDate>2013-09-01</VersDate>
+    <Date>2026-08-31</Date>
+    <Time>09:00:00</Time>
+    <ProgSystem>BidDesk Seed Generator</ProgSystem>
+    <ProgName>build_outputs.py</ProgName>
+  </GAEBInfo>
+  <PrjInfo>
+    <NamePrj>Malerarbeiten Treppenhaus – Rheinallee 12</NamePrj>
+    <LblPrj>T-2026-014</LblPrj>
+    <Cur>EUR</Cur>
+    <CurLbl>EUR</CurLbl>
+  </PrjInfo>
+  <Award>
+    <DP>83</DP>
+    <AwardInfo>
+      <Cur>EUR</Cur>
+      <CurLbl>EUR</CurLbl>
+      <AwardNo>T-2026-014</AwardNo>
+      <OZMask>22222</OZMask>
+    </AwardInfo>
+    <OWN>
+      <Name>Rheinpark Property Management</Name>
+      <Address><City>Düsseldorf</City></Address>
+    </OWN>
+    <BoQ ID="ID_b92c7ea355e2">
+      <BoQInfo>
+        <Name>Malerarbeiten Treppenhaus – Rheinallee 12</Name>
+        <LblBoQ>T-2026-014</LblBoQ>
+        <Date>2026-08-31</Date>
+      </BoQInfo>
+      <BoQBody>
+        <BoQCtgy ID="ID_56e58e59951c" RNoPart="01">
+          <LblTx>Vorarbeiten</LblTx>
+          <BoQBody>
+            <Itemlist>
+              <Item ID="ID_56e629707561" RNoPart="01">
+                <Qty>1</Qty>
+                <QU>psch</QU>
+                <Description>
+                  <CompleteText>
+                    <DetailTxt><Text><p><span>Einschließlich An- und Abtransport aller Geräte, Abdecken aller nicht zu behandelnden Flächen, tägliche Reinigung des Treppenhauses.</span></p></Text></DetailTxt>
+                    <OutlineText><OutlTxt><TextOutlTxt><span>Baustelleneinrichtung, Abdecken von Treppen, Handläufen und Böden</span></TextOutlTxt></OutlTxt></OutlineText>
+                  </CompleteText>
+                </Description>
+              </Item>
+              <Item ID="ID_9f7bcc877425" RNoPart="02">
+                <Qty>320</Qty>
+                <QU>m2</QU>
+                <Description>
+                  <CompleteText>
+                    <DetailTxt><Text><p><span>Altanstrich Wandflächen reinigen und anschleifen</span></p></Text></DetailTxt>
+                    <OutlineText><OutlTxt><TextOutlTxt><span>Altanstrich Wandflächen reinigen und anschleifen</span></TextOutlTxt></OutlTxt></OutlineText>
+                  </CompleteText>
+                </Description>
+              </Item>
+              <Item ID="ID_4bf77fedd63a" RNoPart="03">
+                <Qty>320</Qty>
+                <QU>m2</QU>
+                <Description>
+                  <CompleteText>
+                    <DetailTxt><Text><p><span>Risse und Löcher spachteln, Qualitätsstufe Q3</span></p></Text></DetailTxt>
+                    <OutlineText><OutlTxt><TextOutlTxt><span>Risse und Löcher spachteln, Qualitätsstufe Q3</span></TextOutlTxt></OutlTxt></OutlineText>
+                  </CompleteText>
+                </Description>
+              </Item>
+            </Itemlist>
+          </BoQBody>
+        </BoQCtgy>
+        <BoQCtgy ID="ID_76da50c9f0a2" RNoPart="02">
+          <LblTx>Wand- und Deckenbeschichtungen</LblTx>
+          <BoQBody>
+            <Itemlist>
+              <Item ID="ID_d28e6fb155ec" RNoPart="01">
+                <Qty>320</Qty>
+                <QU>m2</QU>
+                <Description>
+                  <CompleteText>
+                    <DetailTxt><Text><p><span>Grundierung Wandflächen</span></p></Text></DetailTxt>
+                    <OutlineText><OutlTxt><TextOutlTxt><span>Grundierung Wandflächen</span></TextOutlTxt></OutlTxt></OutlineText>
+                  </CompleteText>
+                </Description>
+              </Item>
+              <Item ID="ID_16f7e064954b" RNoPart="02">
+                <Qty>320</Qty>
+                <QU>m2</QU>
+                <Description>
+                  <CompleteText>
+                    <DetailTxt><Text><p><span>Wandflächen zweimal Dispersionsanstrich, waschbeständig, weiß</span></p></Text></DetailTxt>
+                    <OutlineText><OutlTxt><TextOutlTxt><span>Wandflächen zweimal Dispersionsanstrich, waschbeständig, weiß</span></TextOutlTxt></OutlTxt></OutlineText>
+                  </CompleteText>
+                </Description>
+              </Item>
+              <Item ID="ID_1890dd8d9c6e" RNoPart="03">
+                <Qty>60</Qty>
+                <QU>m2</QU>
+                <Description>
+                  <CompleteText>
+                    <DetailTxt><Text><p><span>Deckenflächen zweimal Dispersionsanstrich</span></p></Text></DetailTxt>
+                    <OutlineText><OutlTxt><TextOutlTxt><span>Deckenflächen zweimal Dispersionsanstrich</span></TextOutlTxt></OutlTxt></OutlineText>
+                  </CompleteText>
+                </Description>
+              </Item>
+              <Item ID="ID_6b4744a8fa96" RNoPart="04">
+                <Qty>90</Qty>
+                <QU>m2</QU>
+                <Description>
+                  <CompleteText>
+                    <DetailTxt><Text><p><span>Sockelanstrich Latex bis 1,50 m, Farbton nach Wahl des Auftraggebers</span></p></Text></DetailTxt>
+                    <OutlineText><OutlTxt><TextOutlTxt><span>Sockelanstrich Latex bis 1,50 m, Farbton nach Wahl des Auftraggebers</span></TextOutlTxt></OutlTxt></OutlineText>
+                  </CompleteText>
+                </Description>
+              </Item>
+            </Itemlist>
+          </BoQBody>
+        </BoQCtgy>
+        <BoQCtgy ID="ID_6035d55d1823" RNoPart="03">
+          <LblTx>Lackierarbeiten</LblTx>
+          <BoQBody>
+            <Itemlist>
+              <Item ID="ID_b84fe368e9eb" RNoPart="01">
+                <Qty>45</Qty>
+                <QU>m</QU>
+                <Description>
+                  <CompleteText>
+                    <DetailTxt><Text><p><span>Treppengeländer Stahl: entrosten, grundieren, zweimal Lackanstrich</span></p></Text></DetailTxt>
+                    <OutlineText><OutlTxt><TextOutlTxt><span>Treppengeländer Stahl: entrosten, grundieren, zweimal Lackanstrich</span></TextOutlTxt></OutlTxt></OutlineText>
+                  </CompleteText>
+                </Description>
+              </Item>
+              <Item ID="ID_c467b6549bf7" RNoPart="02">
+                <Qty>45</Qty>
+                <QU>m</QU>
+                <Description>
+                  <CompleteText>
+                    <DetailTxt><Text><p><span>Handlauf Holz: schleifen, zweimal Klarlack</span></p></Text></DetailTxt>
+                    <OutlineText><OutlTxt><TextOutlTxt><span>Handlauf Holz: schleifen, zweimal Klarlack</span></TextOutlTxt></OutlTxt></OutlineText>
+                  </CompleteText>
+                </Description>
+              </Item>
+              <Item ID="ID_350ccaea990c" RNoPart="03">
+                <Qty>10</Qty>
+                <QU>St</QU>
+                <Description>
+                  <CompleteText>
+                    <DetailTxt><Text><p><span>Wohnungseingangstüren inkl. Zargen: schleifen, zweimal Lackanstrich</span></p></Text></DetailTxt>
+                    <OutlineText><OutlTxt><TextOutlTxt><span>Wohnungseingangstüren inkl. Zargen: schleifen, zweimal Lackanstrich</span></TextOutlTxt></OutlTxt></OutlineText>
+                  </CompleteText>
+                </Description>
+              </Item>
+              <Item ID="ID_5b0abaadb6f9" RNoPart="04">
+                <Qty>4</Qty>
+                <QU>St</QU>
+                <Description>
+                  <CompleteText>
+                    <DetailTxt><Text><p><span>Heizkörper inkl. Rohre: zweimal Heizkörperlack</span></p></Text></DetailTxt>
+                    <OutlineText><OutlTxt><TextOutlTxt><span>Heizkörper inkl. Rohre: zweimal Heizkörperlack</span></TextOutlTxt></OutlTxt></OutlineText>
+                  </CompleteText>
+                </Description>
+              </Item>
+              <Item ID="ID_907231c42684" RNoPart="05">
+                <Qty>5</Qty>
+                <QU>St</QU>
+                <Description>
+                  <CompleteText>
+                    <DetailTxt><Text><p><span>Fensterrahmen innen: schleifen, zweimal Lackanstrich</span></p></Text></DetailTxt>
+                    <OutlineText><OutlTxt><TextOutlTxt><span>Fensterrahmen innen: schleifen, zweimal Lackanstrich</span></TextOutlTxt></OutlTxt></OutlineText>
+                  </CompleteText>
+                </Description>
+              </Item>
+            </Itemlist>
+          </BoQBody>
+        </BoQCtgy>
+        <BoQCtgy ID="ID_228b51e87ef4" RNoPart="04">
+          <LblTx>Bedarfspositionen</LblTx>
+          <BoQBody>
+            <Itemlist>
+              <Item ID="ID_e0fc33f2cf2a" RNoPart="01">
+                <Provis>Yes</Provis>   <!-- Bedarfsposition; siehe seed/README.md -->
+                <Qty>20</Qty>
+                <QU>m2</QU>
+                <Description>
+                  <CompleteText>
+                    <DetailTxt><Text><p><span>Bedarfsposition: Schimmelbehandlung Wandflächen</span></p></Text></DetailTxt>
+                    <OutlineText><OutlTxt><TextOutlTxt><span>Bedarfsposition: Schimmelbehandlung Wandflächen</span></TextOutlTxt></OutlTxt></OutlineText>
+                  </CompleteText>
+                </Description>
+              </Item>
+              <Item ID="ID_d041f3dd0678" RNoPart="02">
+                <Provis>Yes</Provis>   <!-- Bedarfsposition; siehe seed/README.md -->
+                <Qty>10</Qty>
+                <QU>h</QU>
+                <Description>
+                  <CompleteText>
+                    <DetailTxt><Text><p><span>Stundenlohnarbeiten Maler-Geselle (Bedarfsposition)</span></p></Text></DetailTxt>
+                    <OutlineText><OutlTxt><TextOutlTxt><span>Stundenlohnarbeiten Maler-Geselle (Bedarfsposition)</span></TextOutlTxt></OutlTxt></OutlineText>
+                  </CompleteText>
+                </Description>
+              </Item>
+            </Itemlist>
+          </BoQBody>
+        </BoQCtgy>
+      </BoQBody>
+    </BoQ>
+  </Award>
+</GAEB>

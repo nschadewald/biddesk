@@ -1,0 +1,980 @@
+{
+  "meta": {
+    "generated": "2026-08-31",
+    "currency": "EUR",
+    "note": "Alle Firmen, Projekte und Preise sind erfunden (Demo-Daten, keine Marktdaten). Fristen sind RELATIV (due_in_days), damit sie waehrend der Jurierung bis 21.09.2026 nie ablaufen."
+  },
+  "tenders": [
+    {
+      "id": "T-2026-014",
+      "title_en": "Staircase painting works – Rheinallee 12",
+      "title_de": "Malerarbeiten Treppenhaus – Rheinallee 12",
+      "client": "Rheinpark Property Management",
+      "city": "Düsseldorf",
+      "trade": "painting",
+      "status": "open",
+      "due_in_days": 10,
+      "positions": [
+        {
+          "oz": "01.01",
+          "text_en": "Site setup, protective covering of stairs, handrails and floors",
+          "text_de": "Baustelleneinrichtung, Abdecken von Treppen, Handläufen und Böden",
+          "quantity": 1,
+          "unit": "psch",
+          "category": "prep",
+          "contingency": false,
+          "long_text_en": "Includes delivery and removal of all equipment, covering of all surfaces not to be painted, daily cleaning of the staircase.",
+          "long_text_de": "Einschließlich An- und Abtransport aller Geräte, Abdecken aller nicht zu behandelnden Flächen, tägliche Reinigung des Treppenhauses."
+        },
+        {
+          "oz": "01.02",
+          "text_en": "Clean and sand existing wall coating",
+          "text_de": "Altanstrich Wandflächen reinigen und anschleifen",
+          "quantity": 320,
+          "unit": "m2",
+          "category": "prep",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "01.03",
+          "text_en": "Fill cracks and holes, finish quality Q3",
+          "text_de": "Risse und Löcher spachteln, Qualitätsstufe Q3",
+          "quantity": 320,
+          "unit": "m2",
+          "category": "prep",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "02.01",
+          "text_en": "Primer on wall surfaces",
+          "text_de": "Grundierung Wandflächen",
+          "quantity": 320,
+          "unit": "m2",
+          "category": "wall",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "02.02",
+          "text_en": "Two coats washable emulsion paint, white, wall surfaces",
+          "text_de": "Wandflächen zweimal Dispersionsanstrich, waschbeständig, weiß",
+          "quantity": 320,
+          "unit": "m2",
+          "category": "wall",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "02.03",
+          "text_en": "Two coats emulsion paint, ceilings",
+          "text_de": "Deckenflächen zweimal Dispersionsanstrich",
+          "quantity": 60,
+          "unit": "m2",
+          "category": "ceiling",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "02.04",
+          "text_en": "Protective latex coating on dado up to 1.50 m, colour per client",
+          "text_de": "Sockelanstrich Latex bis 1,50 m, Farbton nach Wahl des Auftraggebers",
+          "quantity": 90,
+          "unit": "m2",
+          "category": "wall",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "03.01",
+          "text_en": "Steel balustrade: de-rust, prime, two coats alkyd enamel",
+          "text_de": "Treppengeländer Stahl: entrosten, grundieren, zweimal Lackanstrich",
+          "quantity": 45,
+          "unit": "m",
+          "category": "metal",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "03.02",
+          "text_en": "Wooden handrail: sand and apply two coats clear varnish",
+          "text_de": "Handlauf Holz: schleifen, zweimal Klarlack",
+          "quantity": 45,
+          "unit": "m",
+          "category": "wood",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "03.03",
+          "text_en": "Apartment entrance doors incl. frames: sand and two coats enamel",
+          "text_de": "Wohnungseingangstüren inkl. Zargen: schleifen, zweimal Lackanstrich",
+          "quantity": 10,
+          "unit": "pcs",
+          "category": "wood",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "03.04",
+          "text_en": "Radiators incl. pipes: two coats radiator enamel",
+          "text_de": "Heizkörper inkl. Rohre: zweimal Heizkörperlack",
+          "quantity": 4,
+          "unit": "pcs",
+          "category": "metal",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "03.05",
+          "text_en": "Window frames inside: sand and two coats enamel",
+          "text_de": "Fensterrahmen innen: schleifen, zweimal Lackanstrich",
+          "quantity": 5,
+          "unit": "pcs",
+          "category": "wood",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "04.01",
+          "text_en": "Contingency: mould treatment on wall surfaces",
+          "text_de": "Bedarfsposition: Schimmelbehandlung Wandflächen",
+          "quantity": 20,
+          "unit": "m2",
+          "category": "prep",
+          "contingency": true,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "04.02",
+          "text_en": "Hourly rate skilled painter (contingency)",
+          "text_de": "Stundenlohnarbeiten Maler-Geselle (Bedarfsposition)",
+          "quantity": 10,
+          "unit": "h",
+          "category": "labour",
+          "contingency": true,
+          "long_text_en": "",
+          "long_text_de": ""
+        }
+      ],
+      "note": "Haupt-Demo. Frist relativ, damit sie waehrend der Jurierung (bis 21.09.) nie ablaeuft."
+    },
+    {
+      "id": "T-2026-015",
+      "title_en": "Basement corridor painting – Kaiserswerther Str. 88",
+      "title_de": "Malerarbeiten Kellergang – Kaiserswerther Str. 88",
+      "client": "Rheinpark Property Management",
+      "city": "Düsseldorf",
+      "trade": "painting",
+      "status": "open",
+      "due_in_days": 17,
+      "positions": [
+        {
+          "oz": "01.01",
+          "text_en": "Site setup and covering, basement corridor",
+          "text_de": "Baustelleneinrichtung und Abdecken, Kellergang",
+          "quantity": 1,
+          "unit": "psch",
+          "category": "prep",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "01.02",
+          "text_en": "Remove loose coating, clean surfaces",
+          "text_de": "Lose Anstriche entfernen, Flächen reinigen",
+          "quantity": 95,
+          "unit": "m2",
+          "category": "prep",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "02.01",
+          "text_en": "Primer on mineral substrate",
+          "text_de": "Grundierung auf mineralischem Untergrund",
+          "quantity": 95,
+          "unit": "m2",
+          "category": "wall",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "02.02",
+          "text_en": "Two coats emulsion paint, basement walls",
+          "text_de": "Kellerwände zweimal Dispersionsanstrich",
+          "quantity": 95,
+          "unit": "m2",
+          "category": "wall",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "02.03",
+          "text_en": "Two coats emulsion paint, ceilings",
+          "text_de": "Deckenflächen zweimal Dispersionsanstrich",
+          "quantity": 42,
+          "unit": "m2",
+          "category": "ceiling",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "03.01",
+          "text_en": "Steel doors: de-rust and two coats enamel",
+          "text_de": "Stahltüren: entrosten und zweimal Lackanstrich",
+          "quantity": 3,
+          "unit": "pcs",
+          "category": "metal",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        }
+      ],
+      "note": "Nur damit list_tenders etwas zu filtern hat."
+    },
+    {
+      "id": "T-2026-009",
+      "title_en": "Facade repaint – Luegallee 40",
+      "title_de": "Fassadenanstrich – Luegallee 40",
+      "client": "Rheinpark Property Management",
+      "city": "Düsseldorf",
+      "trade": "painting",
+      "status": "closed",
+      "due_in_days": -35,
+      "positions": [
+        {
+          "oz": "01.01",
+          "text_en": "Facade scaffolding, erect and provide for 6 weeks",
+          "text_de": "Fassadengerüst stellen und 6 Wochen vorhalten",
+          "quantity": 240,
+          "unit": "m2",
+          "category": "prep",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "01.02",
+          "text_en": "Clean facade, low pressure",
+          "text_de": "Fassade reinigen, Niederdruck",
+          "quantity": 240,
+          "unit": "m2",
+          "category": "prep",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "02.01",
+          "text_en": "Repair cracks in render",
+          "text_de": "Risse im Putz ausbessern",
+          "quantity": 35,
+          "unit": "m",
+          "category": "prep",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "02.02",
+          "text_en": "Two coats silicone resin facade paint",
+          "text_de": "Fassadenanstrich zweimal Silikonharzfarbe",
+          "quantity": 240,
+          "unit": "m2",
+          "category": "wall",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        },
+        {
+          "oz": "03.01",
+          "text_en": "Window sills: sand and two coats enamel",
+          "text_de": "Fensterbänke schleifen und zweimal lackieren",
+          "quantity": 12,
+          "unit": "pcs",
+          "category": "wood",
+          "contingency": false,
+          "long_text_en": "",
+          "long_text_de": ""
+        }
+      ],
+      "note": "Abgeschlossen, drei abgegebene Angebote - fuettert den Preisspiegel sofort."
+    }
+  ],
+  "bidders": [
+    {
+      "id": "B-A",
+      "name": "Farbwerk Meier GmbH",
+      "city": "Düsseldorf",
+      "is_demo": true,
+      "profile": "Demo-Bieter. Mittleres Preisniveau, gut gepflegtes Preisbuch – ABER zwei bewusste Lücken (Heizkörperlack, Stundenlohn)."
+    },
+    {
+      "id": "B-B",
+      "name": "Malerei Brandt & Sohn",
+      "city": "Neuss",
+      "is_demo": false,
+      "profile": "Vollständiges Preisbuch, Premium-Preise (~20–25 % über A)."
+    },
+    {
+      "id": "B-C",
+      "name": "Colorpoint Anstrich UG",
+      "city": "Duisburg",
+      "is_demo": false,
+      "profile": "Günstig, lückenhaftes Preisbuch (kein Metall, keine Stückpreise Holz)."
+    }
+  ],
+  "documents": [
+    {
+      "bidder_id": "B-A",
+      "doc_type": "trade_registration",
+      "label_en": "Trade registration",
+      "label_de": "Handwerkskarte",
+      "valid_in_days": 365
+    },
+    {
+      "bidder_id": "B-A",
+      "doc_type": "liability_insurance",
+      "label_en": "Liability insurance",
+      "label_de": "Haftpflichtversicherung",
+      "valid_in_days": 200
+    },
+    {
+      "bidder_id": "B-A",
+      "doc_type": "reference_project",
+      "label_en": "Reference project",
+      "label_de": "Referenzprojekt",
+      "valid_in_days": 400
+    },
+    {
+      "bidder_id": "B-A",
+      "doc_type": "tax_clearance",
+      "label_en": "Tax clearance certificate",
+      "label_de": "Unbedenklichkeitsbescheinigung",
+      "valid_in_days": -20
+    },
+    {
+      "bidder_id": "B-B",
+      "doc_type": "trade_registration",
+      "label_en": "Trade registration",
+      "label_de": "Handwerkskarte",
+      "valid_in_days": 300
+    },
+    {
+      "bidder_id": "B-B",
+      "doc_type": "liability_insurance",
+      "label_en": "Liability insurance",
+      "label_de": "Haftpflichtversicherung",
+      "valid_in_days": 180
+    },
+    {
+      "bidder_id": "B-B",
+      "doc_type": "reference_project",
+      "label_en": "Reference project",
+      "label_de": "Referenzprojekt",
+      "valid_in_days": 500
+    },
+    {
+      "bidder_id": "B-B",
+      "doc_type": "tax_clearance",
+      "label_en": "Tax clearance certificate",
+      "label_de": "Unbedenklichkeitsbescheinigung",
+      "valid_in_days": 120
+    },
+    {
+      "bidder_id": "B-C",
+      "doc_type": "trade_registration",
+      "label_en": "Trade registration",
+      "label_de": "Handwerkskarte",
+      "valid_in_days": 250
+    },
+    {
+      "bidder_id": "B-C",
+      "doc_type": "liability_insurance",
+      "label_en": "Liability insurance",
+      "label_de": "Haftpflichtversicherung",
+      "valid_in_days": 90
+    },
+    {
+      "bidder_id": "B-C",
+      "doc_type": "tax_clearance",
+      "label_en": "Tax clearance certificate",
+      "label_de": "Unbedenklichkeitsbescheinigung",
+      "valid_in_days": 60
+    }
+  ],
+  "price_book": [
+    {
+      "bidder_id": "B-A",
+      "category": "prep",
+      "unit": "psch",
+      "keywords": [
+        "baustelleneinrichtung",
+        "abdecken",
+        "treppenhaus"
+      ],
+      "unit_price": 480.0,
+      "source_project": "Luegallee 40",
+      "source_date": "2026-03-14",
+      "source_position_text": "Baustelleneinrichtung, Abdecken Treppenhaus und Böden"
+    },
+    {
+      "bidder_id": "B-A",
+      "category": "prep",
+      "unit": "m2",
+      "keywords": [
+        "reinigen",
+        "anschleifen",
+        "altanstrich"
+      ],
+      "unit_price": 3.2,
+      "source_project": "Luegallee 40",
+      "source_date": "2026-03-14",
+      "source_position_text": "Altanstrich reinigen und anschleifen"
+    },
+    {
+      "bidder_id": "B-A",
+      "category": "prep",
+      "unit": "m2",
+      "keywords": [
+        "spachteln",
+        "risse",
+        "q3"
+      ],
+      "unit_price": 6.8,
+      "source_project": "Kaiserswerther Str. 12",
+      "source_date": "2025-11-08",
+      "source_position_text": "Risse und Löcher spachteln, Q3"
+    },
+    {
+      "bidder_id": "B-A",
+      "category": "wall",
+      "unit": "m2",
+      "keywords": [
+        "grundierung"
+      ],
+      "unit_price": 2.9,
+      "source_project": "Luegallee 40",
+      "source_date": "2026-03-14",
+      "source_position_text": "Grundierung Wandflächen"
+    },
+    {
+      "bidder_id": "B-A",
+      "category": "wall",
+      "unit": "m2",
+      "keywords": [
+        "dispersionsanstrich",
+        "wand",
+        "weiß",
+        "waschbeständig"
+      ],
+      "unit_price": 8.4,
+      "source_project": "Luegallee 40",
+      "source_date": "2026-03-14",
+      "source_position_text": "Wandflächen zweimal Dispersionsanstrich weiß"
+    },
+    {
+      "bidder_id": "B-A",
+      "category": "ceiling",
+      "unit": "m2",
+      "keywords": [
+        "dispersionsanstrich",
+        "decke"
+      ],
+      "unit_price": 9.1,
+      "source_project": "Grafenberger Allee 7",
+      "source_date": "2025-09-22",
+      "source_position_text": "Deckenflächen zweimal Dispersionsanstrich"
+    },
+    {
+      "bidder_id": "B-A",
+      "category": "wall",
+      "unit": "m2",
+      "keywords": [
+        "sockelanstrich",
+        "latex"
+      ],
+      "unit_price": 14.2,
+      "source_project": "Luegallee 40",
+      "source_date": "2026-03-14",
+      "source_position_text": "Sockelanstrich Latex bis 1,50 m"
+    },
+    {
+      "bidder_id": "B-A",
+      "category": "metal",
+      "unit": "m",
+      "keywords": [
+        "geländer",
+        "stahl",
+        "entrosten",
+        "lackanstrich"
+      ],
+      "unit_price": 28.5,
+      "source_project": "Grafenberger Allee 7",
+      "source_date": "2025-09-22",
+      "source_position_text": "Treppengeländer Stahl entrosten, grundieren, lackieren"
+    },
+    {
+      "bidder_id": "B-A",
+      "category": "wood",
+      "unit": "m",
+      "keywords": [
+        "handlauf",
+        "holz",
+        "klarlack",
+        "schleifen"
+      ],
+      "unit_price": 19.8,
+      "source_project": "Grafenberger Allee 7",
+      "source_date": "2025-09-22",
+      "source_position_text": "Handlauf Holz schleifen und klarlackieren"
+    },
+    {
+      "bidder_id": "B-A",
+      "category": "wood",
+      "unit": "pcs",
+      "keywords": [
+        "türen",
+        "zargen",
+        "lackanstrich"
+      ],
+      "unit_price": 148.0,
+      "source_project": "Kaiserswerther Str. 12",
+      "source_date": "2025-11-08",
+      "source_position_text": "Wohnungseingangstüren inkl. Zargen lackieren"
+    },
+    {
+      "bidder_id": "B-A",
+      "category": "wood",
+      "unit": "pcs",
+      "keywords": [
+        "fensterrahmen",
+        "innen",
+        "lackanstrich"
+      ],
+      "unit_price": 88.0,
+      "source_project": "Kaiserswerther Str. 12",
+      "source_date": "2025-11-08",
+      "source_position_text": "Fensterrahmen innen lackieren"
+    },
+    {
+      "bidder_id": "B-A",
+      "category": "prep",
+      "unit": "m2",
+      "keywords": [
+        "schimmel",
+        "behandlung"
+      ],
+      "unit_price": 18.5,
+      "source_project": "Grafenberger Allee 7",
+      "source_date": "2025-09-22",
+      "source_position_text": "Schimmelbehandlung Wandflächen"
+    },
+    {
+      "bidder_id": "B-B",
+      "category": "prep",
+      "unit": "psch",
+      "keywords": [
+        "baustelleneinrichtung",
+        "abdecken",
+        "treppenhaus"
+      ],
+      "unit_price": 650.0,
+      "source_project": "Bilker Allee 3",
+      "source_date": "2026-01-20",
+      "source_position_text": "Baustelleneinrichtung und Abdeckarbeiten"
+    },
+    {
+      "bidder_id": "B-B",
+      "category": "prep",
+      "unit": "m2",
+      "keywords": [
+        "reinigen",
+        "anschleifen",
+        "altanstrich"
+      ],
+      "unit_price": 4.1,
+      "source_project": "Bilker Allee 3",
+      "source_date": "2026-01-20",
+      "source_position_text": "Untergrund reinigen und anschleifen"
+    },
+    {
+      "bidder_id": "B-B",
+      "category": "prep",
+      "unit": "m2",
+      "keywords": [
+        "spachteln",
+        "risse",
+        "q3"
+      ],
+      "unit_price": 8.5,
+      "source_project": "Bilker Allee 3",
+      "source_date": "2026-01-20",
+      "source_position_text": "Spachtelarbeiten Q3"
+    },
+    {
+      "bidder_id": "B-B",
+      "category": "wall",
+      "unit": "m2",
+      "keywords": [
+        "grundierung"
+      ],
+      "unit_price": 3.6,
+      "source_project": "Bilker Allee 3",
+      "source_date": "2026-01-20",
+      "source_position_text": "Grundierung Wandflächen"
+    },
+    {
+      "bidder_id": "B-B",
+      "category": "wall",
+      "unit": "m2",
+      "keywords": [
+        "dispersionsanstrich",
+        "wand",
+        "weiß",
+        "waschbeständig"
+      ],
+      "unit_price": 10.2,
+      "source_project": "Bilker Allee 3",
+      "source_date": "2026-01-20",
+      "source_position_text": "Wandflächen zweimal Dispersion, waschbeständig"
+    },
+    {
+      "bidder_id": "B-B",
+      "category": "ceiling",
+      "unit": "m2",
+      "keywords": [
+        "dispersionsanstrich",
+        "decke"
+      ],
+      "unit_price": 11.0,
+      "source_project": "Nordstr. 91",
+      "source_date": "2025-10-05",
+      "source_position_text": "Decken zweimal Dispersionsanstrich"
+    },
+    {
+      "bidder_id": "B-B",
+      "category": "wall",
+      "unit": "m2",
+      "keywords": [
+        "sockelanstrich",
+        "latex"
+      ],
+      "unit_price": 17.5,
+      "source_project": "Nordstr. 91",
+      "source_date": "2025-10-05",
+      "source_position_text": "Sockel Latexanstrich bis 1,50 m"
+    },
+    {
+      "bidder_id": "B-B",
+      "category": "metal",
+      "unit": "m",
+      "keywords": [
+        "geländer",
+        "stahl",
+        "entrosten",
+        "lackanstrich"
+      ],
+      "unit_price": 34.0,
+      "source_project": "Nordstr. 91",
+      "source_date": "2025-10-05",
+      "source_position_text": "Geländer Stahl entrosten und lackieren"
+    },
+    {
+      "bidder_id": "B-B",
+      "category": "wood",
+      "unit": "m",
+      "keywords": [
+        "handlauf",
+        "holz",
+        "klarlack",
+        "schleifen"
+      ],
+      "unit_price": 24.5,
+      "source_project": "Nordstr. 91",
+      "source_date": "2025-10-05",
+      "source_position_text": "Handlauf Holz klarlackieren"
+    },
+    {
+      "bidder_id": "B-B",
+      "category": "wood",
+      "unit": "pcs",
+      "keywords": [
+        "türen",
+        "zargen",
+        "lackanstrich"
+      ],
+      "unit_price": 185.0,
+      "source_project": "Bilker Allee 3",
+      "source_date": "2026-01-20",
+      "source_position_text": "Türen inkl. Zargen lackieren"
+    },
+    {
+      "bidder_id": "B-B",
+      "category": "metal",
+      "unit": "pcs",
+      "keywords": [
+        "heizkörper",
+        "rohre",
+        "heizkörperlack"
+      ],
+      "unit_price": 96.0,
+      "source_project": "Nordstr. 91",
+      "source_date": "2025-10-05",
+      "source_position_text": "Heizkörper inkl. Rohre lackieren"
+    },
+    {
+      "bidder_id": "B-B",
+      "category": "wood",
+      "unit": "pcs",
+      "keywords": [
+        "fensterrahmen",
+        "innen",
+        "lackanstrich"
+      ],
+      "unit_price": 110.0,
+      "source_project": "Bilker Allee 3",
+      "source_date": "2026-01-20",
+      "source_position_text": "Fensterrahmen innen lackieren"
+    },
+    {
+      "bidder_id": "B-B",
+      "category": "prep",
+      "unit": "m2",
+      "keywords": [
+        "schimmel",
+        "behandlung"
+      ],
+      "unit_price": 22.0,
+      "source_project": "Nordstr. 91",
+      "source_date": "2025-10-05",
+      "source_position_text": "Schimmelsanierung Wandflächen"
+    },
+    {
+      "bidder_id": "B-B",
+      "category": "labour",
+      "unit": "h",
+      "keywords": [
+        "stundenlohn",
+        "geselle"
+      ],
+      "unit_price": 62.0,
+      "source_project": "Bilker Allee 3",
+      "source_date": "2026-01-20",
+      "source_position_text": "Stundenlohnarbeiten Geselle"
+    },
+    {
+      "bidder_id": "B-C",
+      "category": "prep",
+      "unit": "psch",
+      "keywords": [
+        "baustelleneinrichtung",
+        "abdecken"
+      ],
+      "unit_price": 390.0,
+      "source_project": "Moerser Str. 14",
+      "source_date": "2025-08-11",
+      "source_position_text": "Baustelleneinrichtung"
+    },
+    {
+      "bidder_id": "B-C",
+      "category": "prep",
+      "unit": "m2",
+      "keywords": [
+        "reinigen",
+        "anschleifen",
+        "altanstrich"
+      ],
+      "unit_price": 2.6,
+      "source_project": "Moerser Str. 14",
+      "source_date": "2025-08-11",
+      "source_position_text": "Untergrund reinigen"
+    },
+    {
+      "bidder_id": "B-C",
+      "category": "prep",
+      "unit": "m2",
+      "keywords": [
+        "spachteln",
+        "risse"
+      ],
+      "unit_price": 5.4,
+      "source_project": "Moerser Str. 14",
+      "source_date": "2025-08-11",
+      "source_position_text": "Spachtelarbeiten"
+    },
+    {
+      "bidder_id": "B-C",
+      "category": "wall",
+      "unit": "m2",
+      "keywords": [
+        "grundierung"
+      ],
+      "unit_price": 2.35,
+      "source_project": "Moerser Str. 14",
+      "source_date": "2025-08-11",
+      "source_position_text": "Grundierung"
+    },
+    {
+      "bidder_id": "B-C",
+      "category": "wall",
+      "unit": "m2",
+      "keywords": [
+        "dispersionsanstrich",
+        "wand",
+        "weiß"
+      ],
+      "unit_price": 6.9,
+      "source_project": "Moerser Str. 14",
+      "source_date": "2025-08-11",
+      "source_position_text": "Wandflächen zweimal Dispersion"
+    },
+    {
+      "bidder_id": "B-C",
+      "category": "ceiling",
+      "unit": "m2",
+      "keywords": [
+        "dispersionsanstrich",
+        "decke"
+      ],
+      "unit_price": 7.5,
+      "source_project": "Duisburger Str. 60",
+      "source_date": "2025-05-19",
+      "source_position_text": "Decken Dispersionsanstrich"
+    },
+    {
+      "bidder_id": "B-C",
+      "category": "wall",
+      "unit": "m2",
+      "keywords": [
+        "sockelanstrich",
+        "latex"
+      ],
+      "unit_price": 11.8,
+      "source_project": "Duisburger Str. 60",
+      "source_date": "2025-05-19",
+      "source_position_text": "Sockelanstrich Latex"
+    },
+    {
+      "bidder_id": "B-C",
+      "category": "labour",
+      "unit": "h",
+      "keywords": [
+        "stundenlohn",
+        "geselle"
+      ],
+      "unit_price": 48.0,
+      "source_project": "Duisburger Str. 60",
+      "source_date": "2025-05-19",
+      "source_position_text": "Stundenlohnarbeiten"
+    }
+  ],
+  "submitted_bids": {
+    "B-A": {
+      "01.01": 11.5,
+      "01.02": 4.8,
+      "02.01": 16.0,
+      "02.02": 21.4,
+      "03.01": 74.0
+    },
+    "B-B": {
+      "01.01": 13.2,
+      "01.02": 5.9,
+      "02.01": 19.5,
+      "02.02": 25.8,
+      "03.01": 92.0
+    },
+    "B-C": {
+      "01.01": 27.8,
+      "01.02": 3.9,
+      "02.01": 12.5,
+      "02.02": 17.2,
+      "03.01": 58.0
+    }
+  },
+  "clarifications": [
+    {
+      "id": "Q-001",
+      "tender_id": "T-2026-014",
+      "bidder_id": "B-A",
+      "oz": "01.01",
+      "question": "Will the scaffolding from the roofing works still be in place during our works, or do we have to provide our own access?",
+      "answer": "The scaffolding will be removed on 15 September. Please price your own access equipment.",
+      "status": "answered"
+    },
+    {
+      "id": "Q-002",
+      "tender_id": "T-2026-014",
+      "bidder_id": "B-C",
+      "oz": "02.04",
+      "question": "Is the colour for the dado coating already decided? It affects the material price.",
+      "answer": null,
+      "status": "open"
+    }
+  ],
+  "deliberate_gaps": {
+    "bidder": "B-A",
+    "positions": [
+      "03.04",
+      "04.02"
+    ],
+    "reason": "Farbwerk Meier hat keinen Eintrag fuer metal/pcs (Heizkoerper) und keinen fuer labour/h (Stundenlohn). Der deterministische Matcher liefert dort confidence=none und KEINEN Preis. Das ist die Kernszene des Videos - diese beiden Zeilen bleiben leer, bis der Mensch sie eintraegt."
+  },
+  "submitted_bids_t14": {
+    "B-B": {
+      "01.01": 650.0,
+      "01.02": 4.1,
+      "01.03": 8.5,
+      "02.01": 3.6,
+      "02.02": 10.2,
+      "02.03": 11.0,
+      "02.04": 17.5,
+      "03.01": 34.0,
+      "03.02": 24.5,
+      "03.03": 185.0,
+      "03.04": 96.0,
+      "03.05": 110.0,
+      "04.01": 22.0,
+      "04.02": 62.0
+    },
+    "B-C": {
+      "01.01": 390.0,
+      "01.02": 2.6,
+      "01.03": 5.4,
+      "02.01": 2.35,
+      "02.02": 6.9,
+      "02.03": 7.5,
+      "02.04": 11.8,
+      "03.01": 23.0,
+      "03.02": 16.5,
+      "03.03": 119.0,
+      "03.04": 61.0,
+      "03.05": 72.0,
+      "04.01": 15.0,
+      "04.02": 48.0
+    }
+  },
+  "comparison_rules": {
+    "sealed_until_deadline": true,
+    "note": "Offene Ausschreibungen sind versiegelt: get_price_comparison liefert vor Fristende NUR Anzahl und Eingangszeitpunkte, keine Preise (Submissionsprinzip). Volle Vergleichsansicht nur fuer geschlossene Ausschreibungen (T-2026-009). Nach der Abgabe sieht der Auftraggeber das eigene Angebot als versiegelten Eingang - Zaehler springt von 2 auf 3."
+  }
+}
