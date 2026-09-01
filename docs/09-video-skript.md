@@ -1,0 +1,53 @@
+# Videoskript (Ziel 2:30, englisches Voice-over) — Entwurf 02.09.
+
+**Reihenfolge-Prinzip: erst sehen, dann vertrauen, dann rechnen.** Die Zusammenarbeit muss im Bild sein, bevor irgendetwas erklärt wird.
+Aufnahme im ChatGPT-Desktop-Browser, Fenster so breit, dass Tabelle und Agent-Panel nebeneinander stehen. Frischer Workspace. Cursor sichtbar.
+
+---
+
+## 0:00–0:15 · Hook, ohne Vorrede
+**Bild:** Prompt 1 ist abgeschickt. Die Tabelle füllt sich gestaffelt von oben nach unten, Chips erscheinen, die Summenleiste klettert. Eine Hand korrigiert *währenddessen* eine Zeile.
+**VO:** "This is a German construction tender — fourteen line items that a painting firm has to price. Watch the table fill in, and watch what stays empty."
+
+## 0:15–0:35 · Das Problem, kurz
+**Bild:** Kurzer Schnitt auf das 46-Seiten-PDF neben der Tabelle, dann zurück.
+**VO:** "Normally this is an evening's work. A forty-six-page PDF, three pages of which are the actual job, and the prices are scattered across old quotes. Many small firms skip tenders for exactly this reason — so the client gets fewer bids, at worse prices."
+
+## 0:35–1:00 · Vertrauen — der Kern
+**Bild:** Auf einen Chip zoomen, anklicken: Originalzeile aus dem alten Angebot. Dann auf 03.04 und 04.02 — leer, "no comparable entry".
+**VO:** "Every price the agent wrote points back to a line in this firm's own price book — the project, the date, the original item. And where the firm has never priced radiators, the agent doesn't guess. It leaves the cell empty and says so. That is the whole idea: the agent moves the firm's knowledge into place. It never invents any."
+**Bild:** Der Mensch tippt 61,00 € in 03.04. Kein Chip an dieser Zeile.
+**VO:** "The master fills that one in himself. No chip — because it came from him, not from the record."
+
+## 1:00–1:30 · Prüfen und rückfragen
+**Bild:** Prompt 3. Prüfergebnis mit drei Befunden.
+**VO:** "Then: check the bid. Two positions still open, an outlier against the firm's own prices, and a tax clearance certificate that expired three weeks ago. This is the only place in the whole app that uses red."
+**Bild:** Prompt 4, Rückfrage erscheint in der Liste.
+**VO:** "A question to the client goes out from the same page — and the answer is visible to every bidder, the way a tender requires."
+
+## 1:30–1:50 · Die Grenze
+**Bild:** Prompt 5. Der Agent liefert eine Zusammenfassung und hält an. Der Dialog erscheint. Der Mensch klickt. Banner, Tabelle gesperrt.
+**Bild:** Kurz auf die Selbstdiagnose: 10 → 9 Werkzeuge.
+**VO:** "Submitting is binding, so the agent stops. It prepares, it summarises — a person clicks. And afterwards the tool is gone from the agent's repertoire: ten tools before, nine after."
+
+## 1:50–2:05 · Zweiter Akt
+**Bild:** Rollenwechsel zum Auftraggeber. Offene Ausschreibung: Zähler 2 → 3, versiegelt. Dann der Preisspiegel der geschlossenen Fassaden-Ausschreibung.
+**VO:** "The client sees the bid arrive — but not its prices. Sealed until the deadline, for their agent too. On a closed tender, the full comparison: position by position, with one bidder's scaffolding price flagged at twice the median."
+
+## 2:05–2:20 · Beweis
+**Bild:** ChatGPTs eigene Werkzeugansicht ("2 mit Lesezugriff"), dann Chrome ohne Flag mit der grünen Selbstdiagnose, dann kurz die Eval-Tabelle im README.
+**VO:** "Twelve tools, ten in the contractor role, five for the client. Read-only where it reads, confirmation where it commits. Ten eval cases — two of which test that we refuse the right things."
+
+## 2:20–2:30 · Abbinder
+**Bild:** Architektur in einem Bild: Browser-Agent → Tools → Worker + D1. Darunter der Satz.
+**VO:** "No model in the backend. The intelligence is the user's own agent; the site only offers tools — and one of them can't be used to invent a number. Built in three days for the WebMCP Challenge."
+
+---
+
+## Produktionshinweise
+- **Sicherungsaufnahme zuerst:** einmal ungeschnitten komplett durchlaufen und mitschneiden, bevor geschnitten wird.
+- Aufnahme 1080p, OBS oder Windows-Spielleiste. Schnitt Clipchamp/DaVinci.
+- Voice-over: englischer Text vorher einsprechen oder KI-Stimme; Tempo ruhig, keine Musik über den Sprechstellen.
+- **Vor der Aufnahme:** Reset drücken, Log leeren, Fensterbreite prüfen (Tabelle und Panel nebeneinander, keine Überlappung).
+- Nach dem Deploy 15 Sekunden warten, bevor aufgenommen wird (Propagation).
+- YouTube: öffentlich, unter 3:00, Titel "BidDesk — an agent-ready tender room (WebMCP Challenge)".

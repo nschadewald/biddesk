@@ -7,3 +7,8 @@ dist/
 .env.*
 *.log
 .DS_Store
+
+# Agent worktrees. A second copy of every source file confuses anyone
+# reading the repository, and vitest counts its tests twice.
+.claude/
+.evals/

@@ -179,21 +179,24 @@ three only appear on a browser that actually implements the declarative half.
 ## Lighthouse
 
 `npx lighthouse <url> --only-categories=agentic-browsing`, Lighthouse 13.4.1, against the live
-URL. Report in [`evals/reports/`](evals/reports).
+URL. Both reports are in [`evals/reports/`](evals/reports).
 
-| Audit | Score |
-|---|---|
-| Agentic Browsing (category) | **0.75** |
-| `agent-accessibility-tree` | 1 |
-| `webmcp-registered-tools` | 1 |
-| `webmcp-schema-validity` | 1 |
-| `cumulative-layout-shift` | 1 (0.006) |
-| `llms-txt` | **0** |
-| `webmcp-form-coverage` | not applicable |
+| Audit | First run | After adding `/llms.txt` |
+|---|---|---|
+| **Agentic Browsing (category)** | **0.75** | **1.00** |
+| `agent-accessibility-tree` | 1 | 1 |
+| `webmcp-registered-tools` | 1 | 1 |
+| `webmcp-schema-validity` | 1 | 1 |
+| `cumulative-layout-shift` | 1 (0.006) | 1 |
+| `llms-txt` | 0 | 1 |
+| `webmcp-form-coverage` | not applicable | not applicable |
 
-The 0.75 is what it is: everything about the tools themselves passes, and the quarter we lose is
-a missing `/llms.txt`. We are reporting the number we measured rather than the number we could
-have had by adding a file after reading the audit.
+Both numbers are here on purpose. **The first run is what the application scored before anyone
+had read the audit**: everything about the tools already passed, and the missing quarter was a
+file that did not exist. `/llms.txt` was then written *because* the audit asked for it, and the
+second run is what it scores now. Reporting only the 1.00 would suggest we had thought of it;
+reporting only the 0.75 would be false today. The file itself is worth having either way — it
+tells an agent in twenty lines what this page is and what its twelve tools do.
 
 ## Known limitations
 
