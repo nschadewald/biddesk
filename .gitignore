@@ -12,3 +12,7 @@ dist/
 # reading the repository, and vitest counts its tests twice.
 .claude/
 .evals/
+
+# Einreichungsinterne Dokumente (Checkliste, Backlog, Prompts, Notizen).
+# Sie handeln von der Einreichung, nicht vom Produkt.
+notes/
