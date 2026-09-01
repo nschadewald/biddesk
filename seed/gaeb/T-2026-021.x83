@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Second GAEB DA XML sample, built to be UNLIKE the first one on purpose.
+     It is the file the importer is tested against without having seen it:
+
+       - different category labels        (Vorbereitung / Innenanstrich /
+                                           Lackierarbeiten / Eventualpositionen,
+                                           not Vorarbeiten / Wandflaechen / ...)
+       - different unit spellings         (m², Stk, Std., psch. instead of
+                                           m2, St, h, psch)
+       - a different number of positions  (nine, not fourteen)
+       - three levels of category nesting instead of one
+       - no Provis element anywhere: the contingency positions are recognised
+         only from the category label
+       - namespace prefix on every element, where the first file has none
+       - German decimal commas in some quantities
+       - one item with no OutlineText, so the short text has to fall back
+
+     Hand-built and structurally faithful. Not a certified AVA export. -->
+<g:GAEB xmlns:g="http://www.gaeb.de/GAEB_DA_XML/DA83/3.2">
+  <g:GAEBInfo>
+    <g:Version>3.2</g:Version>
+    <g:VersDate>2013-09-01</g:VersDate>
+    <g:Date>2026-09-01</g:Date>
+    <g:ProgSystem>Muster-AVA</g:ProgSystem>
+  </g:GAEBInfo>
+  <g:PrjInfo>
+    <g:NamePrj>Innenanstrich Praxisräume – Königsallee 74</g:NamePrj>
+    <g:LblPrj>T-2026-021</g:LblPrj>
+    <g:Cur>EUR</g:Cur>
+  </g:PrjInfo>
+  <g:Award>
+    <g:DP>83</g:DP>
+    <g:AwardInfo>
+      <g:AwardNo>T-2026-021</g:AwardNo>
+    </g:AwardInfo>
+    <g:OWN>
+      <g:Name>Dr. Wendt Praxisimmobilien GbR</g:Name>
+      <g:Address><g:City>Düsseldorf</g:City></g:Address>
+    </g:OWN>
+    <g:BoQ ID="ID_a1">
+      <g:BoQInfo>
+        <g:Name>Innenanstrich Praxisräume – Königsallee 74</g:Name>
+        <g:LblBoQ>T-2026-021</g:LblBoQ>
+      </g:BoQInfo>
+      <g:BoQBody>
+
+        <g:BoQCtgy ID="ID_c1" RNoPart="10">
+          <g:LblTx>Vorbereitung</g:LblTx>
+          <g:BoQBody>
+            <g:Itemlist>
+              <g:Item ID="ID_i1" RNoPart="01">
+                <g:Qty>1</g:Qty>
+                <g:QU>psch.</g:QU>
+                <g:Description><g:CompleteText>
+                  <g:OutlineText><g:OutlTxt><g:TextOutlTxt><span>Baustelleneinrichtung und Abdecken der Böden</span></g:TextOutlTxt></g:OutlTxt></g:OutlineText>
+                </g:CompleteText></g:Description>
+              </g:Item>
+              <g:Item ID="ID_i2" RNoPart="02">
+                <g:Qty>184,5</g:Qty>
+                <g:QU>m²</g:QU>
+                <g:Description><g:CompleteText>
+                  <g:DetailTxt><g:Text><p><span>Untergrund prüfen, lose Anstriche entfernen, Flächen reinigen und anschleifen.</span></p></g:Text></g:DetailTxt>
+                  <g:OutlineText><g:OutlTxt><g:TextOutlTxt><span>Altanstrich Wandflächen reinigen und anschleifen</span></g:TextOutlTxt></g:OutlTxt></g:OutlineText>
+                </g:CompleteText></g:Description>
+              </g:Item>
+              <g:Item ID="ID_i3" RNoPart="03">
+                <g:Qty>184,5</g:Qty>
+                <g:QU>m²</g:QU>
+                <g:Description><g:CompleteText>
+                  <g:DetailTxt><g:Text><p><span>Risse und Löcher spachteln, Qualitätsstufe Q3</span></p></g:Text></g:DetailTxt>
+                </g:CompleteText></g:Description>
+              </g:Item>
+            </g:Itemlist>
+          </g:BoQBody>
+        </g:BoQCtgy>
+
+        <g:BoQCtgy ID="ID_c2" RNoPart="20">
+          <g:LblTx>Innenanstrich</g:LblTx>
+          <g:BoQBody>
+            <g:BoQCtgy ID="ID_c2a" RNoPart="21">
+              <g:LblTx>Wand- und Deckenflächen</g:LblTx>
+              <g:BoQBody>
+                <g:Itemlist>
+                  <g:Item ID="ID_i4" RNoPart="01">
+                    <g:Qty>184,5</g:Qty>
+                    <g:QU>m²</g:QU>
+                    <g:Description><g:CompleteText>
+                      <g:OutlineText><g:OutlTxt><g:TextOutlTxt><span>Grundierung Wandflächen</span></g:TextOutlTxt></g:OutlTxt></g:OutlineText>
+                    </g:CompleteText></g:Description>
+                  </g:Item>
+                  <g:Item ID="ID_i5" RNoPart="02">
+                    <g:Qty>184,5</g:Qty>
+                    <g:QU>m²</g:QU>
+                    <g:Description><g:CompleteText>
+                      <g:OutlineText><g:OutlTxt><g:TextOutlTxt><span>Wandflächen zweimal Dispersionsanstrich, waschbeständig, weiß</span></g:TextOutlTxt></g:OutlTxt></g:OutlineText>
+                    </g:CompleteText></g:Description>
+                  </g:Item>
+                  <g:Item ID="ID_i6" RNoPart="03">
+                    <g:Qty>96</g:Qty>
+                    <g:QU>m²</g:QU>
+                    <g:Description><g:CompleteText>
+                      <g:OutlineText><g:OutlTxt><g:TextOutlTxt><span>Deckenflächen zweimal Dispersionsanstrich</span></g:TextOutlTxt></g:OutlTxt></g:OutlineText>
+                    </g:CompleteText></g:Description>
+                  </g:Item>
+                </g:Itemlist>
+              </g:BoQBody>
+            </g:BoQCtgy>
+          </g:BoQBody>
+        </g:BoQCtgy>
+
+        <g:BoQCtgy ID="ID_c3" RNoPart="30">
+          <g:LblTx>Lackierarbeiten</g:LblTx>
+          <g:BoQBody>
+            <g:Itemlist>
+              <g:Item ID="ID_i7" RNoPart="01">
+                <g:Qty>7</g:Qty>
+                <g:QU>Stk</g:QU>
+                <g:Description><g:CompleteText>
+                  <g:OutlineText><g:OutlTxt><g:TextOutlTxt><span>Zimmertüren inkl. Zargen: schleifen, zweimal Lackanstrich</span></g:TextOutlTxt></g:OutlTxt></g:OutlineText>
+                </g:CompleteText></g:Description>
+              </g:Item>
+            </g:Itemlist>
+          </g:BoQBody>
+        </g:BoQCtgy>
+
+        <g:BoQCtgy ID="ID_c4" RNoPart="90">
+          <g:LblTx>Eventualpositionen</g:LblTx>
+          <g:BoQBody>
+            <g:Itemlist>
+              <g:Item ID="ID_i8" RNoPart="01">
+                <g:Qty>15</g:Qty>
+                <g:QU>m²</g:QU>
+                <g:Description><g:CompleteText>
+                  <g:OutlineText><g:OutlTxt><g:TextOutlTxt><span>Schimmelbehandlung Wandflächen</span></g:TextOutlTxt></g:OutlTxt></g:OutlineText>
+                </g:CompleteText></g:Description>
+              </g:Item>
+              <g:Item ID="ID_i9" RNoPart="02">
+                <g:Qty>8</g:Qty>
+                <g:QU>Std.</g:QU>
+                <g:Description><g:CompleteText>
+                  <g:OutlineText><g:OutlTxt><g:TextOutlTxt><span>Stundenlohnarbeiten Maler-Geselle</span></g:TextOutlTxt></g:OutlTxt></g:OutlineText>
+                </g:CompleteText></g:Description>
+              </g:Item>
+            </g:Itemlist>
+          </g:BoQBody>
+        </g:BoQCtgy>
+
+      </g:BoQBody>
+    </g:BoQ>
+  </g:Award>
+</g:GAEB>

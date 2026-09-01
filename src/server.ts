@@ -1199,6 +1199,105 @@ app.post("/api/clarifications/:id/answer", async (c) => {
   return c.json({ ok: true, question_id: questionId, published_to: "all bidders" });
 });
 
+/**
+ * Takes a bill of quantities that came from outside as a file.
+ *
+ * There is deliberately NO tool for this. The bill of quantities is the client's
+ * document; in a real procurement a bidder may not create or alter one, and the
+ * agent has no business doing it either. A person drags a file in, and from then
+ * on the agent can price it like any other tender.
+ */
+app.post("/api/tenders/import", async (c) => {
+  const workspaceId = c.get("workspaceId");
+  const body = await c.req
+    .json<{ title?: unknown; reference?: unknown; client?: unknown; positions?: unknown }>()
+    .catch(() => ({}) as Record<string, unknown>);
+
+  const rows = Array.isArray(body.positions) ? body.positions : [];
+  if (rows.length === 0) {
+    return c.json(fail("no_positions", "The file produced no positions."), 400);
+  }
+  if (rows.length > 200) {
+    return c.json(
+      fail("too_many_positions", `At most 200 positions per import, got ${rows.length}.`),
+      400
+    );
+  }
+
+  const title =
+    typeof body.title === "string" && body.title.trim().length > 0
+      ? body.title.trim().slice(0, 200)
+      : "Imported tender";
+  const client =
+    typeof body.client === "string" && body.client.trim().length > 0
+      ? body.client.trim().slice(0, 120)
+      : "Imported from file";
+
+  // Keep the file's own reference when it is free, so the id a person reads in
+  // their AVA software is the id they see here.
+  const wanted =
+    typeof body.reference === "string" && /^[A-Za-z0-9._-]{1,24}$/.test(body.reference.trim())
+      ? body.reference.trim()
+      : null;
+  let tenderId = wanted ?? `T-IMP-${crypto.randomUUID().slice(0, 6)}`;
+  const taken = await c.env.DB.prepare(
+    "SELECT id FROM tenders WHERE workspace_id = ?1 AND id = ?2"
+  )
+    .bind(workspaceId, tenderId)
+    .first<{ id: string }>();
+  if (taken) tenderId = `${tenderId}-${crypto.randomUUID().slice(0, 4)}`;
+
+  const statements = [
+    c.env.DB.prepare(
+      `INSERT INTO tenders (workspace_id, id, title_en, title_de, client_name, city, trade, status, due_date)
+            VALUES (?1, ?2, ?3, ?3, ?4, 'Düsseldorf', 'painting', 'open', date('now','+14 day'))`
+    ).bind(workspaceId, tenderId, title, client)
+  ];
+
+  const seen = new Set<string>();
+  let sortNo = 0;
+  for (const entry of rows as Record<string, unknown>[]) {
+    const oz = typeof entry.oz === "string" ? entry.oz.trim().slice(0, 24) : "";
+    const text = typeof entry.text === "string" ? entry.text.trim().slice(0, 500) : "";
+    const quantity = typeof entry.quantity === "number" ? entry.quantity : Number.NaN;
+    const unit = typeof entry.unit === "string" ? entry.unit.trim().slice(0, 12) : "";
+    if (oz === "" || text === "" || unit === "" || !Number.isFinite(quantity) || quantity < 0) {
+      continue;
+    }
+    if (seen.has(oz)) continue;
+    seen.add(oz);
+    sortNo += 1;
+
+    statements.push(
+      c.env.DB.prepare(
+        `INSERT INTO positions (workspace_id, tender_id, oz, sort_no, text_en, text_de,
+                                long_text_en, long_text_de, quantity, unit, category, contingency)
+              VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6, ?6, ?7, ?8, ?9, ?10)`
+      ).bind(
+        workspaceId,
+        tenderId,
+        oz,
+        sortNo,
+        text,
+        typeof entry.long_text === "string" ? entry.long_text.slice(0, 2000) : null,
+        quantity,
+        unit,
+        typeof entry.category === "string" ? entry.category.trim().slice(0, 24) : "prep",
+        entry.contingency === true ? 1 : 0
+      )
+    );
+  }
+
+  if (sortNo === 0) {
+    return c.json(fail("no_usable_positions", "No position carried an item number, a quantity and a unit."), 400);
+  }
+
+  // One batch: a half-imported tender would be worse than none.
+  await c.env.DB.batch(statements);
+
+  return c.json({ ok: true, tender_id: tenderId, title, positions: sortNo }, 201);
+});
+
 app.all("/api/*", (c) => c.json(fail("not_found", "Unknown API route."), 404));
 
 app.onError((err, c) =>

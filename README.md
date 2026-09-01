@@ -130,6 +130,49 @@ out of a form.
   is no analytics.
 - No personal data. No sign-in, therefore no credentials to lose.
 
+## GAEB import
+
+A German bill of quantities does not come out of a database. It arrives as a **GAEB DA XML
+(X83)** file from the client's AVA software, and BidDesk takes it that way: drop the file on the
+bid screen and it becomes a tender you can price.
+
+The go/no-go we set ourselves, and passed:
+
+> A GAEB X83 file **the parser has never seen** — different category labels, different unit
+> spellings, a different number of positions — is dropped on the page, produces a tender with
+> every position, quantity and unit, and is then priceable with `suggest_prices`, **without a
+> code change.**
+
+```bash
+node evals/gaeb_import.mjs      # runs it against the live URL, needs Chrome 149+
+```
+
+`seed/gaeb/T-2026-021.x83` is that second file, built to be unlike the first one in every way a
+parser could have hard-coded: a namespace prefix on every element, three levels of category
+nesting, headings called *Vorbereitung / Innenanstrich / Lackierarbeiten / Eventualpositionen*,
+units written `m²`, `Stk`, `Std.`, `psch.`, German decimal commas, one item with no outline text,
+and **no `Provis` element at all** — the contingency positions are recognised from the heading.
+Nine positions instead of fourteen. It imports as `T-2026-021` with item numbers `10.01 … 90.02`
+taken from its own numbering, and Farbwerk Meier's price book then proposes eight of nine
+prices, each with its source. The ninth is the hourly rate: that firm has no such line, so the
+field stays empty.
+
+**The category is derived from the wording**, not read from the file, because GAEB category
+labels are free text and differ between offices — mapping them would only ever work for files
+we had already seen. Measured against the seed's own filing, the derivation agrees on 25 of 25
+positions. It is safe precisely because a category never becomes a price: a wrong one costs a
+suggestion, and a missing suggestion is an empty field.
+
+**There is no tool for importing.** The bill of quantities is the client's document; in a real
+procurement a bidder may not create or alter one, and the agent has no business doing it either.
+A person drags a file in, and from that moment the agent can price it like any other tender.
+
+**A defect this test found**, and the reason it was worth writing: a real bill of quantities puts
+wall and ceiling work under one heading — *"Wand- und Deckenflächen"*. Letting that heading
+decide the category gave the wall position the **ceiling** price of 9,10 € instead of its own
+8,40 €. It was sourced, traceable and chip-and-all correct-looking, and it was wrong. The
+position's own words decide now, and the heading is consulted only when they say nothing.
+
 ## Evals
 
 Run against the live URL with the official
@@ -204,8 +247,12 @@ Named on purpose, not overlooked.
 
 1. **Not a legally sound procurement process.** Real tendering needs sealed bids and a
    tamper-evident record. BidDesk shows the sealing and the lock, not cryptography.
-2. **The price book is prepared data.** Importing real past quotes (PDF, GAEB X84) is not
-   built. The provenance mechanism is real; the filling of it is not.
+2. **The price book is prepared data.** A tender can be imported as GAEB X83, but the
+   contractor's own past quotes cannot: importing those (PDF, GAEB X84) is not built. The
+   provenance mechanism is real; the filling of the price book is not. Our X83 fixtures are
+   hand-built and structurally faithful, not certified AVA exports, and the `Provis` spelling
+   for a contingency position is not verified against one — which is why the importer accepts
+   two signals for it.
 3. **No sign-in, no authorisation.** Switching role or contractor is a demo mechanism. Every
    visitor sees both sides.
 4. **The matching is deliberately conservative.** It trades recall for precision: different

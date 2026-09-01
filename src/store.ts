@@ -6,6 +6,7 @@ import {
   readBidders,
   readCheck,
   readClarifications,
+  importTender,
   readComparison,
   readPriceBook,
   readSuggestions,
@@ -439,6 +440,29 @@ export function cancelSubmit(): void {
   set({ pendingSubmit: null });
   awaitingConfirmation?.(null);
   awaitingConfirmation = null;
+}
+
+/**
+ * Brings a bill of quantities in from a file and opens it. A person does this,
+ * never a tool: the bill of quantities is the client's document.
+ */
+export async function importFromFile(parsed: {
+  title: string;
+  reference: string | null;
+  client: string | null;
+  positions: unknown[];
+}): Promise<{ tender_id: string; positions: number }> {
+  const workspaceId = await requireWorkspace();
+  const { workspaceId: current, data } = await importTender(workspaceId, parsed);
+  set({
+    ...(current === workspaceId ? {} : { workspaceId: current }),
+    suggestions: {},
+    rejections: {},
+    check: null
+  });
+  await openTender(data.tender_id);
+  void readTenders();
+  return { tender_id: data.tender_id, positions: data.positions };
 }
 
 export async function boot(): Promise<void> {

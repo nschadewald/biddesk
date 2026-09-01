@@ -708,3 +708,74 @@ aber bitte vor dem Freeze und mit neu gemessener Zahl.
 
 - GAEB (Zeitbox Mi vormittag), Devpost-Text, Video.
 - Falls gewünscht: `/llms.txt` und eine neue Lighthouse-Messung.
+
+## Schritt 11 – llms.txt, GAEB (Di 01.09.2026, 10:20–11:00)
+
+### llms.txt: 0,75 → 1,00, und beide Zahlen bleiben stehen
+
+`public/llms.txt` beschreibt in zwanzig Zeilen, was die Seite ist, was die zwölf Werkzeuge je
+Rolle tun, wo `/how-to-test` und das README liegen und dass es eine Demo ohne Anmeldung ist.
+Danach neu gemessen: **Agentic Browsing 1,00**, `llms-txt` von 0 auf 1.
+
+Im README stehen **beide Spalten**. Die erste ist, was die Anwendung erreichte, **bevor jemand
+das Audit gelesen hatte**; die zweite, was sie erreicht, nachdem eine Datei genau deswegen
+entstanden ist. Nur die 1,00 zu zeigen hieße zu behaupten, wir hätten daran gedacht.
+
+### Worktree: war nie im Index
+
+`git ls-files .claude` ist leer – der Worktree lag nur in `.git/info/exclude`, also lokal in
+diesem Checkout. Nichts zu entfernen. `.gitignore` deckt jetzt `.claude/` und `.evals/` ab,
+damit die Ausnahme einen Klon überlebt.
+
+### GAEB: BESTANDEN, um 10:50, Zeitbox war 13:00
+
+Der Test war binär, und er ist bestanden: `seed/gaeb/T-2026-021.x83` – eine Datei, die der
+Parser nicht kennt – wird auf die Seite gezogen, erzeugt T-2026-021 mit allen neun Positionen
+und ist danach bepreisbar. **Ohne Codeänderung.** Nachvollziehbar mit
+`node evals/gaeb_import.mjs`.
+
+Die zweite Datei ist absichtlich in jeder Hinsicht anders gebaut, in der ein Parser hätte
+schummeln können: Namensraum-Präfix an jedem Element, drei Ebenen Kategorieverschachtelung,
+andere Überschriften, Einheiten als `m²`/`Stk`/`Std.`/`psch.`, deutsche Dezimalkommata, eine
+Position ohne OutlineText und **kein einziges `Provis`-Element** – die Bedarfspositionen werden
+allein an der Überschrift „Eventualpositionen" erkannt. Ergebnis: acht von neun Preisen aus dem
+Preisbuch von Farbwerk Meier, jeder mit Herkunft; die neunte ist der Stundenlohn, den dieser
+Betrieb nicht führt, und bleibt leer.
+
+**Die Kategorie wird aus dem Wortlaut abgeleitet, nicht aus der Datei gelesen.** GAEB-Kategorie-
+bezeichnungen sind Freitext und je Büro anders; eine Zuordnungstabelle funktionierte nur für
+Dateien, die wir schon gesehen haben. Sicher ist das Ableiten, weil aus einer Kategorie nie ein
+Preis wird: Eine falsche kostet einen Vorschlag, und ein fehlender Vorschlag ist ein leeres
+Feld. Gegen die Einordnung im Seed gemessen: **25 von 25**.
+
+**Kein Werkzeug für den Import.** Das Leistungsverzeichnis ist das Dokument des Auftraggebers;
+im Vergabeverfahren darf ein Bieter daran nichts anlegen, und der Agent auch nicht. Ein Mensch
+zieht die Datei hinein, danach kann der Agent bepreisen wie überall sonst. Es bleibt bei zwölf
+Werkzeugen.
+
+### Der Fehler, den erst die fremde Datei zeigte
+
+Der erste Lauf war „bestanden" – und lieferte trotzdem einen **falschen Preis mit korrektem
+Herkunfts-Chip**, also genau das, wogegen dieses Produkt gebaut ist.
+
+Ein echtes Leistungsverzeichnis fasst Wand- und Deckenarbeiten unter eine Überschrift:
+„Wand- und Deckenflächen". Die Ableitung berücksichtigte Positionstext **und** Überschrift; die
+Überschrift enthält „Decken", also bekam auch die Wandposition die Kategorie `ceiling` – und
+damit den Deckenpreis **9,10 €** statt ihrer eigenen **8,40 €**. Belegt, nachvollziehbar,
+falsch.
+
+Jetzt entscheidet der Positionstext allein; die Überschrift wird nur befragt, wenn er nichts
+hergibt. Danach: 21.01 → 2,90 € (Grundierung Wand), 21.02 → 8,40 € (Wand), 21.03 → 9,10 €
+(Decke). Als Test festgeschrieben.
+
+Das ist das Argument für die fremde Datei in einem Satz: Auf unseren eigenen Beispielen wäre
+dieser Fehler nie aufgefallen, weil unsere eigenen Überschriften sortenrein sind.
+
+### Stand
+
+112 Unit-Tests, Bieter-Evals 11/11, Client-Evals grün, `verify_seed.py` grün, Lighthouse 1,00,
+GAEB bestanden.
+
+### Offen
+
+- Devpost-Text und Video.

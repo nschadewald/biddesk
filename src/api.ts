@@ -253,6 +253,17 @@ export async function writeAnswer(workspaceId: string, questionId: string, answe
   );
 }
 
+export async function importTender(
+  workspaceId: string,
+  tender: { title: string; reference: string | null; client: string | null; positions: unknown[] }
+) {
+  return post<{ ok: true; tender_id: string; title: string; positions: number }>(
+    "/api/tenders/import",
+    workspaceId,
+    tender
+  );
+}
+
 export async function loadTender(tenderId: string, workspaceId: string) {
   const { workspaceId: id, data } = await readThroughWorkspace<TenderDetail>(
     `/api/tenders/${encodeURIComponent(tenderId)}`,

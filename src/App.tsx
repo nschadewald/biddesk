@@ -4,6 +4,7 @@ import CheckPanel from "./CheckPanel";
 import Clarifications from "./Clarifications";
 import ClientScreen from "./ClientScreen";
 import Header from "./Header";
+import ImportDropZone from "./ImportDropZone";
 import { formatDate, formatEuro } from "./format";
 import PositionRow from "./PositionRow";
 import SubmitDialog from "./SubmitDialog";
@@ -180,6 +181,8 @@ function BidScreen() {
       </section>
 
       {check && <CheckPanel check={check} onClose={closeCheck} />}
+
+      {!locked && <ImportDropZone />}
 
       <div className="-mx-1 overflow-x-auto px-1">
       <table className="w-full min-w-[46rem] border-collapse text-sm">
