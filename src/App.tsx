@@ -156,6 +156,13 @@ function BidScreen() {
             formatDate(tender.due_date, language)
           )}
         </p>
+        {/* Says where this plays. The firms, streets and projects are German
+            because the case is -- GAEB files, VOB rules, a tax clearance
+            certificate -- and without saying so, German proper nouns beside
+            English position texts read as a translation somebody gave up on.
+            It carries the "all of this is invented" notice too, which until now
+            stood only in the README. */}
+        <p className="mt-1 text-[11px] text-slate-400">{copy.bid.scene}</p>
       </section>
 
       {locked && (

@@ -56,13 +56,30 @@ const en = {
     columnQuantity: "Qty",
     columnUnit: "Unit",
     columnUnitPrice: "Unit price",
-    columnTotal: "Total"
+    columnTotal: "Total",
+    // Says where this is set. The names, streets and firms in the seed are
+    // German because the case is: a German public tender runs on GAEB files,
+    // VOB rules and a tax clearance certificate. Without this line, German
+    // proper nouns beside English position texts read as a half-finished
+    // translation. It also puts the "everything here is invented" notice on
+    // the screen, where it used to live only in the README.
+    scene: "A German public tender (VOB/GAEB). Names, prices and firms are invented."
   },
 
   row: {
     contingency: "contingency",
     unitPriceFor: (oz: string) => `Unit price for ${oz}`,
     use: "Use",
+    // What the chip IS, in words. The whole product claim rests on this value
+    // being a real past quote of this firm's -- and before, the chip only said
+    // "Luegallee 40 · March 2026", which you had to already know to read.
+    //
+    // Two parts because the chip sets them on two lines. A single string wrapped
+    // where the column happened to end: four ragged lines in German, three in
+    // English. Same words, same order, a line break where the middle dot was.
+    chipLead: "from your quote",
+    chipWhere: (project: string, month: string) => `${project} · ${month}`,
+    originalLine: "the line you priced back then",
     noComparableEntry: "no comparable entry",
     notWritten: "not written",
     matched: (terms: number, on: string) => `matched_terms ${terms} · matched_on ${on}`,
@@ -255,13 +272,17 @@ const de: Copy = {
     columnQuantity: "Menge",
     columnUnit: "Einheit",
     columnUnitPrice: "Einheitspreis",
-    columnTotal: "Gesamt"
+    columnTotal: "Gesamt",
+    scene: "Eine deutsche Ausschreibung (VOB/GAEB). Namen, Preise und Firmen sind erfunden."
   },
 
   row: {
     contingency: "Bedarf",
     unitPriceFor: (oz) => `Einheitspreis für ${oz}`,
     use: "Übernehmen",
+    chipLead: "aus deinem Angebot",
+    chipWhere: (project, month) => `${project} · ${month}`,
+    originalLine: "die Zeile, die du damals bepreist hast",
     noComparableEntry: "kein vergleichbarer Eintrag",
     notWritten: "nicht übernommen",
     matched: (terms, on) => `matched_terms ${terms} · matched_on ${on}`,

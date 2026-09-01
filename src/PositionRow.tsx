@@ -146,10 +146,14 @@ export default function PositionRow({
             {/* The source stays visible after the value is in the cell. The
                 provenance must not disappear at the moment it starts to count. */}
             {chip && (
-              <span className="flex max-w-full items-center gap-1">
+              <>
+                {/* The chip gets the full width of the column and the button
+                    sits under it. Side by side, the button took a third of the
+                    room and the provenance wrapped into four ragged lines. */}
                 <SourceChip
                   chip={chip}
                   language={language}
+                  copy={copy}
                   open={open}
                   onToggle={() => setOpen(!open)}
                 />
@@ -162,7 +166,7 @@ export default function PositionRow({
                     {copy.row.use}
                   </button>
                 )}
-              </span>
+              </>
             )}
 
             {noMatch && (
@@ -209,14 +213,29 @@ type ChipData = {
   matched: { terms: number; on: string[] } | null;
 };
 
+/**
+ * The chip says what it is, not just where it is from.
+ *
+ * It used to read "480,00 EUR  Luegallee 40, March 2026", which only means
+ * something to somebody who already knows what this application does. The whole
+ * product claim rests on that value being a line this firm quoted before, so
+ * the chip states it: "from your quote". A proof nobody can read is not a proof.
+ *
+ * Two lines, deliberately, rather than one string left to wrap where the column
+ * happens to end -- that produced four ragged lines in German. Truncating was
+ * never an option either: an ellipsis would leave the claim standing with its
+ * evidence cut off.
+ */
 function SourceChip({
   chip,
   language,
+  copy,
   open,
   onToggle
 }: {
   chip: ChipData;
   language: Language;
+  copy: ReturnType<typeof useCopy>;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -226,11 +245,17 @@ function SourceChip({
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      className="inline-flex max-w-full items-baseline gap-1.5 rounded border border-slate-300 px-1.5 py-0.5 text-left text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
+      className="flex w-full max-w-full flex-col rounded border border-slate-300 px-1.5 py-0.5 text-left text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
     >
-      <span className="tabular-nums">{formatEuro(chip.unit_price)}</span>
-      <span className="truncate text-slate-500">
-        {source.source_project}, {formatMonthYear(source.source_date, language)}
+      <span className="flex items-baseline gap-1.5">
+        <span className="tabular-nums">{formatEuro(chip.unit_price)}</span>
+        <span className="text-slate-500">{copy.row.chipLead}</span>
+      </span>
+      <span className="text-slate-500">
+        {copy.row.chipWhere(
+          source.source_project,
+          formatMonthYear(source.source_date, language)
+        )}
       </span>
     </button>
   );
@@ -249,7 +274,10 @@ function OriginalLine({
   const source = chip.source;
   return (
     <div className="text-xs text-slate-600">
-      <p className="text-slate-900">{source.source_position_text}</p>
+      {/* Names the thing before quoting it. Verbatim underneath: this is the
+          evidence, and evidence that needs explaining afterwards is not read. */}
+      <p className="text-slate-500">{copy.row.originalLine}</p>
+      <p className="mt-0.5 text-slate-900">{source.source_position_text}</p>
       <p className="mt-0.5">
         {source.source_project} · {formatMonthYear(source.source_date, language)} ·{" "}
         {formatEuro(chip.unit_price)} ·{" "}

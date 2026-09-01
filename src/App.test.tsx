@@ -94,6 +94,12 @@ it("shows the 14 positions with quantity and unit, no prices and a zero total", 
     return found;
   });
 
+  // Where this plays, and that none of it is real. Until now that notice
+  // stood only in the README, where a juror looking at the screen never is.
+  expect(
+    screen.getByText("A German public tender (VOB/GAEB). Names, prices and firms are invented.")
+  ).toBeInTheDocument();
+
   const first = within(rows[0]!);
   expect(first.getByText("01.01")).toBeInTheDocument();
   expect(first.getByText("psch")).toBeInTheDocument();
@@ -218,6 +224,11 @@ it("switches the language without touching a single tool registration", async ()
     expect(screen.getByText("Nettosumme")).toBeInTheDocument();
     expect(screen.getByText("Angebot prüfen")).toBeInTheDocument();
     expect(screen.getAllByText("Bedarf")).toHaveLength(2);
+    expect(
+      screen.getByText(
+        "Eine deutsche Ausschreibung (VOB/GAEB). Namen, Preise und Firmen sind erfunden."
+      )
+    ).toBeInTheDocument();
 
     // The self-diagnosis says the same number, in German, and no tool was
     // registered a second time.

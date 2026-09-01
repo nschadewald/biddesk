@@ -1016,4 +1016,100 @@ alle vier nach dem Deploy des Umschalters erneut gefahren. `src/HowToTest.tsx`, 
 - Devpost-Text und Video.
 - Der Umschalter ist in keinem Eval-Fall abgedeckt: die Evals fahren die englische Vorgabe.
   Geprüft ist er über Unit-Tests und einen Durchlauf beider Sprachen in beiden Rollen auf der
-  produktiven URL, nicht über die CLI.
+  produktiven URL, nicht über die CLI. **Nachgezogen in Schritt 13.**
+
+## Schritt 13 – Der Beleg sagt jetzt, was er ist (Di 01.09.2026)
+
+### Der Herkunfts-Chip war für Eingeweihte geschrieben
+
+Auf dem Chip stand `480,00 € Luegallee 40, March 2026`. Wer weiß, was diese Anwendung tut,
+liest darin „das kommt aus einem eigenen alten Angebot dieses Betriebs". Wer es nicht weiß –
+also jeder Juror in der ersten Minute und jeder Kunde im Verkaufsgespräch – liest zwei
+Eigennamen ohne Aussage. Damit war der Beleg, auf dem die **gesamte** Produktaussage ruht, im
+Bildschirm nicht lesbar. Ein Beweis, den niemand als Beweis erkennt, ist keiner.
+
+Jetzt trägt der Chip die Herkunft in Worten: `from your quote · Luegallee 40 · March 2026`
+bzw. `aus deinem Angebot · Luegallee 40 · März 2026`. Beim Öffnen steht über der Originalzeile,
+was sie ist – „the line you priced back then" / „die Zeile, die du damals bepreist hast" –,
+darunter unverändert `matched_terms`/`matched_on`.
+
+**Der Text bricht um, statt zu kürzen.** Die Preisspalte ist 240 px breit, der Satz ist länger.
+Ein Abschneiden hätte genau die Belegteile geschluckt, die neu dazugekommen sind: Projekt und
+Datum. Eine Zeile mehr Höhe ist billiger als eine Behauptung ohne ihren Beleg.
+
+§13.3 gilt unverändert: Alle Chips sehen gleich aus, keine Farbe, kein Gewicht, keine
+Abstufung nach Trefferzahl. Ein Test hält weiterhin fest, dass zwei Chips mit einem bzw. vier
+Treffern dieselbe CSS-Klasse tragen – und ein neuer, dass ein von Hand eingetragener Preis
+**keinen** Chip bekommt und sich die Worte des Belegs also nicht ausleihen kann.
+
+### Die englische Fassung sagt jetzt, wo sie spielt
+
+Befund aus dem Verkaufsgespräch: deutsche Firmen, Straßen und Projekte neben englischen
+Positionstexten wirken halb übersetzt. Entschieden wurde **gegen Umziehen und für Erklären** –
+der Fall *ist* ein deutsches Vergabeverfahren: GAEB X83, VOB, Unbedenklichkeitsbescheinigung.
+Die Eigennamen englisch zu machen hieße, den Realitätsbeweis wegzuwerfen, der das Beste an
+diesem Projekt ist.
+
+Stattdessen eine Zeile unter dem Titel, klein gesetzt: *„A German public tender (VOB/GAEB).
+Names, prices and firms are invented."* Sie erledigt nebenbei den Hinweis, dass alle Daten
+erfunden sind – der stand bisher nur im README, also dort, wo ein Juror mit dem Bildschirm vor
+sich gerade nicht ist.
+
+### Der Sprachtest, gegen die eigene Sabotage geprüft
+
+Die Garantie „ein Vorschlag hängt nicht an der Anzeigesprache" hielt bisher **nur durch
+Bauart**: Die Vorschlagsabfrage holt `text_de`. Eine spätere Änderung an dieser einen Zeile
+wäre stillschweigend durchgegangen – der Bildschirm sähe in beiden Sprachen richtig aus,
+während die Vorschläge wandern.
+
+`src/server.test.ts` fährt dafür die **echte Worker-Route** gegen eine D1-Attrappe. Zwei
+Eigenschaften machen den Test wirksam:
+
+1. **Die Attrappe liefert nur die Spalten, die das SQL erfragt, unter den Namen, unter denen es
+   sie erfragt.** Sie zerlegt dazu die Spaltenliste des SELECT. Eine auf `text_en` umgeschriebene
+   Abfrage bekommt also eine Zeile *ohne* `text_de`, eine auf `text_en AS text_de` umgeschriebene
+   bekommt deutsche Schlüssel mit englischem Inhalt.
+2. **Die Vorlage widerspricht sich in den zwei Sprachen absichtlich.** „Wandflächen zweimal
+   Anstrich" trifft zwei deutsche Schlagworte, „Two coats emulsion, walls" trifft keines.
+
+Damit fängt der Test zwei verschiedene Fehler statt nur einen: Gleichheit allein würde eine
+dauerhaft auf Englisch umgestellte Abfrage durchlassen, weil dann *beide* Aufrufe gleich falsch
+wären. Deshalb prüft der zweite Fall zusätzlich, dass das Ergebnis das **deutsche** ist.
+
+**Beides gegengeprüft, indem der Code absichtlich kaputtgemacht wurde:**
+
+| Sabotage | Reaktion |
+|---|---|
+| `text_de` → `text_en AS text_de` | 1 Test rot („derives the proposals from the German short text") |
+| Abfrage folgt `readLanguage(c)` | 2 Tests rot (Gleichheit **und** Herkunft) |
+
+Danach zurückgesetzt und `git diff` gegen HEAD geprüft, damit von der Sabotage nichts stehen
+bleibt. Ein Test, den man nicht einmal hat scheitern sehen, ist eine Vermutung.
+
+Warum kein Eval-Fall: Ein Eval hängt an einem Modell, das eine Kette wählt. Für eine Invariante
+ist das das falsche Instrument – sie muss auch dann fallen, wenn niemand einen Prompt tippt.
+
+### `spec.md` und `docs/03` sind deckungsgleich – das ist die gute Nachricht und die Warnung
+
+Beim Nachziehen von §8 gegengeprüft: Die beiden Dateien unterscheiden sich in **null**
+inhaltlichen Zeilen, einzig `spec.md` trägt oben zwei Zeilen Snapshot-Kommentar. Es gibt also
+heute keine Drift, die man auflösen müsste.
+
+Bestehen bleibt trotzdem, dass zwei Kopien derselben Spec auseinanderlaufen **können** und
+beide öffentlich sind. Der Snapshot-Kommentar sagt das jetzt ausdrücklich. Die eigentliche
+Entscheidung – welche der beiden verschwindet – ist keine Technikfrage und steht aus.
+
+### Stand
+
+128 Unit-Tests in 15 Dateien (neu: `src/server.test.ts`), Bieter-Evals 11/11, Client-Evals grün, GAEB
+bestanden, `verify_seed.py` grün.
+
+### Offen
+
+- Devpost-Text und Video.
+- **Du oder Sie.** Der neue Chip-Text ist im Du („aus deinem Angebot", „die Zeile, die du
+  damals bepreist hast"), die übrige deutsche Fassung siezt an vier Stellen („Tragen Sie ihn
+  selbst ein", „Ihrem eigenen früheren Preis", „Ihr Entwurf", „Ihrem Browser"). Beides in einem
+  Bildschirm fällt einem deutschen Leser auf. Die Entscheidung ist eine Marken-, keine
+  Technikfrage; anzupassen sind sechs Zeichenketten in `src/i18n.ts`.
+- Eine der beiden Spec-Kopien sollte verschwinden (siehe oben).

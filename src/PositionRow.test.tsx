@@ -220,3 +220,36 @@ it("locks the row once the bid has been handed in", () => {
   expect(screen.getByRole("button", { name: /Luegallee 40/ })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Use" })).not.toBeInTheDocument();
 });
+
+it("says on the chip what the chip is, not only where it points", () => {
+  row({ position: position(), suggestion: proposal() });
+
+  // The claim this whole application makes is that the number came from a
+  // quote this firm wrote before. Before, the chip said "Luegallee 40, March
+  // 2026" and you had to already know that to read it.
+  const chip = screen.getByRole("button", { name: /from your quote/ });
+  expect(within(chip).getByText("from your quote")).toBeInTheDocument();
+  expect(within(chip).getByText("Luegallee 40 · March 2026")).toBeInTheDocument();
+  expect(within(chip).getByText("480,00 €")).toBeInTheDocument();
+});
+
+it("names the original line before quoting it", async () => {
+  row({ position: position(), suggestion: proposal() });
+  await userEvent.click(screen.getByRole("button", { name: /from your quote/ }));
+
+  expect(screen.getByText("the line you priced back then")).toBeInTheDocument();
+  expect(screen.getByText(SOURCE.source_position_text)).toBeInTheDocument();
+  // Still data underneath, still not a scale.
+  expect(screen.getByText("matched_terms 2 · matched_on category, unit")).toBeInTheDocument();
+});
+
+it("keeps the wording off the chip when a person typed the price", () => {
+  row({
+    position: position({ my_unit_price: 61, line_total: 61, set_by: "human", source: null })
+  });
+
+  // No chip at all: a value without provenance must not borrow the words of
+  // one. That distinction is the point of the three states.
+  expect(screen.queryByText(/from your quote/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button")).not.toBeInTheDocument();
+});

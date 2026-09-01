@@ -1,4 +1,4 @@
-<!-- SNAPSHOT 01.09.2026 06:09 aus docs/03-spec-biddesk.md -->
+<!-- SNAPSHOT 01.09.2026 15:20 aus docs/03-spec-biddesk.md. Beide Dateien sind bis auf diese Zeile deckungsgleich; wer eine ändert, ändert die andere mit. -->
 
 # BidDesk – Build-Spec (v0.1, 28.08.2026)
 
@@ -71,7 +71,7 @@ Jeder Eintrag ist eine **echte historische Zeile** und trägt seine Herkunft mit
 4. **Agent Panel** (beide Rollen, rechts, einklappbar): Tool-Liste (Name, readOnly-Badge), **Live-Log** der Tool-Aufrufe (Zeit, Tool, Input, Output-Kurzform, Dauer), 4 kopierbare Beispiel-Prompts, „Reset workspace"-Button, Link „How to enable WebMCP" (Chrome-Flag, ChatGPT-Desktop).
 5. **About/How to test** (Route `/how-to-test`): 60-Sekunden-Anleitung für Juroren, Tool-Übersicht, Sicherheitsmodell.
 
-Sprache: UI Englisch; Umschalter DE/EN (Stretch, nur wenn Mo Zeit ist – Seed-Texte sind bereits zweisprachig).
+Sprache: **DE/EN-Umschalter im Kopfbereich, Vorgabe Englisch** (gebaut am 01.09., nicht mehr Stretch). Die Sprache reist im Header `X-Language` und wird im Worker in `toTender`/`toPosition` aufgelöst; ohne Header gilt Englisch. Werkzeuge bleiben in beiden Sprachen englisch – Namen, Beschreibungen, Schemas, `reason`, `warnings`, Fehlerobjekte, Log-Zeilen. Der Sprache folgen nur Positionstexte und Nachweis-Bezeichnungen. Ein Sprachwechsel löst **kein** `toolchange` aus. Beträge und Mengen bleiben in beiden Sprachen `de-DE`, Datumsangaben folgen der Sprache. `/how-to-test` bleibt englisch.
 
 ## 2b. Designhaltung und Interaktionsregeln
 
@@ -199,8 +199,17 @@ Client: "Compare all bids for the facade tender and tell me who is cheapest but 
 
 ## 8. Stretch (nur nach DoD)
 
-- DE/EN-Umschalter im UI.
-- GAEB DA XML (X83) Import für eigene LVs, X84-Export des Angebots.
+> **Zwei davon sind erledigt und damit kein Stretch mehr** – der GAEB-X83-Import am
+> 01.09. (`docs/07` Schritt 11) und der DE/EN-Umschalter am 01.09. (`docs/07` Schritt 12).
+> Sie stehen hier durchgestrichen, statt gelöscht zu werden, damit lesbar bleibt, wovon
+> diese Liste ausging und was sich daran geändert hat.
+
+- ~~DE/EN-Umschalter im UI.~~ **Gebaut am 01.09.** Die Zielkorrektur, die ihn nach vorn
+  zog: Die Demo soll Kunden gewinnen, Publikum sind deutsche Handwerksbetriebe und
+  Hausverwaltungen, die Jury ist ein Sonderfall davon. Ein Malermeister sieht sich keine
+  englische Oberfläche an. Einzelheiten in §2.
+- ~~GAEB DA XML (X83) Import für eigene LVs~~ **gebaut am 01.09.**, auf einer Datei, die
+  der Parser nie gesehen hatte. **X84-Export des Angebots bleibt offen.**
 - Auftraggeber legt eigene Ausschreibung an (Agent-Authoring, `create_tender`, `add_position`).
 - `list_tenders` optional mit echten Bekanntmachungen aus dem Datenservice Öffentlicher Einkauf (API-Zugang zuerst prüfen).
 
@@ -227,7 +236,7 @@ Voller Scope aus §1–§3 gilt: 13 Tools, beide Rollen. Zusätzlich, in dieser 
 2. **Origin-Trial-Token** statt Chrome-Flag – senkt die Hürde für Juroren auf null. Wer erst ein Flag setzen muss, testet im Zweifel nicht.
 3. **WebMCP-Evals + Lighthouse-Agentic-Audit** mit veröffentlichten Ergebnissen im README – macht kaum jemand, zahlt direkt auf „WebMCP Leverage" ein.
 4. **Videobudget verdoppeln** (5–6 h statt 2–3 h). Ein besseres Video schlägt ein 14. Werkzeug, weil die Jury zuerst das Video sieht.
-5. **DE/EN-Umschalter** – für die Jury egal, aber danach für Kundengespräche entscheidend. Seed-Texte sind bereits zweisprachig, Aufwand gering.
+5. **DE/EN-Umschalter** – ~~für die Jury egal~~, für Kundengespräche entscheidend. **Am 01.09. gebaut und dabei auf Platz eins gezogen**: Wenn die Demo Kunden gewinnen soll, ist die deutsche Fassung nicht das Nachspiel, sondern die Hauptsache. Englisch bleibt die Vorgabe, damit ein Juror ohne Vorgeschichte in seiner Testsprache ankommt.
 6. **Deutsche Zweitfassung des Videos** nach der Einreichung, für Website und Vertrieb.
 
 **Bewusst NICHT, auch mit 30–40 h:**
