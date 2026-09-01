@@ -622,3 +622,89 @@ erklären und darf **keine Zahl anbieten**. Nachgezogen in Agent-Panel, `/how-to
 
 - Chrome-149-Abnahme des Origin Trials.
 - Evals, Lighthouse, GAEB (Zeitbox Mi vormittag), Devpost-Text, Video.
+
+## Schritt 10 – Belege: Evals und Lighthouse (Di 01.09.2026)
+
+### Chrome 152 ist auf diesem Rechner – damit fiel nebenbei die Abnahme aus Schritt 8
+
+Der Automatisierungsbrowser hier ist Chrome 148, aber **lokal installiert ist Chrome 152**.
+Puppeteer startet ihn, die Evals laufen darüber, und die Sonde meldet:
+
+```
+hasDocumentModelContext: true, hasNavigatorModelContext: false
+diagnosis: "WebMCP detected · 10 tools registered"
+```
+
+**Ohne `chrome://flags`.** Damit ist der **Origin Trial abgenommen** – die offene Frage aus
+Schritt 8 ist beantwortet. Nebenbei bestätigt: `document.modelContext` ist der richtige
+Primärpfad, `navigator.modelContext` gibt es in 152 nicht mehr.
+
+### Drei echte Fehler, die nur die Evals finden konnten
+
+Alle drei betreffen **ausschließlich** den deklarativen Weg und sind auf Chrome 148 unsichtbar.
+`ask_clarification` meldete Erfolg und legte nie eine Rückfrage an – Prompt 4 wäre im Video
+stillschweigend wirkungslos gewesen.
+
+1. **`toolautosubmit` fehlte.** Ohne das Attribut füllt der Browser die Felder und wartet auf
+   einen menschlichen Klick: Der Aufruf des Agenten hängt (Puppeteer lief in den Timeout) und
+   nichts wird abgeschickt. Eine Rückfrage ist ein gewöhnlicher, umkehrbarer Schreibvorgang –
+   der Agent darf ihn abschließen. Das eine, was eine Hand braucht, ist kein Formular.
+2. **Die Formularfelder waren React-kontrolliert.** Der Browser schreibt direkt ins DOM, React
+   bemerkt das nicht und setzt beim nächsten Rendern den Zustandswert zurück – und es rendert
+   dauernd, allein das Live-Log genügt. Jetzt unkontrolliert.
+3. **Unser eigenes `form.reset()` brach den Aufruf ab.** Der Browser antwortet darauf wörtlich
+   mit `Tool execution cancelled by a form reset`. Zurückgesetzt wird jetzt nur noch, wenn ein
+   **Mensch** abgeschickt hat (`event.agentInvoked === false`).
+
+Dazu eine Unstimmigkeit, die der erste Lauf zeigte: Das Formular kennt **kein** `tender_id` –
+es fragt zu dem, was offen ist. Der imperative Zwilling verlangte es aber. Ein Name mit zwei
+Verträgen, je nach Browser. `tender_id` ist jetzt optional und fällt auf den offenen Tender
+zurück.
+
+### Was die Evals prüfen, und was nicht
+
+`webmcp-evals smoke` prüft die **Werkzeugkette** gegen die echte Seite, ohne Modell und ohne
+API-Schlüssel. Es sieht aber nicht an, **was zurückkam**. Spec §6 verlangt beides, deshalb
+`evals/assert_outcomes.py`: Es ruft die offizielle CLI auf, liest deren Ausgaben und behauptet
+je Fall das sichtbare Ergebnis. **11 von 11 Schritten, 7 Fälle, drei saubere Läufe
+hintereinander.**
+
+Die Rollentrennung ist der Grund, warum E6/E9/E10 nicht über die CLI laufen: Es gibt kein
+Werkzeug, das die Rolle wechselt – genau die Eigenschaft, um die es geht. `evals/client_role.mjs`
+fährt dafür ein echtes Chrome und schaltet im Kopfbereich um wie ein Mensch. Zehn Werkzeuge als
+Bieter, fünf als Auftraggeber, und `get_price_comparison` existiert auf der Bieterseite nicht.
+
+**Nicht abgedeckt:** ob ein Modell die richtige Kette *wählt*. Das braucht `webmcp-evals browser`
+mit API-Schlüssel; hier ist keiner gesetzt, und ich nehme dafür keinen fremden. Steht so im README.
+
+### Lighthouse: 0,75
+
+Kategorie „Agentic Browsing", Lighthouse 13.4.1. `agent-accessibility-tree`,
+`webmcp-registered-tools`, `webmcp-schema-validity` und `cumulative-layout-shift` (0.006) je 1,
+`webmcp-form-coverage` nicht anwendbar – und **`llms-txt` mit 0**, weil es die Datei nicht gibt.
+
+Bewusst **nicht** nachgebessert: Der Auftrag sagte „keine neuen Funktionen" und „ein ehrlicher
+Wert schlägt keinen Wert". Eine Datei anzulegen, nachdem man das Audit gelesen hat, misst nicht
+mehr das Gebaute. `/llms.txt` sind zehn Zeilen, falls die Entscheidung anders ausfällt – dann
+aber bitte vor dem Freeze und mit neu gemessener Zahl.
+
+### Zwei Messhinweise
+
+- **Direkt nach einem Deploy schlagen Läufe fehl** (einmal 2/11, einmal 5/11), bis die Assets
+  propagiert sind. Rund 15 Sekunden warten, dann ist es reproduzierbar sauber.
+- **Ein Git-Worktree unter `.claude/`** enthielt eine zweite Kopie aller Testdateien; vitest
+  zählte 24 Dateien und 194 Tests statt 12 und 97. In `vitest.config.ts` ausgeschlossen – eine
+  Zahl, die im README steht, muss stimmen.
+
+### API-Notizen aus Chrome 152 (für Mittwoch)
+
+- `document.modelContext.getTools()` liefert ein **Promise**, kein Array. Unsere Prüfung auf
+  `Array.isArray` schlägt fehl und fällt auf die eigene Buchführung zurück – Ergebnis stimmt,
+  aber die Browserliste wird nie benutzt. Kein Fehler, nur eine Feststellung.
+- `executeTool(tool, args)` erwartet ein **RegisteredTool-Objekt** und die Argumente als
+  **JSON-String**, nicht als Objekt.
+
+### Offen
+
+- GAEB (Zeitbox Mi vormittag), Devpost-Text, Video.
+- Falls gewünscht: `/llms.txt` und eine neue Lighthouse-Messung.

@@ -2,6 +2,7 @@ import { ApiFailure, type PriceWrite, type TenderFilters } from "../api";
 import {
   answerClarification,
   askClarification,
+  getAppState,
   cancelSubmit,
   loadComparison,
   getPriceBook,
@@ -519,20 +520,22 @@ const askClarificationTool: ToolDefinition = {
   name: "ask_clarification",
   title: "Ask the client a question about the tender",
   description:
-    "Sends a question to the client about this tender, optionally about one position. The " +
-    "question is published to the client and, once answered, to every bidder, so write it " +
-    "as a professional question and never include prices or anything else confidential. " +
-    "Use it when the bill of quantities is unclear, when the scope of a position is " +
-    "ambiguous, or when the user asks you to check something with the client. Visible " +
-    "effect: the question appears in the questions list with status open. The same action " +
-    "is also available as a form on the page, which the browser offers as a tool in its own " +
-    "right: this tool is the imperative twin of that form.",
+    "Sends a question to the client about the tender that is currently open, optionally " +
+    "about one position. The question is published to the client and, once answered, to " +
+    "every bidder, so write it as a professional question and never include prices or " +
+    "anything else confidential. Use it when the bill of quantities is unclear, when the " +
+    "scope of a position is ambiguous, or when the user asks you to check something with " +
+    "the client. Visible effect: the question appears in the questions list with status " +
+    "open. On browsers that support it, this same action is a form in the page and the " +
+    "browser derives the tool from that form; this is its twin for browsers that do not, " +
+    "and it takes the same arguments.",
   inputSchema: {
     type: "object",
     properties: {
       tender_id: {
         type: "string",
-        description: 'The tender the question is about, for example "T-2026-014".'
+        description:
+          'Optional. The tender the question is about, for example "T-2026-014". Defaults to the tender currently open, which is what the form in the page uses.'
       },
       oz: {
         type: "string",
@@ -545,7 +548,7 @@ const askClarificationTool: ToolDefinition = {
         description: "The question itself, at most 500 characters."
       }
     },
-    required: ["tender_id", "question"],
+    required: ["question"],
     additionalProperties: false
   },
   annotations: { readOnlyHint: false },
@@ -553,10 +556,16 @@ const askClarificationTool: ToolDefinition = {
     const parsed = readObject(input, ["tender_id", "oz", "question"]);
     if (isFailure(parsed)) return parsed;
 
-    const tenderId = parsed.tender_id;
+    // The form in the page has no tender field -- it asks about whatever is on
+    // screen. The twin has to mean the same thing by the same name, or one tool
+    // name would have two contracts depending on the browser.
+    const tenderId =
+      typeof parsed.tender_id === "string" && parsed.tender_id.trim().length > 0
+        ? parsed.tender_id
+        : getAppState().tenderId;
     const question = parsed.question;
     if (typeof tenderId !== "string" || tenderId.trim().length === 0) {
-      return invalid("tender_id is required and must be a non-empty string.");
+      return invalid("No tender is open. Call get_tender first, or pass tender_id.");
     }
     if (typeof question !== "string" || question.trim().length === 0) {
       return invalid("question is required and must be a non-empty string.");

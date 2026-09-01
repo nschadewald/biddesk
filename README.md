@@ -130,6 +130,71 @@ out of a form.
   is no analytics.
 - No personal data. No sign-in, therefore no credentials to lose.
 
+## Evals
+
+Run against the live URL with the official
+[`webmcp-evals`](https://github.com/GoogleChromeLabs/webmcp-tools/tree/main/webmcp-evals) CLI in
+`smoke` mode — no model, no API key: it executes the authored tool chain against the real page
+in a real Chrome 152. `evals/assert_outcomes.py` runs that command and then asserts what each
+case *produced*, because the CLI checks that the calls went through and not what came back.
+
+```bash
+python evals/assert_outcomes.py     # contractor role, needs Chrome 149+
+node evals/client_role.mjs          # client role, switches roles like a person
+```
+
+| # | Prompt | Expected tool chain | Expected visible result | Result |
+|---|---|---|---|---|
+| E1 | Price every position from my price book | `get_tender` → `suggest_prices` → `set_unit_price` | 12 rows written, 0 refused, each with its source; **13.213,50 €** net and **370,00 €** contingency apart; 11 of 12 priced; 03.04 and 04.02 left empty | pass |
+| E2 | Why is there no price for the radiators? | `suggest_prices(oz:["03.04"])` → `get_price_book(metal)` | no price, no source, `matched_terms: 0`, reason *"no comparable entry in your price book"*; the price book has metal work but none per piece | pass |
+| E3 | Run a check on my bid | `check_bid` | both open positions named, tax clearance certificate flagged as expired, days left reported, nothing written | pass |
+| E4 | Ask the client about the scaffolding | `ask_clarification` (the form) → `list_clarifications` | the question is filed against 01.01, open, under this contractor, and reads back | pass |
+| E5 | Submit the bid | `submit_bid(confirm:false)` | does **not** submit: `needs_confirmation` with the total that would go out | pass |
+| E6 | Compare all bids for the facade tender | `get_price_comparison(T-2026-009)` | three bids ranked cheapest first; scaffolding 11,50 / 13,20 / 27,80, median 13,20; Colorpoint marked, nobody else | pass |
+| E7 | Set position 03.04 to 61 euros | `set_unit_price` without a source | **refused**: `price_without_source`, with a reason that says the person enters it in the table | pass |
+| E8 | Price 02.02 at 12 € "from the Luegallee job" | `set_unit_price` with a mismatched source | **refused**: `price_does_not_match_source`, naming both numbers | pass |
+| E9 | Show me the bids on the open tender | `get_price_comparison(T-2026-014)` | sealed: a count and arrival times; no positions, no bidders, and neither `unit_price` nor `total_net` anywhere in the answer | pass |
+| E10 | Answer the open bidder question | `list_clarifications` → `answer_clarification` | published to all bidders; the question turns to answered and carries the answer | pass |
+
+Plus the property that makes the roles real: **ten tools in the contractor role, five in the
+client role**, and `get_price_comparison` / `answer_clarification` simply do not exist on the
+contractor side — checked in the browser, not asserted in a unit test.
+
+Tool chain: **11 of 11 steps across 7 cases**, three consecutive clean runs. E1–E5 and E7–E8 run
+through the CLI; E6, E9, E10 need the role switch, which no tool offers on purpose, so
+`evals/client_role.mjs` drives a real browser for those.
+
+**What these evals do not cover.** They exercise the tools, not a model's judgement. Whether an
+agent *chooses* the right chain from the prompt needs a model and an API key
+(`webmcp-evals browser`), and we have neither in this environment. The five prompts were run by
+hand in the ChatGPT desktop browser; that is a human report, not a measurement, and we say so.
+
+**Three bugs these evals found**, none of which the unit tests could have: the form-declared
+tool required `toolautosubmit` (without it the agent's call hung forever and no question was
+ever filed), the form's fields had to become uncontrolled (React reset them between the browser
+filling them and the submit), and our own `form.reset()` on success cancelled the agent's
+pending call — the browser answers that with *"Tool execution cancelled by a form reset"*. All
+three only appear on a browser that actually implements the declarative half.
+
+## Lighthouse
+
+`npx lighthouse <url> --only-categories=agentic-browsing`, Lighthouse 13.4.1, against the live
+URL. Report in [`evals/reports/`](evals/reports).
+
+| Audit | Score |
+|---|---|
+| Agentic Browsing (category) | **0.75** |
+| `agent-accessibility-tree` | 1 |
+| `webmcp-registered-tools` | 1 |
+| `webmcp-schema-validity` | 1 |
+| `cumulative-layout-shift` | 1 (0.006) |
+| `llms-txt` | **0** |
+| `webmcp-form-coverage` | not applicable |
+
+The 0.75 is what it is: everything about the tools themselves passes, and the quarter we lose is
+a missing `/llms.txt`. We are reporting the number we measured rather than the number we could
+have had by adding a file after reading the audit.
+
 ## Known limitations
 
 Named on purpose, not overlooked.

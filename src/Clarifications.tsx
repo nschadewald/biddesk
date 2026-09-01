@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Clarification, Role } from "./types";
 import { declareFormTool } from "./webmcp/registry";
 
@@ -27,8 +27,17 @@ export default function Clarifications({
   onAsk: (input: { oz: string | null; question: string }) => Promise<unknown>;
   onAnswer: (questionId: string, answer: string) => Promise<unknown>;
 }) {
-  const [oz, setOz] = useState("");
-  const [question, setQuestion] = useState("");
+  /**
+   * The fields are UNCONTROLLED on purpose.
+   *
+   * When an agent uses this form, the browser writes into the inputs and then
+   * submits. React never sees those writes, so a controlled input is reset to
+   * its state value by the next render -- and any render will do, the live log
+   * alone causes several. The submit then reads two empty fields and files
+   * nothing, while the agent is told the form was submitted. Found by the eval
+   * run: the tool reported success and no question ever arrived.
+   */
+  const formRef = useRef<HTMLFormElement>(null);
   const [failure, setFailure] = useState<string | null>(null);
 
   // The form IS the tool while it is on the page. Telling the registry keeps
@@ -42,7 +51,16 @@ export default function Clarifications({
     });
   }, [role]);
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  /**
+   * One handler for a person and for an agent.
+   *
+   * `respondWith` has to be called while the submit event is still being
+   * dispatched -- synchronously -- and handed a promise, not awaited first.
+   * Awaiting the network call before calling it means the browser has already
+   * answered the agent with its own placeholder ("pending form submission"),
+   * and our result never arrives. Found by the eval run, not by reading.
+   */
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const submitEvent = event.nativeEvent as SubmitEvent;
     const data = new FormData(event.currentTarget);
@@ -50,27 +68,36 @@ export default function Clarifications({
     const item = String(data.get("oz") ?? "").trim();
 
     if (text.length === 0) {
+      const failure = { ok: false, error: "invalid_input", hint: "question is required." };
       setFailure("A question needs some text.");
-      submitEvent.respondWith?.(
-        Promise.resolve({ ok: false, error: "invalid_input", hint: "question is required." })
-      );
+      submitEvent.respondWith?.(Promise.resolve(failure));
       return;
     }
 
-    try {
-      const result = await onAsk({ oz: item.length > 0 ? item : null, question: text });
-      setOz("");
-      setQuestion("");
-      setFailure(null);
-      // The agent submitted this form: answer it in place, without navigating.
-      submitEvent.respondWith?.(Promise.resolve(result));
-    } catch (caught) {
-      const hint = caught instanceof Error ? caught.message : "The question could not be sent.";
-      setFailure(hint);
-      submitEvent.respondWith?.(
-        Promise.resolve({ ok: false, error: "ask_failed", hint })
-      );
-    }
+    // Clearing the fields is a courtesy to a person. To the browser, a reset
+    // while an agent's submission is pending IS a cancellation -- it answers
+    // the agent with "Tool execution cancelled by a form reset" and files
+    // nothing. So the form is only cleared when a person submitted it.
+    const byAgent = submitEvent.agentInvoked === true;
+
+    const work = onAsk({ oz: item.length > 0 ? item : null, question: text }).then(
+      (result) => {
+        if (!byAgent) formRef.current?.reset();
+        setFailure(null);
+        return result;
+      },
+      (caught: unknown) => {
+        const hint =
+          caught instanceof Error ? caught.message : "The question could not be sent.";
+        setFailure(hint);
+        return { ok: false, error: "ask_failed", hint };
+      }
+    );
+
+    // Handed over at once, still pending. The browser resolves the agent's call
+    // when it settles.
+    submitEvent.respondWith?.(work);
+    void work;
   }
 
   return (
@@ -81,9 +108,16 @@ export default function Clarifications({
 
       {role === "bidder" && (
       <form
+        ref={formRef}
         className="flex flex-wrap items-end gap-2"
         toolname="ask_clarification"
         tooldescription="Ask the client a question about the tender currently open, optionally about one position. The question is published to the client and, once answered, to every bidder, so never include prices or anything confidential."
+        // Without toolautosubmit the browser fills the fields and then waits for
+        // a person to press the button: the agent's call hangs and no question is
+        // ever filed. Asking a question is an ordinary, reversible write, so the
+        // agent may complete it. The one action that does need a hand -- handing
+        // the bid in -- is not a form at all.
+        toolautosubmit=""
         onSubmit={submit}
       >
         <div className="flex flex-col gap-1">
@@ -93,8 +127,6 @@ export default function Clarifications({
           <input
             id="clarification-oz"
             name="oz"
-            value={oz}
-            onChange={(event) => setOz(event.target.value)}
             placeholder="02.04"
             toolparamdescription='The item number the question is about, for example "02.04". Leave empty for a question about the tender as a whole.'
             className="w-24 rounded border border-slate-300 px-1.5 py-1 text-sm focus:border-slate-400 focus:outline-none"
@@ -107,8 +139,6 @@ export default function Clarifications({
           <textarea
             id="clarification-question"
             name="question"
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
             required
             rows={2}
             maxLength={500}

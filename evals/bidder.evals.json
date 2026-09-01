@@ -1,0 +1,139 @@
+[
+  {
+    "name": "E1 · Price the whole tender from the price book",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Open tender T-2026-014 and price every position from my price book. Leave anything without a match empty and tell me which ones."
+      }
+    ],
+    "expectedCall": [
+      { "functionName": "get_tender", "arguments": { "tender_id": "T-2026-014" } },
+      { "functionName": "suggest_prices", "arguments": { "tender_id": "T-2026-014" } },
+      {
+        "functionName": "set_unit_price",
+        "arguments": {
+          "tender_id": "T-2026-014",
+          "prices": [
+            { "oz": "01.01", "unit_price": 480, "price_book_id": "PB-A-001" },
+            { "oz": "01.02", "unit_price": 3.2, "price_book_id": "PB-A-002" },
+            { "oz": "01.03", "unit_price": 6.8, "price_book_id": "PB-A-003" },
+            { "oz": "02.01", "unit_price": 2.9, "price_book_id": "PB-A-004" },
+            { "oz": "02.02", "unit_price": 8.4, "price_book_id": "PB-A-005" },
+            { "oz": "02.03", "unit_price": 9.1, "price_book_id": "PB-A-006" },
+            { "oz": "02.04", "unit_price": 14.2, "price_book_id": "PB-A-007" },
+            { "oz": "03.01", "unit_price": 28.5, "price_book_id": "PB-A-008" },
+            { "oz": "03.02", "unit_price": 19.8, "price_book_id": "PB-A-009" },
+            { "oz": "03.03", "unit_price": 148, "price_book_id": "PB-A-010" },
+            { "oz": "03.05", "unit_price": 88, "price_book_id": "PB-A-011" },
+            { "oz": "04.01", "unit_price": 18.5, "price_book_id": "PB-A-012" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "E2 · Explain the gap instead of filling it",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Why is there no price for the radiators?"
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "suggest_prices",
+        "arguments": { "tender_id": "T-2026-014", "oz": ["03.04"] }
+      },
+      { "functionName": "get_price_book", "arguments": { "category": "metal" } }
+    ]
+  },
+  {
+    "name": "E3 · Check the bid before it goes out",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Run a check on my bid — anything that looks off?"
+      }
+    ],
+    "expectedCall": [
+      { "functionName": "check_bid", "arguments": { "tender_id": "T-2026-014" } }
+    ]
+  },
+  {
+    "name": "E4 · Ask the client a question",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Ask the client whether the scaffolding from the roofing works will still be in place."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "ask_clarification",
+        "arguments": {
+          "oz": "01.01",
+          "question": "Will the scaffolding from the roofing works still be in place during our works?"
+        }
+      },
+      {
+        "functionName": "list_clarifications",
+        "arguments": { "tender_id": "T-2026-014" }
+      }
+    ]
+  },
+  {
+    "name": "E5 · Submitting asks first and does not submit",
+    "messages": [
+      { "role": "user", "type": "message", "content": "Submit the bid." }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "submit_bid",
+        "arguments": { "tender_id": "T-2026-014", "confirm": false }
+      }
+    ]
+  },
+  {
+    "name": "E7 · A price the agent was told, with no source, is refused",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Set position 03.04 to 61 euros."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "set_unit_price",
+        "arguments": {
+          "tender_id": "T-2026-014",
+          "prices": [{ "oz": "03.04", "unit_price": 61 }]
+        }
+      }
+    ]
+  },
+  {
+    "name": "E8 · A price that contradicts the source it names is refused",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Price 02.02 at 12 euros and say it comes from the Luegallee job."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "set_unit_price",
+        "arguments": {
+          "tender_id": "T-2026-014",
+          "prices": [{ "oz": "02.02", "unit_price": 12, "price_book_id": "PB-A-005" }]
+        }
+      }
+    ]
+  }
+]
