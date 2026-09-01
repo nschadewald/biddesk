@@ -88,6 +88,8 @@ Sprache: UI Englisch; Umschalter DE/EN (Stretch, nur wenn Mo Zeit ist – Seed-T
 - **Unsicherheit erscheint als Abwesenheit, nicht als Warnung.** Feld bleibt leer, daneben in normaler Schrift „no comparable entry". Kein gelbes Dreieck, kein Ampelgelb – eine Lücke, die auf eine Handlung wartet.
 - **Rot/Warnsymbole gibt es genau an einer Stelle:** im Prüfergebnis (`check_bid`) – Ausreißer, abgelaufener Nachweis, ablaufende Frist. Das sind Tatsachen über das Angebot, keine Selbsteinschätzung des Systems. Weil Rot sonst nirgends vorkommt, wirkt es dort.
 
+**Reichweite der Farbdisziplin (Klarstellung 31.08.):** Sie gilt für das **Artefakt** – Tabelle, Summenleiste, Agent-Panel, Dialoge. Dort ist Rot ausschließlich im Prüfergebnis erlaubt und Gelb gar nicht. **Hilfe- und Dokumentationsseiten wie `/how-to-test` sind davon ausgenommen**: Dort darf genau ein hervorgehobener Kasten (bernsteinfarben) auf den Handoff hinweisen, weil er keinen Zustand des Angebots markiert, sondern eine Bedienhürde. Dieser Kasten darf im Hauptbildschirm nicht auftauchen.
+
 **Zu vermeiden:** Konfidenz-Prozente, Ampelfarben an Preisen, Agent-Avatar/Chat-Blase im Hauptbereich, Dark-Mode-Cockpit, Fortschrittsbalken für Tool-Aufrufe (das Live-Log im Agent Panel genügt).
 
 ## 3. WebMCP-Tools
@@ -151,7 +153,7 @@ Bidder-Tool `list_clarifications` ebenfalls verfügbar (readOnly, untrustedConte
 
 ### Beispiel-Prompts (Agent Panel + Video)
 1. "Open tender T-2026-014 and price every position from my price book. Flag anything you're not confident about."
-2. "Which positions are still open and what's my total right now?"
+2. "Why is there no price for the radiators?"
 3. "Run a check on my bid – anything that looks off compared to my price book?"
 4. "Ask the client whether the scaffolding from the previous trade will still be in place."
 5. "Submit the bid." (→ Bestätigungsdialog)
@@ -324,8 +326,8 @@ Wortlaut englisch, weil die Jury englisch testet. Diese fünf sind zugleich Rauc
 **P1 – „Open tender T-2026-014 and price every position from my price book. Flag anything you're not confident about."**
 Sichtbar: Der Tender öffnet sich. Zwölf Zeilen füllen sich gestaffelt, jede mit Herkunfts-Chip. **03.04 und 04.02 bleiben leer** mit „no comparable entry". Summenleiste: **13.213,50 € netto**, Bedarfspositionen separat **370,00 €**, elf von zwölf Nicht-Bedarfs-Positionen bepreist. Log: `get_tender` → `suggest_prices` → `set_unit_price` (ein Block, 12 applied, 0 rejected).
 
-**P2 – „Which positions are still open and what's my total right now?"**
-Sichtbar: **Keine Schreibvorgänge.** Antwort nennt 03.04 und 04.02 und dieselbe Summe wie die Leiste. Log: ein Aufruf `check_bid` mit readOnly-Kennzeichen.
+**P2 – „Why is there no price for the radiators?"** (geändert 01.09.: der alte Wortlaut „Which positions are still open and what's my total right now?" war nach P1 redundant – der Agent hatte die Antwort gerade selbst genannt.)
+Sichtbar: **Keine Schreibvorgänge.** Der Agent schlägt 03.04 nach und antwortet, dass das Preisbuch für Kategorie `metal` und Einheit `pcs` keinen Eintrag hat – eine echte Lücke, kein verschwiegener Schätzwert. **Er darf keine Zahl anbieten.** Log: nur Lese-Aufrufe. Das ist der Prompt, der die Kernaussage abfragt, statt sie zu wiederholen.
 
 **P3 – „Run a check on my bid – anything that looks off?"**
 Sichtbar: Prüfergebnis mit drei Befunden – zwei offene Positionen, **abgelaufene Unbedenklichkeitsbescheinigung**, verbleibende Tage bis zur Frist. Nur hier erscheint Rot. Im Video zusätzlich ein Ausreißer, weil vorher von Hand ein Zahlendreher gesetzt wurde; für den Rauchtest ist der Ausreißer optional, die drei Befunde sind Pflicht.
@@ -426,6 +428,18 @@ Beim Bau von `set_unit_price` fiel auf, dass die Invariante „`price_book_id` O
 **Der Preis dafür, bewusst bezahlt:** „Trag bei 03.04 61 € ein" über den Agenten wird abgewiesen; der Mensch tippt es in die Tabelle. Das ist genau die Szene aus §12.1 – aber ein Juror wird diesen Satz mit hoher Wahrscheinlichkeit ausprobieren. Deshalb ist die **Abweisung ein gestalteter Moment, kein Fehler**: Der Grund muss menschenlesbar und handlungsweisend sein, sinngemäß *„I can't write a price that isn't in your price book. Enter it in the table yourself, or add it to your price book first."* Gut formuliert ist das eine Demonstration; schlecht formuliert sieht es kaputt aus.
 
 Umkehrbar in einer Zeile (`src/pricing.ts`, `setBy === "agent"`-Block) – dann fällt allerdings der Beweis. Nicht ohne Not umkehren.
+
+### 13.3d Die Grenze der Garantie – Fund aus dem ChatGPT-Durchlauf (31.08. abends)
+
+Im vollständigen Durchlauf hat ein juroren-typischer Satz („set position 03.04 to 61 euros") **funktioniert**, obwohl `set_unit_price` einen Preis ohne `price_book_id` abweist. Erklärung: Der Agent hatte im Arbeitsmodus zusätzlich Browsersteuerung und hat den Wert wie ein Mensch **in das Tabellenfeld getippt**. Der Wert ist damit als `set_by='human'` ohne Herkunft verbucht – die Invariante hält, aber die Zurechnung stimmt nicht mehr mit der Wirklichkeit überein.
+
+**Konsequenz für die zentrale Aussage.** Die Fassung „the agent cannot write a price that is not traceable – by construction" ist zu weit und von einem Juror in einer Minute widerlegbar. Präzise und deutlich interessanter:
+
+> Through the tools this page exposes, an agent cannot write a price that isn't traceable to a previous quote by this firm. An agent that also controls the browser can type into the form like a person would — and then the value is recorded exactly like a person's, without provenance. That is the honest boundary of what a page can guarantee, and it is an argument for tools over DOM control, not against them.
+
+Das ist kein Rückzug, sondern das bessere Argument: Werkzeuge geben eine beschränkte, prüfbare Oberfläche; Browsersteuerung gibt gar keine. Genau darum geht es bei WebMCP. Gehört in README, Write-up und als sechste Known Limitation.
+
+**Zu prüfen (Di früh):** Steht in der Datenbank für 03.04 tatsächlich `set_by='human'` ohne `price_book_id`, und fehlt im Live-Log an dieser Stelle ein `set_unit_price`? Dann ist die Erklärung bestätigt.
 
 ### 13.4 Live-Log – Inhalt und bewusste Auslassungen
 

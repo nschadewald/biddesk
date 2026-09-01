@@ -38,6 +38,7 @@ Agent-ready tender room for building trades. Einreichung für die WebMCP Challen
 
 ## Produktregeln
 - **Leitsatz, dem sich alles unterordnet:** „Ein Agent wird im Betrieb erst dann brauchbar, wenn er nichts erfindet, was im Angebot landet, und nichts allein verbindlich macht – dann aber sofort." Was ihn nicht stützt, fliegt raus.
+- **Zentrale Aussage nur in der praezisen Fassung** (spec §13.3d): Ueber die WERKZEUGE dieser Seite kann ein Agent keinen unbelegten Preis schreiben. Ein Agent mit Browsersteuerung kann wie ein Mensch ins Feld tippen – dann ohne Herkunft. Nie "by construction" ohne diese Einschraenkung behaupten. Im ChatGPT-Durchlauf am 31.08. genau so passiert.
 - **Trennlinie Formulierung vs. Geschäftsfakt:** Preis, Menge, Frist, Nachweisstatus, Summe darf der Agent nie selbst hervorbringen – nur holen, lesen, rechnen. Text (Erklärung, Zusammenfassung, Reihenfolge) darf er frei. Prüfbar: jeder Wert in `bid_prices` hat `price_book_id` ODER `set_by='human'`, nie etwas Drittes.
 - **Alle Quellen-Chips sehen gleich aus.** Keine gefüllt/umrandet-Abstufung, keine Skala. `matched_terms`/`matched_on` erscheinen erst beim Öffnen des Chips. Sichtbar unterschieden werden nur drei Zustände: Chip (aus Preisbuch) / kein Chip (vom Menschen) / leer mit „no comparable entry".
 - **Bieter ist wählbar**, nicht nur die Rolle – der Wechsel zwischen Meier/Brandt/Colorpoint auf demselben LV ist der Beweis, dass nichts hartcodiert ist.

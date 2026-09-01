@@ -167,6 +167,40 @@ it("caps foreign text in the log for a tool that declares untrustedContentHint",
   expect(JSON.stringify(entry.output)).not.toContain("z".repeat(200));
 });
 
+it("does not log a request for confirmation as a failure", async () => {
+  const seen = stubModelContext("document");
+  await registerToolBlock(
+    [
+      {
+        ...tool("submit_bid", async () => ({
+          ok: false,
+          needs_confirmation: true,
+          summary: { total_net: 13213.5 }
+        })),
+        annotations: { readOnlyHint: false, destructiveHint: true }
+      }
+    ],
+    newSignal()
+  );
+
+  await seen[0]!.tool.execute({ tender_id: "T-2026-014", confirm: false });
+  const entry = logStore.getSnapshot()[0]!;
+
+  // submit_bid with confirm:false did exactly what it should. Calling that a
+  // failure would make the safest path through the application look broken.
+  expect(entry.outcome).toBe("needs_confirmation");
+  expect(entry.outputSummary).toBe("waiting for a person · 13213.5 EUR net");
+  expect(entry.outputSummary).not.toContain("error");
+});
+
+it("names a failure that arrived without a reason instead of calling it unknown", async () => {
+  const seen = stubModelContext("document");
+  await registerToolBlock([tool("odd", async () => ({ ok: false }))], newSignal());
+
+  await seen[0]!.tool.execute({});
+  expect(logStore.getSnapshot()[0]!.outputSummary).toBe("error: no reason given");
+});
+
 it("withdraws the whole block when its controller aborts", async () => {
   stubModelContext("document");
   const controller = new AbortController();

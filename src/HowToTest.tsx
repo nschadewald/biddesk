@@ -17,9 +17,9 @@ const PROMPTS: { prompt: string; expect: string }[] = [
       "Twelve rows fill in one after another, each keeping a chip that names the past project the price came from. 03.04 (radiators) and 04.02 (hourly rate) stay empty and read “no comparable entry”. The totals bar climbs to 13.213,50 € net, with 370,00 € of contingency positions shown separately."
   },
   {
-    prompt: "Which positions are still open and what is my total right now?",
+    prompt: "Why is there no price for the radiators?",
     expect:
-      "No writes at all. The answer names 03.04 and 04.02 and the same total the bar shows. The log records one call, marked READ."
+      "No writes at all. The agent looks the position up and answers that the price book holds nothing of that category and unit — a real gap, not a low-confidence guess it decided to hide. It should not offer a number. The log records read calls only."
   },
   {
     prompt: "Run a check on my bid — anything that looks off?",

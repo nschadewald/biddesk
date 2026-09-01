@@ -65,7 +65,12 @@ export type LogEntry = {
   duration_ms: number;
   /** Time the call spent waiting for a person to confirm. Reported apart. */
   waited_for_human_ms: number;
-  outcome: "ok" | "error";
+  /**
+   * `needs_confirmation` is neither: submit_bid with confirm:false did exactly
+   * what it should and is waiting for a person. Logging that as a failure
+   * would make the safest path through the application look broken.
+   */
+  outcome: "ok" | "error" | "needs_confirmation";
   /** The tool returns text written by other parties. Capped and labelled. */
   untrusted: boolean;
   inputSummary: string;

@@ -542,3 +542,83 @@ Zustand des Angebots. Wenn das zu weit geht, ist es eine Zeile.
 - Chrome-149-Abnahme des Origin Trials (siehe oben).
 - WebMCP-Evals, Lighthouse-Agentic-Audit, GAEB-Import (Zeitbox Mi vormittag).
 - Devpost-Text und Video.
+
+## Schritt 9 – Layout und zwei Befunde aus dem ChatGPT-Durchlauf (Di 01.09.2026)
+
+### §13.3d ist bestätigt – die Datenbank sagt es
+
+Aus dem Durchlauf-Workspace `88738e98-3eda-43a0-b05e-9d91310be6be` (angelegt 01.09. 05:52):
+
+| Zeile | Preis | `set_by` | `price_book_id` |
+|---|---|---|---|
+| 01.01 … 04.01 (zwölf Zeilen) | aus dem Preisbuch | `agent` | PB-A-001 … PB-A-012 |
+| **03.04** | **61,00 €** | **`human`** | **keine** |
+
+Das `change_log` zeigt die Trennung noch deutlicher: **Block 34** um 05:54:34 enthält alle
+zwölf Zeilen in einem Zug (`created_bid: true`). **Block 35** um 06:05:50 – elf Minuten
+später – enthält **genau eine** Zeile, 03.04, `previous: null`.
+
+Das Live-Log selbst lebt nur im Browser und ist weg. Der Beweis ist aber stärker als das Log:
+Über `set_unit_price` **kann** dieser Wert nicht gekommen sein, denn dieser Kanal verbucht als
+`agent` und weist eine Zeile ohne `price_book_id` mit `price_without_source` ab. Ein
+Einzelzeilen-Schreibvorgang mit `set_by='human'` entsteht ausschließlich über das
+Tabellenfeld. Die Erklärung aus §13.3d – der Agent hat wie ein Mensch getippt – ist damit
+nicht nur plausibel, sondern die einzige mögliche.
+
+Die zentrale Aussage im README ist auf die präzise Fassung umgestellt und als **sechste**
+Known Limitation aufgenommen; der frühere Satz „`set_by='human'` kann nur von einem Menschen
+an der Tastatur stammen" stand danach im Widerspruch dazu und ist ebenfalls korrigiert.
+
+### Layout: echtes Grid statt Flex-Nebeneinander
+
+`grid-cols-[minmax(0,1fr)_auto]`. Das `0` in `minmax` ist der eigentliche Punkt: ohne
+Mindestbreite null bestimmt eine breite Tabelle die Spaltenbreite mit, und genau dadurch
+schob sie sich unter das Panel. Jede breite Tabelle sitzt jetzt zusätzlich in einem eigenen
+`overflow-x-auto`; das Panel ist auf `lg:w-80` (320 px statt 384 px) verschmälert.
+
+Gemessen (nicht geschätzt) bei echten Viewport-Breiten:
+
+| Breite | Tabellenbereich endet | Panel beginnt | Überlappung | Seite scrollt waagerecht |
+|---|---|---|---|---|
+| 1240 px | 881 px | 905 px | nein | nein |
+| 1024 px | 669 px | 689 px | nein (Tabelle scrollt in sich: 744 > 649) | nein |
+| 900 px | – | gestapelt | nein | nein |
+
+**Messfehler unterwegs, der fast zu einer Fehldiagnose geführt hätte:** `getBoundingClientRect()`
+auf der Tabelle liefert deren Layoutbox, nicht das Gemalte – innerhalb eines
+Overflow-Containers ragt sie rechnerisch heraus, obwohl sie sichtbar abgeschnitten ist.
+Richtig gemessen wird am Scroll-Container plus `scrollWidth > clientWidth`.
+
+Unter `lg` stapelt sich das Panel und ist **eingeklappt, aber nicht stumm**: Die
+Selbstdiagnose bleibt als eine Zeile stehen, mit Link auf `/how-to-test`. Und sie steht
+`order-first` – unter einer vierzehnzeiligen Tabelle wäre die Einstiegshilfe beim Ankommen
+außerhalb des Bildes gewesen.
+
+### `submit_bid confirm:false` ist kein Fehlschlag
+
+Der Wrapper las jedes `ok:false` als Fehler, und `summariseOutput` machte aus dem fehlenden
+`error`-Feld ein „unknown". Ausgerechnet der sicherste Weg durch die Anwendung sah damit
+kaputt aus. Neu: ein dritter Ausgang `needs_confirmation`. Im Log steht jetzt
+
+```
+08:23:18 · submit_bid · AWAITING CONFIRMATION · WRITE · 173 ms
+  in  tender_id: T-2026-014 · confirm: false
+  out waiting for a person · 13213.5 EUR net
+```
+
+Die Rückgabe des Werkzeugs bleibt unverändert `{ok:false, needs_confirmation:true, summary}`
+wie in Spec §3 – geändert wurde nur, wie das Log sie liest. Zweitens: Ein Fehler ohne
+`error`-Feld heißt jetzt „no reason given" statt „unknown". Beides mit Test.
+
+### Prompt 2 ausgetauscht
+
+Alt: „Which positions are still open and what's my total right now?" – nach P1 redundant, der
+Agent hatte das gerade selbst gesagt. Neu: **„Why is there no price for the radiators?"**
+Der Prompt fragt die Kernaussage ab, statt sie zu wiederholen: Der Agent muss die Lücke
+erklären und darf **keine Zahl anbieten**. Nachgezogen in Agent-Panel, `/how-to-test`,
+`spec.md` §12.1 und `docs/03-spec-biddesk.md`.
+
+### Offen
+
+- Chrome-149-Abnahme des Origin Trials.
+- Evals, Lighthouse, GAEB (Zeitbox Mi vormittag), Devpost-Text, Video.

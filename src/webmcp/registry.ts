@@ -182,7 +182,12 @@ function wrap(definition: ToolDefinition): WebMCPTool {
         untrusted,
         duration_ms: Math.max(0, Date.now() - startedAt - waited),
         waited_for_human_ms: waited,
-        outcome: output?.ok === false ? "error" : "ok",
+        outcome:
+          output?.needs_confirmation === true
+            ? "needs_confirmation"
+            : output?.ok === false
+              ? "error"
+              : "ok",
         inputSummary: summariseInput(input),
         outputSummary: summariseOutput(output),
         input,

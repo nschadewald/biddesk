@@ -56,7 +56,8 @@ export default function PriceComparison({
         Price comparison · {comparison.bids_received} bids
       </h3>
 
-      <table className="w-full border-collapse text-sm">
+      <div className="-mx-1 overflow-x-auto px-1">
+      <table className="w-full min-w-[30rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-left text-xs font-medium text-slate-500">
             <th className="w-10 py-2 pr-3 font-medium">#</th>
@@ -78,8 +79,10 @@ export default function PriceComparison({
           ))}
         </tbody>
       </table>
+      </div>
 
-      <table className="w-full border-collapse text-sm">
+      <div className="-mx-1 overflow-x-auto px-1">
+      <table className="w-full min-w-[46rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-left text-xs font-medium text-slate-500">
             <th className="w-16 py-2 pr-3 font-medium">Item</th>
@@ -127,6 +130,7 @@ export default function PriceComparison({
           ))}
         </tbody>
       </table>
+      </div>
 
       {comparison.positions.some((position) => position.outliers.length > 0) && (
         <p className="text-xs text-slate-500">

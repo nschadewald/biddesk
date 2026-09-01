@@ -13,12 +13,23 @@ price in here is invented.
 
 ## The one sentence
 
-> **The agent cannot write a price that is not traceable to a previous quote by this firm —
-> not by policy, by construction.**
+> **Through the tools this page exposes, an agent cannot write a price that isn't traceable to
+> a previous quote by this firm. An agent that also controls the browser can type into the
+> form like a person would — and then the value is recorded exactly like a person's, without
+> provenance. That is the honest boundary of what a page can guarantee, and it is an argument
+> for tools over DOM control, not against them.**
 
 A price, a quantity, a deadline, a certificate status, a total: these are business facts, and
 they end up in a binding document. The agent may fetch them, read them and add them up. It may
 never produce one. Wording — explanations, summaries, the order it does things in — is free.
+
+We know where that boundary sits because we walked into it. In the full run on 31 August a
+juror-shaped sentence — *"set position 03.04 to 61 euros"* — worked, even though
+`set_unit_price` refuses a price without a source. The agent had browser control as well and
+typed the number into the table, as a person would. The database says so: that row carries
+`set_by = 'human'` and no `price_book_id`, written eleven minutes after the twelve sourced
+rows, in a block of its own. Tools give an agent a narrow, checkable surface. DOM control
+gives it none. That is the case for WebMCP, made against us.
 
 The line is checkable in the database. Every row of `bid_prices` carries either a
 `price_book_id` or `set_by = 'human'`, never a third thing and never both empty:
@@ -29,8 +40,10 @@ SELECT COUNT(*) FROM bid_prices WHERE price_book_id IS NULL AND set_by <> 'human
 ```
 
 That holds because a price arriving through a tool is booked as `agent` and is **refused**
-unless it names a price book line and matches that line's price. So `set_by = 'human'` can
-only originate from a person at the keyboard. A tool that tries anything else gets:
+unless it names a price book line and matches that line's price. What `set_by = 'human'` then
+means is precise and worth reading carefully: *entered through the form, without a source* —
+by a person, or by an agent driving the browser as a person would. A tool that tries anything
+else gets:
 
 ```json
 { "oz": "03.04", "reason": "price_without_source",
@@ -130,13 +143,16 @@ Named on purpose, not overlooked.
 4. **The matching is deliberately conservative.** It trades recall for precision: different
    wording or a synonym produces "no comparable entry" rather than an uncertain price. A wrong
    price wearing a source chip would be worse than a gap.
-5. **An agent cannot enter a price of its own, even one dictated by the user.** Say "set 03.04
-   to 61 euros" and the tool refuses: the price has no source. The person types it into the
-   table. That is the cost of the sentence at the top of this file, and we would rather pay it
-   than weaken the sentence.
-6. **One contractor per workspace, desktop first.** Several bidders working in the same state
+5. **One contractor per workspace, desktop first.** Several bidders working in the same state
    at once is untested, and the layout assumes a desktop, because that is where the ChatGPT
    browser runs.
+6. **The guarantee covers the tools, not the browser.** Through `set_unit_price` an agent
+   cannot write a price without a source — it is refused, even when the user dictates the
+   number; the person types those into the table. But an agent that also drives the browser
+   can fill that field itself, and the value is then recorded exactly as a person's would be,
+   with `set_by = 'human'` and no provenance. Observed in our own run, not theorised. No page
+   can prevent it, and the fact that it takes DOM control to get around a tool is the argument
+   for tools.
 
 ## Running it yourself
 

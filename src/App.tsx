@@ -47,8 +47,11 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-screen text-slate-900">
-      <main className="flex min-w-0 flex-1 flex-col gap-4 px-6 py-8">
+    // A real two-column grid, not a floating panel. `minmax(0,1fr)` is what
+    // stops the table column from growing past its share and sliding under the
+    // panel: without the 0 minimum, a wide table sets the column's own width.
+    <div className="grid min-h-screen grid-cols-1 text-slate-900 lg:grid-cols-[minmax(0,1fr)_auto]">
+      <main className="flex min-w-0 flex-col gap-4 px-6 py-8">
         <Header
           role={state.role}
           bidders={state.bidders}
@@ -178,7 +181,8 @@ function BidScreen() {
 
       {check && <CheckPanel check={check} onClose={closeCheck} />}
 
-      <table className="w-full border-collapse text-sm">
+      <div className="-mx-1 overflow-x-auto px-1">
+      <table className="w-full min-w-[46rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-left text-xs font-medium text-slate-500">
             <th className="w-20 py-2 pr-3 font-medium">Item</th>
@@ -203,6 +207,7 @@ function BidScreen() {
           ))}
         </tbody>
       </table>
+      </div>
 
       <Clarifications
         role="bidder"

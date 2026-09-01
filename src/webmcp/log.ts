@@ -121,8 +121,19 @@ export function summariseOutput(output: unknown): string {
 
   const record = output as Record<string, unknown>;
 
+  // A tool that asks for a human decision has not failed. It reports what would
+  // happen and stops, which is the whole point of the destructive one.
+  if (record.needs_confirmation === true) {
+    const summary = record.summary as { total_net?: unknown } | undefined;
+    const total = summary?.total_net;
+    return typeof total === "number"
+      ? `waiting for a person · ${total} EUR net`
+      : "waiting for a person";
+  }
+
   if (record.ok === false) {
-    return `error: ${String(record.error ?? "unknown")}`;
+    const reason = record.error;
+    return `error: ${typeof reason === "string" && reason.length > 0 ? reason : "no reason given"}`;
   }
 
   const parts: string[] = [];

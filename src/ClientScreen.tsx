@@ -43,7 +43,8 @@ export default function ClientScreen() {
           nothing else.
         </p>
 
-        <table className="mt-3 w-full border-collapse text-sm">
+        <div className="-mx-1 mt-3 overflow-x-auto px-1">
+        <table className="w-full min-w-[40rem] border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs font-medium text-slate-500">
               <th className="w-28 py-2 pr-3 font-medium">Tender</th>
@@ -73,6 +74,7 @@ export default function ClientScreen() {
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       {comparison ? (

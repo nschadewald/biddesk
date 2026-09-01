@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { logStore } from "./webmcp/log";
 import type { ListedTool } from "./webmcp/registry";
 import type { LogEntry } from "./webmcp/types";
@@ -11,7 +11,7 @@ import type { WebMCPStatus } from "./webmcp/useWebMCP";
  */
 const EXAMPLE_PROMPTS = [
   "Open tender T-2026-014 and price every position from my price book. Leave anything without a match empty and tell me which ones.",
-  "Which positions are still open and what is my total right now?",
+  "Why is there no price for the radiators?",
   "Run a check on my bid — anything that looks off?",
   "Ask the client whether the scaffolding from the roofing works will still be in place.",
   "Submit the bid."
@@ -23,26 +23,65 @@ type Props = {
   resetting: boolean;
 };
 
+/** True on a viewport wide enough for two columns. */
+function useWideViewport(): boolean {
+  const [wide, setWide] = useState(() => {
+    try {
+      return window.matchMedia("(min-width: 1024px)").matches;
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    let query: MediaQueryList;
+    try {
+      query = window.matchMedia("(min-width: 1024px)");
+    } catch {
+      return;
+    }
+    const onChange = () => setWide(query.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  return wide;
+}
+
 export default function AgentPanel({ webmcp, onReset, resetting }: Props) {
   const entries = useSyncExternalStore(logStore.subscribe, logStore.getSnapshot, logStore.getSnapshot);
-  const [open, setOpen] = useState(true);
+  const wide = useWideViewport();
+  const [open, setOpen] = useState<boolean | null>(null);
+  // Open where there is room for it, folded away where there is not -- until
+  // somebody decides otherwise, and then their decision holds.
+  const isOpen = open ?? wide;
 
-  if (!open) {
+  if (!isOpen) {
     return (
-      <aside className="shrink-0 border-l border-slate-200 px-3 py-4">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="text-xs text-slate-500 hover:text-slate-900"
-        >
-          Agent panel →
-        </button>
+      // Folded, but never silent: the self-diagnosis is the entry aid, and a
+      // visitor who cannot see it has no way of telling a browser without
+      // WebMCP from a page that does nothing. order-first below the breakpoint,
+      // because stacked under a fourteen-row table it would be off-screen on
+      // arrival.
+      <aside className="order-first border-b border-slate-200 px-5 py-3 text-sm lg:order-none lg:w-14 lg:border-b-0 lg:border-l lg:px-3">
+        <div className="flex items-center gap-3 lg:flex-col lg:items-stretch">
+          <div className="min-w-0 flex-1">
+            <SelfDiagnosis webmcp={webmcp} compact />
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="shrink-0 rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:border-slate-400 hover:text-slate-900"
+          >
+            Agent panel
+          </button>
+        </div>
       </aside>
     );
   }
 
   return (
-    <aside className="flex w-96 shrink-0 flex-col gap-4 border-l border-slate-200 px-5 py-6 text-sm">
+    <aside className="order-first flex w-full shrink-0 flex-col gap-4 border-b border-slate-200 px-5 py-6 text-sm lg:order-none lg:w-80 lg:border-b-0 lg:border-l">
       <div className="flex items-baseline justify-between">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           Agent panel
@@ -106,7 +145,7 @@ export default function AgentPanel({ webmcp, onReset, resetting }: Props) {
   );
 }
 
-function SelfDiagnosis({ webmcp }: { webmcp: WebMCPStatus }) {
+function SelfDiagnosis({ webmcp, compact = false }: { webmcp: WebMCPStatus; compact?: boolean }) {
   // The count is read from the registry at runtime, never written down here:
   // a hard-wired number is wrong the first time a tool is withdrawn.
   const count = webmcp.tools.length;
@@ -117,7 +156,24 @@ function SelfDiagnosis({ webmcp }: { webmcp: WebMCPStatus }) {
         <p className="text-xs font-medium text-emerald-900">
           WebMCP detected · {count} {count === 1 ? "tool" : "tools"} registered
         </p>
-        <ToolNames tools={webmcp.tools} />
+        {!compact && <ToolNames tools={webmcp.tools} />}
+      </section>
+    );
+  }
+
+  if (compact) {
+    return (
+      <section className="rounded border border-slate-300 bg-slate-50 px-3 py-2">
+        <p className="text-xs font-medium text-slate-900">
+          WebMCP not available in this browser
+        </p>
+        <p className="mt-0.5 text-xs text-slate-600">
+          Open the panel, or see{" "}
+          <a className="underline" href="/how-to-test">
+            how to test
+          </a>
+          .
+        </p>
       </section>
     );
   }
@@ -207,12 +263,12 @@ function LogRow({ entry }: { entry: LogEntry }) {
       >
         <span className="font-mono text-[11px] text-slate-400">{entry.time}</span>
         <span className="font-mono text-[11px] text-slate-900">{entry.tool}</span>
-        {entry.outcome === "error" && (
+        {entry.outcome !== "ok" && (
           // Not red. Red belongs to the check result alone, and it only keeps
-          // its meaning there because it appears nowhere else. A failed call is
-          // stated in words instead, and the reason stands in the output line.
+          // its meaning there because it appears nowhere else. The outcome is
+          // stated in words, and the reason stands in the output line.
           <span className="rounded border border-slate-300 px-1 text-[10px] uppercase text-slate-600">
-            failed
+            {entry.outcome === "needs_confirmation" ? "awaiting confirmation" : "failed"}
           </span>
         )}
         <span className="rounded border border-slate-200 px-1 text-[10px] uppercase text-slate-500">
