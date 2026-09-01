@@ -150,15 +150,34 @@ function categoryOf(item: Element): Element | null {
   return null;
 }
 
+/**
+ * Why the failures carry a code as well as a message: the message is written
+ * for whoever is reading a stack trace, the code is what the drop zone turns
+ * into a sentence in the reader's language. Adding a fourth failure here means
+ * adding its wording to both languages in src/i18n.ts.
+ */
+export class GaebParseError extends Error {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "GaebParseError";
+    this.code = code;
+  }
+}
+
 export function parseGaeb(xml: string): ImportedTender {
   const document_ = new DOMParser().parseFromString(xml, "application/xml");
   if (tags(document_, "parsererror").length > 0 || document_.querySelector("parsererror")) {
-    throw new Error("That file is not valid XML.");
+    throw new GaebParseError("not_xml", "That file is not valid XML.");
   }
 
   const items = tags(document_, "Item");
   if (items.length === 0) {
-    throw new Error("No positions found. Is this a GAEB DA XML (X83) bill of quantities?");
+    throw new GaebParseError(
+      "no_positions",
+      "No positions found. Is this a GAEB DA XML (X83) bill of quantities?"
+    );
   }
 
   const [projectInfo] = tags(document_, "PrjInfo");
@@ -215,7 +234,10 @@ export function parseGaeb(xml: string): ImportedTender {
   }
 
   if (positions.length === 0) {
-    throw new Error("Positions were found but none carried a quantity and a unit.");
+    throw new GaebParseError(
+      "no_quantities",
+      "Positions were found but none carried a quantity and a unit."
+    );
   }
 
   return { title, reference, client, positions };

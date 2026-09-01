@@ -914,3 +914,106 @@ GAEB bestanden.
 ### Offen
 
 - Devpost-Text und Video.
+
+## Schritt 12 – DE/EN-Umschalter (Di 01.09.2026)
+
+**Zielkorrektur, die den Schritt auslöst:** Die Demo soll Kunden gewinnen. Publikum sind
+deutsche Handwerksbetriebe und Hausverwaltungen; die Jury ist ein Sonderfall davon. Ein
+Malermeister sieht sich keine englische Oberfläche an. Damit rutscht der Umschalter von
+Spec §8 (Stretch) auf Platz eins – und Englisch bleibt trotzdem die Vorgabe, weil ein Juror
+ohne Vorgeschichte in der Sprache ankommen muss, in der er testet.
+
+### Die Sprache reist im Header und wird an genau einer Stelle aufgelöst
+
+`X-Language`, neben `X-Workspace-Id` und `X-Bidder-Id`, **zum Zeitpunkt des Fetch** aus
+`src/api.ts` gelesen – nicht aus einer Komponente mitgegeben. Ausgewertet wird sie im Worker
+in `toTender`/`toPosition` und in der Nachweisliste; ohne Header gilt `en`.
+
+Zwei Folgen, beide gewollt:
+
+- **Die Evals, `/how-to-test` und `seed/verify_seed.py` senden keinen Header** und haben sich
+  um kein Zeichen geändert. Live gegengeprüft: ohne Header kommt exakt der bisherige englische
+  Text zurück.
+- **Die Nutzlast wird schlanker statt breiter.** `text_de`, `long_text_de`, `title_de` und
+  `label_de` sind aus der API verschwunden: Der Worker schickt **einen** Text je Feld. Zwei
+  Fassungen auszuliefern hieße, die Entscheidung ein zweites Mal im Frontend zu treffen – und
+  die Werkzeuge, die genau diese Objekte zurückgeben, würden die nicht gefragte Sprache
+  mitleaken. Nebenbei ist `get_tender` damit näher an Spec §3 als vorher.
+
+### Was der Sprachwechsel ausdrücklich NICHT tut
+
+`useWebMCP` hängt an `[role]` und `[role, canSubmit]`. Die Sprache steht in keiner dieser
+Listen und in keinem `inputSchema`. Ein Wechsel meldet also **nichts** ab und **nichts** an,
+`toolchange` feuert nicht, und die Selbstdiagnose zählt dieselbe Zahl weiter. Als Test
+festgeschrieben, indem `registerTool` gezählt wird: vor und nach dem Wechsel gleich viele
+Aufrufe, und die Diagnose sagt danach „WebMCP erkannt · 10 Werkzeuge angemeldet".
+
+Der Grund ist nicht Sparsamkeit: Ein `toolchange` ist eine Mitteilung an den Agenten, dass
+sich sein Werkzeugkasten geändert hat. Dass ein Mensch die Sprache seines Bildschirms
+umstellt, ist keine solche Änderung.
+
+### Die Grenze: Werkzeuge sprechen Englisch, Menschen lesen Deutsch
+
+Englisch bleiben ausnahmslos Werkzeugnamen, Beschreibungen, Schemas, `reason`-Texte, die
+`warnings` aus `check_bid`, die Fehlerobjekte `{ok:false,error,hint}` – und die Zeilen im
+Live-Protokoll, weil die zeigen, was tatsächlich über die Grenze ging. Der **Rahmen** um das
+Protokoll folgt der Sprache, die Zeilen darin nicht.
+
+Der Sprache folgen genau zwei Dinge aus dem Werkzeugergebnis: die **Positionstexte** und die
+**Nachweis-Bezeichnungen**. Beides ist das, was ein Mensch auf Papier vor sich hat. Sichtbar
+wird das im Prüfergebnis: dort steht in der deutschen Fassung „Unbedenklichkeitsbescheinigung",
+während die englische Warnung, die derselbe Aufruf an den Agenten zurückgibt, unverändert
+englisch bleibt.
+
+Auch die **Beispiel-Prompts** sind übersetzt. Wer auf Deutsch arbeitet, tippt auf Deutsch, und
+den Werkzeugen ist die Sprache des Satzes gleichgültig.
+
+### Zahlen bleiben deutsch, Datumsangaben folgen der Sprache
+
+`formatEuro`/`formatQuantity` bleiben in **beiden** Sprachen `de-DE`. Die 13.213,50 € stehen an
+sechs Stellen als feste Prüfzahl (Spec, README, `verify_seed.py`, Evals); ein Tausenderpunkt,
+der mit der Oberflächensprache wandert, würde diese Zahlen sprachabhängig machen, ohne dass
+irgendjemand etwas davon hätte. Datumsangaben kommen in keiner Prüfzahl vor und folgen deshalb
+der Sprache (`de-DE` / `en-GB`).
+
+### Wörterbuch statt Ternäre – und warum das eine Regel ist, kein Stil
+
+Alle sichtbaren Zeichenketten stehen in `src/i18n.ts`. Die deutsche Hälfte ist als
+`typeof en` typisiert, ein fehlender Schlüssel ist damit ein **Compilerfehler**. Ein Test
+ergänzt die andere Verfallsart: vorhandener, aber leerer Schlüssel.
+
+Ab diesem Commit gilt: **kein hartkodierter sichtbarer String mehr**, auch nicht in Schirmen,
+die später dazukommen. Ohne diese Regel schreibt der nächste Auftrag einen Text „erstmal auf
+Englisch" hin, und die Zweisprachigkeit ist still wieder halb.
+
+Zwei Ausnahmen, beide begründet: `/how-to-test` bleibt englisch (Juroren-Seite), und die
+Sprachauswahl nennt jede Sprache in ihrer eigenen Sprache – wer „Deutsch" sucht, sucht das
+Wort, das er kennt, nicht dessen Übersetzung.
+
+### Der Fehler, den erst der Wechsel *zurück* gezeigt hat
+
+Der erste Durchlauf sah richtig aus: Umschalten auf Deutsch, alles deutsch. Zurück auf
+Englisch – und die **Ausschreibungsliste des Auftraggebers stand weiter auf Deutsch**.
+Ursache: `selectLanguage` las nur die geöffnete Ausschreibung neu, nicht die Liste und nicht
+ein offenes Prüfergebnis. Beides hängt an Texten aus dem Worker.
+
+Jetzt liest der Wechsel nach, was auf dem Bildschirm steht: die offene Ausschreibung immer,
+das Prüfergebnis wenn eines offen ist, Liste und Preisspiegel in der Auftraggeberrolle.
+**Nicht** nachgelesen werden die Vorschläge – von einem Vorschlag sieht ein Mensch den
+Quellen-Chip und die Preisbuchzeile, und beides ist nicht übersetzt.
+
+Das ist der Grund, warum man einen Umschalter in beide Richtungen prüft: Der Hinweg zeigt,
+dass Übersetzungen ankommen, der Rückweg zeigt, was man beim Nachladen vergessen hat.
+
+### Stand
+
+122 Unit-Tests, Bieter-Evals 11/11, Client-Evals grün, GAEB bestanden, `verify_seed.py` grün –
+alle vier nach dem Deploy des Umschalters erneut gefahren. `src/HowToTest.tsx`, `evals/` und
+`seed/` sind unverändert.
+
+### Offen
+
+- Devpost-Text und Video.
+- Der Umschalter ist in keinem Eval-Fall abgedeckt: die Evals fahren die englische Vorgabe.
+  Geprüft ist er über Unit-Tests und einen Durchlauf beider Sprachen in beiden Rollen auf der
+  produktiven URL, nicht über die CLI.

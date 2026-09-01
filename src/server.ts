@@ -16,6 +16,7 @@ import {
 import type {
   BidStatus,
   BidTotals,
+  Language,
   MissingDocument,
   Position,
   PreviousPrice,
@@ -45,20 +46,57 @@ const fail = (error: string, hint: string) => ({ ok: false as const, error, hint
  * derived from what a bidder happens to hold: a bidder missing a document must
  * still see it listed.
  */
-const REQUIRED_DOCUMENTS: ReadonlyArray<Omit<RequiredDocument, "valid_until">> = [
-  { doc_type: "trade_registration", label: "Trade registration", label_de: "Handwerkskarte" },
+const REQUIRED_DOCUMENTS: ReadonlyArray<{
+  doc_type: string;
+  label_en: string;
+  label_de: string;
+}> = [
+  {
+    doc_type: "trade_registration",
+    label_en: "Trade registration",
+    label_de: "Handwerkskarte"
+  },
   {
     doc_type: "liability_insurance",
-    label: "Liability insurance",
+    label_en: "Liability insurance",
     label_de: "Haftpflichtversicherung"
   },
-  { doc_type: "reference_project", label: "Reference project", label_de: "Referenzprojekt" },
+  { doc_type: "reference_project", label_en: "Reference project", label_de: "Referenzprojekt" },
   {
     doc_type: "tax_clearance",
-    label: "Tax clearance certificate",
+    label_en: "Tax clearance certificate",
     label_de: "Unbedenklichkeitsbescheinigung"
   }
 ];
+
+/**
+ * Which language the texts of this request should come back in.
+ *
+ * This is the ONE place the interface language enters the API, and the mapping
+ * functions below are the only ones that act on it. Everything else a tool
+ * returns -- field names, reasons, warnings, error objects -- stays English,
+ * because it is read by an agent, not by a person. What follows the language is
+ * exactly what a person reads on paper: the position texts and the names of the
+ * documents the client asks for.
+ *
+ * No header means English. Every script that talks to this API without one --
+ * the eval runs, seed/verify_seed.py -- therefore sees what it always saw.
+ */
+const readLanguage = (c: { req: { header: (name: string) => string | undefined } }): Language =>
+  c.req.header("X-Language")?.toLowerCase() === "de" ? "de" : "en";
+
+const pick = (language: Language, english: string, german: string) =>
+  language === "de" ? german : english;
+
+const pickNullable = (language: Language, english: string | null, german: string | null) =>
+  language === "de" ? german : english;
+
+const requiredDocuments = (language: Language, held: Map<string, string>): RequiredDocument[] =>
+  REQUIRED_DOCUMENTS.map((document) => ({
+    doc_type: document.doc_type,
+    label: pick(language, document.label_en, document.label_de),
+    valid_until: held.get(document.doc_type) ?? null
+  }));
 
 type TenderRow = {
   id: string;
@@ -93,10 +131,9 @@ type PositionRow = {
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
-const toTender = (row: TenderRow): Tender => ({
+const toTender = (row: TenderRow, language: Language): Tender => ({
   id: row.id,
-  title: row.title_en,
-  title_de: row.title_de,
+  title: pick(language, row.title_en, row.title_de),
   client: row.client_name,
   city: row.city,
   trade: row.trade,
@@ -106,12 +143,10 @@ const toTender = (row: TenderRow): Tender => ({
   my_bid_status: (row.my_bid_status ?? "none") as BidStatus
 });
 
-const toPosition = (row: PositionRow): Position => ({
+const toPosition = (row: PositionRow, language: Language): Position => ({
   oz: row.oz,
-  text: row.text_en,
-  text_de: row.text_de,
-  long_text: row.long_text_en,
-  long_text_de: row.long_text_de,
+  text: pick(language, row.text_en, row.text_de),
+  long_text: pickNullable(language, row.long_text_en, row.long_text_de),
   quantity: row.quantity,
   unit: row.unit,
   category: row.category,
@@ -241,6 +276,7 @@ app.use("/api/tenders/*", requireWorkspace);
 app.get("/api/tenders", async (c) => {
   const workspaceId = c.get("workspaceId");
   const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
+  const language = readLanguage(c);
 
   const status = c.req.query("status");
   const trade = c.req.query("trade");
@@ -276,13 +312,18 @@ app.get("/api/tenders", async (c) => {
     .bind(...params)
     .all<TenderRow>();
 
-  return c.json({ ok: true, bidder_id: bidderId, tenders: results.map(toTender) });
+  return c.json({
+    ok: true,
+    bidder_id: bidderId,
+    tenders: results.map((row) => toTender(row, language))
+  });
 });
 
 app.get("/api/tenders/:id", async (c) => {
   const workspaceId = c.get("workspaceId");
   const tenderId = c.req.param("id");
   const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
+  const language = readLanguage(c);
 
   const tender = await c.env.DB.prepare(
     `SELECT ${TENDER_COLUMNS}
@@ -331,12 +372,9 @@ app.get("/api/tenders/:id", async (c) => {
   return c.json({
     ok: true,
     bidder_id: bidderId,
-    tender: toTender(tender),
-    positions: positions.results.map(toPosition),
-    required_documents: REQUIRED_DOCUMENTS.map((document) => ({
-      ...document,
-      valid_until: held.get(document.doc_type) ?? null
-    }))
+    tender: toTender(tender, language),
+    positions: positions.results.map((row) => toPosition(row, language)),
+    required_documents: requiredDocuments(language, held)
   });
 });
 
@@ -779,6 +817,7 @@ app.get("/api/tenders/:id/check", async (c) => {
   const workspaceId = c.get("workspaceId");
   const tenderId = c.req.param("id");
   const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
+  const language = readLanguage(c);
 
   const tender = await c.env.DB.prepare(
     `SELECT t.id, t.due_date,
@@ -860,11 +899,18 @@ app.get("/api/tenders/:id/check", async (c) => {
   const held = new Map(documents.results.map((row) => [row.doc_type, row]));
   const missingDocuments = REQUIRED_DOCUMENTS.flatMap<MissingDocument>((required) => {
     const row = held.get(required.doc_type);
+    // The label is the name of a document a person holds in their hand, so it
+    // follows the language. Everything else in a check result -- the warnings,
+    // the reasons, the field names -- is read by an agent and stays English.
+    const document = {
+      doc_type: required.doc_type,
+      label: pick(language, required.label_en, required.label_de)
+    };
     if (row === undefined) {
-      return [{ ...required, valid_until: null, reason: "not_held" }];
+      return [{ ...document, valid_until: null, reason: "not_held" }];
     }
     if (row.expired === 1) {
-      return [{ ...required, valid_until: row.valid_until, reason: "expired" }];
+      return [{ ...document, valid_until: row.valid_until, reason: "expired" }];
     }
     return [];
   });
@@ -1072,12 +1118,20 @@ app.get("/api/bidders", async (c) => {
 app.get("/api/tenders/:id/comparison", async (c) => {
   const workspaceId = c.get("workspaceId");
   const tenderId = c.req.param("id");
+  const language = readLanguage(c);
 
   const tender = await c.env.DB.prepare(
-    "SELECT id, title_en, status, due_date FROM tenders WHERE workspace_id = ?1 AND id = ?2"
+    `SELECT id, title_en, title_de, status, due_date
+       FROM tenders WHERE workspace_id = ?1 AND id = ?2`
   )
     .bind(workspaceId, tenderId)
-    .first<{ id: string; title_en: string; status: string; due_date: string }>();
+    .first<{
+      id: string;
+      title_en: string;
+      title_de: string;
+      status: string;
+      due_date: string;
+    }>();
 
   if (!tender) {
     return c.json(fail("tender_not_found", `No tender ${tenderId} in this workspace.`), 404);
@@ -1097,7 +1151,7 @@ app.get("/api/tenders/:id/comparison", async (c) => {
     return c.json({
       ok: true,
       tender_id: tenderId,
-      title: tender.title_en,
+      title: pick(language, tender.title_en, tender.title_de),
       sealed: true,
       sealed_until: tender.due_date,
       bids_received: submissions.results.length,
@@ -1111,7 +1165,7 @@ app.get("/api/tenders/:id/comparison", async (c) => {
   // One query, folded in memory. No UNION ALL: D1 caps the number of terms in a
   // compound SELECT (SQLITE_ERROR 7500, see docs/07).
   const { results } = await c.env.DB.prepare(
-    `SELECT p.oz, p.text_en, p.quantity, p.unit, p.contingency,
+    `SELECT p.oz, p.text_en, p.text_de, p.quantity, p.unit, p.contingency,
             b.bidder_id, bd.name AS bidder_name, bp.unit_price
        FROM positions p
        LEFT JOIN bids b
@@ -1128,6 +1182,7 @@ app.get("/api/tenders/:id/comparison", async (c) => {
     .all<{
       oz: string;
       text_en: string;
+      text_de: string;
       quantity: number;
       unit: string;
       contingency: number;
@@ -1139,7 +1194,7 @@ app.get("/api/tenders/:id/comparison", async (c) => {
   const comparison = buildComparison(
     results.map((row) => ({
       oz: row.oz,
-      text: row.text_en,
+      text: pick(language, row.text_en, row.text_de),
       quantity: row.quantity,
       unit: row.unit,
       contingency: row.contingency === 1,
@@ -1152,7 +1207,7 @@ app.get("/api/tenders/:id/comparison", async (c) => {
   return c.json({
     ok: true,
     tender_id: tenderId,
-    title: tender.title_en,
+    title: pick(language, tender.title_en, tender.title_de),
     sealed: false,
     sealed_until: null,
     bids_received: submissions.results.length,

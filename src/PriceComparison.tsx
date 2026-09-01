@@ -1,4 +1,6 @@
 import { formatDate, formatEuro, formatQuantity } from "./format";
+import { useCopy } from "./i18n";
+import { useAppState } from "./store";
 import type { PriceComparison as Comparison } from "./types";
 
 /**
@@ -18,27 +20,28 @@ export default function PriceComparison({
   /** The selected contractor has a draft that has not been handed in. */
   ownDraftPending: boolean;
 }) {
+  const copy = useCopy();
+  const language = useAppState().language;
+
   if (comparison.sealed) {
     return (
       <section className="flex flex-col gap-2 border-b border-slate-200 py-4">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Bids received
+          {copy.comparison.sealedTitle}
         </h3>
         <p className="text-sm">
           <span className="font-semibold tabular-nums">{comparison.bids_received}</span>{" "}
-          {comparison.bids_received === 1 ? "bid" : "bids"} received
-          {ownDraftPending ? " · your draft is not visible to the client" : null}
+          {copy.comparison.received(comparison.bids_received)}
+          {ownDraftPending ? copy.comparison.ownDraft : null}
         </p>
         <p className="text-xs text-slate-500">
-          Sealed until {formatDate(comparison.sealed_until!)}. Until the deadline the client
-          sees how many bids arrived and when, and nothing else — no prices, no totals, no
-          names.
+          {copy.comparison.sealedUntil(formatDate(comparison.sealed_until!, language))}
         </p>
         {comparison.received_at.length > 0 && (
           <ul className="text-xs text-slate-500">
             {comparison.received_at.map((at, index) => (
               <li key={at + index} className="tabular-nums">
-                received {at}
+                {copy.comparison.receivedAt(at)}
               </li>
             ))}
           </ul>
@@ -53,17 +56,19 @@ export default function PriceComparison({
   return (
     <section className="flex flex-col gap-3 border-b border-slate-200 py-4">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        Price comparison · {comparison.bids_received} bids
+        {copy.comparison.title(comparison.bids_received)}
       </h3>
 
       <div className="-mx-1 overflow-x-auto px-1">
       <table className="w-full min-w-[30rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-left text-xs font-medium text-slate-500">
-            <th className="w-10 py-2 pr-3 font-medium">#</th>
-            <th className="py-2 pr-3 font-medium">Bidder</th>
-            <th className="w-40 py-2 pr-3 text-right font-medium">Net total</th>
-            <th className="w-28 py-2 font-medium">Complete</th>
+            <th className="w-10 py-2 pr-3 font-medium">{copy.comparison.columnRank}</th>
+            <th className="py-2 pr-3 font-medium">{copy.comparison.columnBidder}</th>
+            <th className="w-40 py-2 pr-3 text-right font-medium">
+              {copy.comparison.columnNetTotal}
+            </th>
+            <th className="w-28 py-2 font-medium">{copy.comparison.columnComplete}</th>
           </tr>
         </thead>
         <tbody>
@@ -74,7 +79,9 @@ export default function PriceComparison({
               <td className="py-2 pr-3 text-right tabular-nums">
                 {formatEuro(bidder.total_net)}
               </td>
-              <td className="py-2 text-slate-600">{bidder.complete ? "yes" : "no"}</td>
+              <td className="py-2 text-slate-600">
+                {bidder.complete ? copy.comparison.yes : copy.comparison.no}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -85,15 +92,17 @@ export default function PriceComparison({
       <table className="w-full min-w-[46rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-left text-xs font-medium text-slate-500">
-            <th className="w-16 py-2 pr-3 font-medium">Item</th>
-            <th className="py-2 pr-3 font-medium">Description</th>
-            <th className="w-20 py-2 pr-3 text-right font-medium">Qty</th>
+            <th className="w-16 py-2 pr-3 font-medium">{copy.comparison.columnItem}</th>
+            <th className="py-2 pr-3 font-medium">{copy.comparison.columnDescription}</th>
+            <th className="w-20 py-2 pr-3 text-right font-medium">
+              {copy.comparison.columnQuantity}
+            </th>
             {comparison.bidders.map((bidder) => (
               <th key={bidder.bidder_id} className="w-28 py-2 pr-3 text-right font-medium">
                 {bidder.name.split(" ")[0]}
               </th>
             ))}
-            <th className="w-24 py-2 text-right font-medium">Median</th>
+            <th className="w-24 py-2 text-right font-medium">{copy.comparison.columnMedian}</th>
           </tr>
         </thead>
         <tbody>
@@ -117,7 +126,7 @@ export default function PriceComparison({
                         ? "py-2 pr-3 text-right font-medium tabular-nums text-slate-900 underline decoration-slate-400 decoration-dotted underline-offset-4"
                         : "py-2 pr-3 text-right tabular-nums text-slate-700"
                     }
-                    title={isOutlier ? "More than 30 % away from the median" : undefined}
+                    title={isOutlier ? copy.comparison.outlierTitle : undefined}
                   >
                     {price ? formatEuro(price.unit_price) : "—"}
                   </td>
@@ -134,7 +143,7 @@ export default function PriceComparison({
 
       {comparison.positions.some((position) => position.outliers.length > 0) && (
         <p className="text-xs text-slate-500">
-          Underlined: more than 30 % away from the median of this position —{" "}
+          {copy.comparison.outlierNote}{" "}
           {comparison.positions
             .filter((position) => position.outliers.length > 0)
             .map(

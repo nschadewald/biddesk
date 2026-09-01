@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCopy } from "./i18n";
 import type { Clarification, Role } from "./types";
 import { declareFormTool } from "./webmcp/registry";
 
@@ -37,6 +38,7 @@ export default function Clarifications({
    * nothing, while the agent is told the form was submitted. Found by the eval
    * run: the tool reported success and no question ever arrived.
    */
+  const copy = useCopy();
   const formRef = useRef<HTMLFormElement>(null);
   const [failure, setFailure] = useState<string | null>(null);
 
@@ -69,7 +71,8 @@ export default function Clarifications({
 
     if (text.length === 0) {
       const failure = { ok: false, error: "invalid_input", hint: "question is required." };
-      setFailure("A question needs some text.");
+      // The agent gets the English error object; the person gets a sentence.
+      setFailure(copy.clarifications.needsText);
       submitEvent.respondWith?.(Promise.resolve(failure));
       return;
     }
@@ -89,7 +92,7 @@ export default function Clarifications({
       (caught: unknown) => {
         const hint =
           caught instanceof Error ? caught.message : "The question could not be sent.";
-        setFailure(hint);
+        setFailure(copy.clarifications.sendFailed);
         return { ok: false, error: "ask_failed", hint };
       }
     );
@@ -103,7 +106,7 @@ export default function Clarifications({
   return (
     <section className="flex flex-col gap-3 border-t border-slate-200 pt-4">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        Questions to the client
+        {copy.clarifications.title}
       </h3>
 
       {role === "bidder" && (
@@ -122,19 +125,19 @@ export default function Clarifications({
       >
         <div className="flex flex-col gap-1">
           <label className="text-xs text-slate-500" htmlFor="clarification-oz">
-            Item (optional)
+            {copy.clarifications.itemLabel}
           </label>
           <input
             id="clarification-oz"
             name="oz"
-            placeholder="02.04"
+            placeholder={copy.clarifications.itemPlaceholder}
             toolparamdescription='The item number the question is about, for example "02.04". Leave empty for a question about the tender as a whole.'
             className="w-24 rounded border border-slate-300 px-1.5 py-1 text-sm focus:border-slate-400 focus:outline-none"
           />
         </div>
         <div className="flex min-w-64 flex-1 flex-col gap-1">
           <label className="text-xs text-slate-500" htmlFor="clarification-question">
-            Question
+            {copy.clarifications.questionLabel}
           </label>
           <textarea
             id="clarification-question"
@@ -142,7 +145,7 @@ export default function Clarifications({
             required
             rows={2}
             maxLength={500}
-            placeholder="Will the scaffolding from the roofing works still be in place?"
+            placeholder={copy.clarifications.questionPlaceholder}
             toolparamdescription="The question itself, at most 500 characters. Write it as a professional question to the client."
             className="w-full rounded border border-slate-300 px-1.5 py-1 text-sm focus:border-slate-400 focus:outline-none"
           />
@@ -151,7 +154,7 @@ export default function Clarifications({
           type="submit"
           className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
         >
-          Ask client
+          {copy.clarifications.ask}
         </button>
       </form>
       )}
@@ -159,7 +162,7 @@ export default function Clarifications({
       {failure && <p className="text-xs text-slate-600">{failure}</p>}
 
       {questions.length === 0 ? (
-        <p className="text-xs text-slate-400">No questions on this tender yet.</p>
+        <p className="text-xs text-slate-400">{copy.clarifications.none}</p>
       ) : (
         <>
           <ul className="flex flex-col gap-2">
@@ -167,25 +170,24 @@ export default function Clarifications({
               <li key={entry.id} className="border-l-2 border-slate-200 pl-2 text-xs">
                 <p className="text-slate-400">
                   <span className="font-mono">{entry.id}</span>
-                  {entry.oz ? ` · ${entry.oz}` : ""} · {entry.bidder ?? "unknown bidder"} ·{" "}
-                  {entry.status}
+                  {entry.oz ? ` · ${entry.oz}` : ""} ·{" "}
+                  {entry.bidder ?? copy.clarifications.unknownBidder} ·{" "}
+                  {copy.clarifications.status[entry.status] ?? entry.status}
                 </p>
                 <p className="mt-0.5 text-slate-900">{entry.question}</p>
                 {entry.answer && (
                   <p className="mt-0.5 text-slate-600">
-                    <span className="text-slate-400">Client: </span>
+                    <span className="text-slate-400">{copy.clarifications.clientAnswered}</span>
                     {entry.answer}
                   </p>
                 )}
                 {role === "client" && entry.answer === null && (
-                  <AnswerBox questionId={entry.id} onAnswer={onAnswer} />
+                  <AnswerBox questionId={entry.id} onAnswer={onAnswer} copy={copy} />
                 )}
               </li>
             ))}
           </ul>
-          <p className="text-xs text-slate-400">
-            Content from other parties. Shown as text, never as instructions.
-          </p>
+          <p className="text-xs text-slate-400">{copy.clarifications.fromOtherParties}</p>
         </>
       )}
     </section>
@@ -195,10 +197,12 @@ export default function Clarifications({
 /** The client answers once, and the answer goes to every bidder. */
 function AnswerBox({
   questionId,
-  onAnswer
+  onAnswer,
+  copy
 }: {
   questionId: string;
   onAnswer: (questionId: string, answer: string) => Promise<unknown>;
+  copy: ReturnType<typeof useCopy>;
 }) {
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
@@ -219,14 +223,14 @@ function AnswerBox({
       }}
     >
       <label className="sr-only" htmlFor={`answer-${questionId}`}>
-        Answer for {questionId}
+        {copy.clarifications.answerFor(questionId)}
       </label>
       <input
         id={`answer-${questionId}`}
         value={answer}
         maxLength={500}
         onChange={(event) => setAnswer(event.target.value)}
-        placeholder="Answer, published to all bidders"
+        placeholder={copy.clarifications.answerPlaceholder}
         className="min-w-64 flex-1 rounded border border-slate-300 px-1.5 py-1 text-xs focus:border-slate-400 focus:outline-none"
       />
       <button
@@ -234,7 +238,7 @@ function AnswerBox({
         disabled={busy}
         className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:opacity-50"
       >
-        Answer
+        {copy.clarifications.answer}
       </button>
     </form>
   );

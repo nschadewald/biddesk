@@ -1,14 +1,21 @@
-// Shapes shared by the Worker and the client. Seed texts are bilingual
-// (text_en / text_de); the UI is English, the DE switch is a stretch goal.
+// Shapes shared by the Worker and the client.
+//
+// Seed texts are bilingual in the database (text_en / text_de, label / label_de).
+// They are NOT bilingual here: the Worker resolves the X-Language header at its
+// mapping boundary and sends one text per field. Carrying both to the client
+// would mean two places deciding which one to show -- and the tools, which hand
+// these very objects back, would leak the language that was not asked for.
 
 export type Role = "bidder" | "client";
+
+/** The interface language a person picked. Tools stay English regardless. */
+export type Language = "de" | "en";
 
 export type BidStatus = "none" | "draft" | "submitted";
 
 export type Tender = {
   id: string;
   title: string;
-  title_de: string;
   client: string;
   city: string;
   trade: string;
@@ -29,9 +36,7 @@ export type SuggestionSource = {
 export type Position = {
   oz: string;
   text: string;
-  text_de: string;
   long_text: string | null;
-  long_text_de: string | null;
   quantity: number;
   unit: string;
   category: string;
@@ -56,7 +61,6 @@ export type Position = {
 export type RequiredDocument = {
   doc_type: string;
   label: string;
-  label_de: string;
   valid_until: string | null;
 };
 
@@ -173,7 +177,6 @@ export type UndoResponse = {
 export type MissingDocument = {
   doc_type: string;
   label: string;
-  label_de: string;
   valid_until: string | null;
   reason: "expired" | "not_held";
 };

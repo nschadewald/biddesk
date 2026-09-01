@@ -1,6 +1,8 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
+import { selectLanguage } from "./store";
 
 const WS = "33333333-3333-4333-8333-333333333333";
 
@@ -21,19 +23,24 @@ const positions = [
   { oz: "04.02", text: "Hourly rate skilled painter", quantity: 10, unit: "h", contingency: true }
 ].map((position) => ({
   ...position,
-  text_de: position.text,
   long_text: null,
-  long_text_de: null,
   category: "prep",
   my_unit_price: null,
   line_total: null
 }));
 
+const GERMAN_TITLE = "Malerarbeiten Treppenhaus – Rheinallee 12";
+
 function stubApi() {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: string) =>
-      input.startsWith("/api/clarifications")
+    vi.fn(async (input: string, init?: RequestInit) => {
+      // The Worker resolves X-Language at its mapping boundary and sends one
+      // text per field. The stub does the same, so a test can see the header
+      // arrive rather than trust that it was set.
+      const german =
+        (init?.headers as Record<string, string> | undefined)?.["X-Language"] === "de";
+      return input.startsWith("/api/clarifications")
         ? new Response(JSON.stringify({ ok: true, questions: [] }))
         : input === "/api/bidders"
           ? new Response(
@@ -54,8 +61,9 @@ function stubApi() {
               bidder_id: "B-A",
               tender: {
                 id: "T-2026-014",
-                title: "Staircase painting works – Rheinallee 12",
-                title_de: "Malerarbeiten Treppenhaus – Rheinallee 12",
+                title: german
+                  ? GERMAN_TITLE
+                  : "Staircase painting works – Rheinallee 12",
                 client: "Rheinpark Property Management",
                 city: "Düsseldorf",
                 trade: "painting",
@@ -67,8 +75,8 @@ function stubApi() {
               positions,
               required_documents: []
             })
-          )
-    ) as unknown as typeof fetch
+          );
+    }) as unknown as typeof fetch
   );
 }
 
@@ -184,4 +192,43 @@ it("labels a log entry from an untrusted tool and caps the foreign text", async 
   expect(await screen.findByText("untrusted content")).toBeInTheDocument();
   Reflect.deleteProperty(document, "modelContext");
   logStore.clear();
+});
+
+it("switches the language without touching a single tool registration", async () => {
+  stubApi();
+  // Counting registrations is the whole point: a language switch that
+  // re-registered a block would fire `toolchange` for a change no agent needs
+  // to hear about, and the self-diagnosis would flicker while it happened.
+  const registerTool = vi.fn(() => Promise.resolve());
+  Object.defineProperty(document, "modelContext", {
+    configurable: true,
+    value: { registerTool }
+  });
+
+  try {
+    render(<App />);
+    await screen.findByText("WebMCP detected · 10 tools registered");
+    const registrationsBefore = registerTool.mock.calls.length;
+    expect(registrationsBefore).toBeGreaterThan(0);
+
+    await userEvent.selectOptions(screen.getByLabelText(/Language/), "de");
+
+    // The texts come from the Worker, so the tender is re-read in German.
+    await screen.findByText(GERMAN_TITLE);
+    expect(screen.getByText("Nettosumme")).toBeInTheDocument();
+    expect(screen.getByText("Angebot prüfen")).toBeInTheDocument();
+    expect(screen.getAllByText("Bedarf")).toHaveLength(2);
+
+    // The self-diagnosis says the same number, in German, and no tool was
+    // registered a second time.
+    expect(screen.getByText("WebMCP erkannt · 10 Werkzeuge angemeldet")).toBeInTheDocument();
+    expect(registerTool.mock.calls.length).toBe(registrationsBefore);
+
+    // Money does not move with the language; only the words and the dates do.
+    expect(screen.getAllByText("0,00 €")).toHaveLength(2);
+    expect(screen.getByText("0 von 12")).toBeInTheDocument();
+  } finally {
+    await selectLanguage("en");
+    Reflect.deleteProperty(document, "modelContext");
+  }
 });

@@ -6,6 +6,7 @@ import ClientScreen from "./ClientScreen";
 import Header from "./Header";
 import ImportDropZone from "./ImportDropZone";
 import { formatDate, formatEuro } from "./format";
+import { useCopy } from "./i18n";
 import PositionRow from "./PositionRow";
 import SubmitDialog from "./SubmitDialog";
 import {
@@ -19,6 +20,7 @@ import {
   resetDemo,
   runCheck,
   selectBidder,
+  selectLanguage,
   selectRole,
   setUnitPrices,
   undoLastChange,
@@ -29,6 +31,7 @@ import { useWebMCP } from "./webmcp/useWebMCP";
 
 export default function App() {
   const state = useAppState();
+  const copy = useCopy();
   const submitted = state.detail?.tender.my_bid_status === "submitted";
   // submit_bid is registered only while there is still a bid to hand in.
   const webmcp = useWebMCP(state.role, !submitted);
@@ -57,13 +60,21 @@ export default function App() {
           role={state.role}
           bidders={state.bidders}
           bidderId={state.bidderId}
+          language={state.language}
+          clientName={state.detail?.tender.client ?? null}
           onRole={(role) => void selectRole(role)}
           onBidder={(id) => void selectBidder(id)}
+          onLanguage={(language) => void selectLanguage(language)}
         />
         {state.status === "failed" ? (
-          <p className="text-sm text-slate-600">{state.failure}</p>
+          <p className="text-sm text-slate-600">
+            {copy.app.loadFailed}
+            {/* The technical reason comes from the Worker and stays English:
+                it is an error object, and those are read by agents. */}
+            {state.failure === null ? null : ` (${state.failure})`}
+          </p>
         ) : state.detail === null ? (
-          <p className="text-sm text-slate-500">Loading tender…</p>
+          <p className="text-sm text-slate-500">{copy.app.loadingTender}</p>
         ) : state.role === "client" ? (
           <ClientScreen />
         ) : (
@@ -85,7 +96,9 @@ export default function App() {
 }
 
 function BidScreen() {
-  const { detail, suggestions, rejections, tenderId, check, clarifications } = useAppState();
+  const { detail, suggestions, rejections, tenderId, check, clarifications, language } =
+    useAppState();
+  const copy = useCopy();
   const [busy, setBusy] = useState(false);
   if (!detail) return null;
 
@@ -135,34 +148,39 @@ function BidScreen() {
       <section className="border-b border-slate-200 pb-4">
         <h2 className="text-lg font-medium">{tender.title}</h2>
         <p className="mt-1 text-xs text-slate-500">
-          {tender.id} · {tender.client} · {tender.city} · {positions.length} positions · due{" "}
-          {formatDate(tender.due_date)}
+          {copy.bid.meta(
+            tender.id,
+            tender.client,
+            tender.city,
+            positions.length,
+            formatDate(tender.due_date, language)
+          )}
         </p>
       </section>
 
       {locked && (
         <p className="border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-          Submitted. The prices are locked and cannot be changed.
+          {copy.bid.submittedBanner}
         </p>
       )}
 
       <section className="flex flex-wrap items-baseline gap-x-8 gap-y-2 border-b border-slate-200 py-3 text-xs">
-        <Total label="Net total" value={formatEuro(net)} strong />
-        <Total label="Contingency positions" value={formatEuro(contingency)} />
-        <Total label="Priced" value={`${priced} of ${billable.length}`} />
+        <Total label={copy.bid.netTotal} value={formatEuro(net)} strong />
+        <Total label={copy.bid.contingencyTotal} value={formatEuro(contingency)} />
+        <Total label={copy.bid.priced} value={copy.bid.pricedValue(priced, billable.length)} />
 
         <span className="ml-auto flex items-center gap-2">
           {!locked && openProposals.length > 0 && (
             <Action onClick={() => apply(openProposals)}>
-              Apply all suggestions ({openProposals.length})
+              {copy.bid.applyAll(openProposals.length)}
             </Action>
           )}
           <Action disabled={busy} onClick={() => void withBusy(() => runCheck(tenderId))}>
-            Check bid
+            {copy.bid.checkBid}
           </Action>
           {!locked && (
             <>
-              <Action onClick={() => void undoLastChange(1)}>Undo</Action>
+              <Action onClick={() => void undoLastChange(1)}>{copy.bid.undo}</Action>
               <Action
                 disabled={busy}
                 onClick={() =>
@@ -173,7 +191,7 @@ function BidScreen() {
                   })
                 }
               >
-                Submit bid
+                {copy.bid.submitBid}
               </Action>
             </>
           )}
@@ -188,12 +206,12 @@ function BidScreen() {
       <table className="w-full min-w-[46rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-left text-xs font-medium text-slate-500">
-            <th className="w-20 py-2 pr-3 font-medium">Item</th>
-            <th className="py-2 pr-3 font-medium">Description</th>
-            <th className="w-24 py-2 pr-3 text-right font-medium">Qty</th>
-            <th className="w-16 py-2 pr-3 font-medium">Unit</th>
-            <th className="w-60 py-2 pr-3 text-right font-medium">Unit price</th>
-            <th className="w-28 py-2 text-right font-medium">Total</th>
+            <th className="w-20 py-2 pr-3 font-medium">{copy.bid.columnItem}</th>
+            <th className="py-2 pr-3 font-medium">{copy.bid.columnDescription}</th>
+            <th className="w-24 py-2 pr-3 text-right font-medium">{copy.bid.columnQuantity}</th>
+            <th className="w-16 py-2 pr-3 font-medium">{copy.bid.columnUnit}</th>
+            <th className="w-60 py-2 pr-3 text-right font-medium">{copy.bid.columnUnitPrice}</th>
+            <th className="w-28 py-2 text-right font-medium">{copy.bid.columnTotal}</th>
           </tr>
         </thead>
         <tbody>

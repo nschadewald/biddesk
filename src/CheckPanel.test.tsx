@@ -22,8 +22,8 @@ const check = (over: Partial<CheckResult> = {}): CheckResult => ({
   missing_documents: [
     {
       doc_type: "tax_clearance",
+      // Already in the reader's language: the Worker resolves the label.
       label: "Tax clearance certificate",
-      label_de: "Unbedenklichkeitsbescheinigung",
       valid_until: "2026-08-11",
       reason: "expired"
     }

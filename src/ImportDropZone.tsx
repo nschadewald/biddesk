@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { parseGaeb } from "./gaeb";
+import { useCopy } from "./i18n";
 import { importFromFile } from "./store";
 
 /**
@@ -16,6 +17,7 @@ import { importFromFile } from "./store";
  * and no agent here can perform it.
  */
 export default function ImportDropZone() {
+  const copy = useCopy();
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -28,11 +30,12 @@ export default function ImportDropZone() {
     try {
       const parsed = parseGaeb(await file.text());
       const result = await importFromFile(parsed);
-      setMessage(
-        `Imported ${result.positions} position${result.positions === 1 ? "" : "s"} as ${result.tender_id}. Price it from your price book.`
-      );
+      setMessage(copy.importZone.imported(result.positions, result.tender_id));
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "That file could not be read.");
+      // The parser names what went wrong with a code, so the reason can be
+      // said in the reader's language instead of in the parser's.
+      const code = caught instanceof Error ? (caught as { code?: string }).code : undefined;
+      setMessage((code && copy.importZone.error[code]) ?? copy.importZone.failed);
     } finally {
       setBusy(false);
       setOver(false);
@@ -57,9 +60,7 @@ export default function ImportDropZone() {
       }
     >
       <span className="text-slate-600">
-        {busy
-          ? "Reading the file…"
-          : "Drop a GAEB DA XML file (.x83 / .X83) here to import a bill of quantities"}
+        {busy ? copy.importZone.reading : copy.importZone.prompt}
       </span>{" "}
       <button
         type="button"
@@ -67,7 +68,7 @@ export default function ImportDropZone() {
         disabled={busy}
         className="underline hover:text-slate-900 disabled:opacity-50"
       >
-        or choose one
+        {copy.importZone.orChoose}
       </button>
       <input
         ref={inputRef}

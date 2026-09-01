@@ -1,6 +1,7 @@
 import type {
   ApiError,
   AnswerResponse,
+  Language,
   AskClarificationResponse,
   Bidder,
   CheckResult,
@@ -16,6 +17,7 @@ import type {
 } from "./types";
 
 const STORAGE_KEY = "biddesk.workspace";
+const LANGUAGE_KEY = "biddesk.language";
 
 /**
  * Which bidder the requests are for. Set once when the visitor picks one in the
@@ -29,8 +31,45 @@ export function setBidder(id: string | null) {
   bidderId = id;
 }
 
+/**
+ * Which language the position texts and document labels should come back in.
+ *
+ * It travels the same way the workspace and the bidder do -- as a request
+ * header, read at the moment of the fetch rather than captured when a component
+ * rendered. That matters for one reason above all: the language must never
+ * reach the tool layer. Tools do not take it as an argument and do not
+ * re-register when it changes, so a language switch cannot fire `toolchange`.
+ *
+ * The Worker treats a missing header as English, so every script that talks to
+ * the API without one -- the evals, seed/verify_seed.py -- is unaffected.
+ */
+let language: Language = "en";
+
+/**
+ * English by default: a juror arriving with no history sees the language they
+ * test in. A German visitor picks once, and the choice holds per browser.
+ */
+export function readStoredLanguage(): Language {
+  try {
+    return localStorage.getItem(LANGUAGE_KEY) === "de" ? "de" : "en";
+  } catch {
+    return "en";
+  }
+}
+
+export function setLanguage(next: Language) {
+  language = next;
+  try {
+    localStorage.setItem(LANGUAGE_KEY, next);
+  } catch {
+    // Private windows can refuse localStorage. The choice then holds for this
+    // page view, which is a clean state rather than a failure.
+  }
+}
+
 function headers(extra: Record<string, string> = {}): Record<string, string> {
-  return bidderId === null ? extra : { ...extra, "X-Bidder-Id": bidderId };
+  const withLanguage = { ...extra, "X-Language": language };
+  return bidderId === null ? withLanguage : { ...withLanguage, "X-Bidder-Id": bidderId };
 }
 
 // Private windows and the embedded ChatGPT browser can refuse localStorage.

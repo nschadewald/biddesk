@@ -14,9 +14,7 @@ const SOURCE: SuggestionSource = {
 const position = (over: Partial<Position> = {}): Position => ({
   oz: "01.01",
   text: "Site setup",
-  text_de: "Baustelleneinrichtung",
   long_text: null,
-  long_text_de: null,
   quantity: 1,
   unit: "psch",
   category: "prep",

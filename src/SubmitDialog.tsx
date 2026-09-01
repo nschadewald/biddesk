@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { formatEuro } from "./format";
+import { useCopy } from "./i18n";
 import type { BidTotals } from "./types";
 
 /**
@@ -21,6 +22,7 @@ export default function SubmitDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const copy = useCopy();
   const confirmRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -41,26 +43,26 @@ export default function SubmitDialog({
         className="w-full max-w-md rounded border border-slate-300 bg-white p-5 shadow-lg"
       >
         <h2 id="submit-dialog-title" className="text-sm font-semibold text-slate-900">
-          Hand in this bid?
+          {copy.submit.title}
         </h2>
-        <p className="mt-1 text-xs text-slate-500">
-          {tenderId} · this cannot be undone. After submitting, the prices are locked.
-        </p>
+        <p className="mt-1 text-xs text-slate-500">{copy.submit.subtitle(tenderId)}</p>
 
         <dl className="mt-3 flex flex-col gap-1 border-y border-slate-200 py-3 text-sm">
-          <Line label="Net total" value={formatEuro(totals.net)} strong />
-          <Line label="Contingency positions" value={formatEuro(totals.contingency)} />
+          <Line label={copy.submit.netTotal} value={formatEuro(totals.net)} strong />
+          <Line label={copy.submit.contingencyTotal} value={formatEuro(totals.contingency)} />
           <Line
-            label="Positions priced"
-            value={`${totals.positions_priced} of ${totals.positions_priced + totals.positions_open}`}
+            label={copy.submit.positionsPriced}
+            value={copy.submit.positionsPricedValue(
+              totals.positions_priced,
+              totals.positions_priced + totals.positions_open
+            )}
           />
         </dl>
 
         {totals.positions_open > 0 && (
           // Stated, not coloured: red is reserved for the check result.
           <p className="mt-2 text-xs text-slate-700">
-            {totals.positions_open} position
-            {totals.positions_open === 1 ? " is" : "s are"} still without a price.
+            {copy.submit.stillOpen(totals.positions_open)}
           </p>
         )}
 
@@ -70,7 +72,7 @@ export default function SubmitDialog({
             onClick={onCancel}
             className="rounded border border-slate-300 px-2.5 py-1 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
           >
-            Cancel
+            {copy.submit.cancel}
           </button>
           <button
             ref={confirmRef}
@@ -78,7 +80,7 @@ export default function SubmitDialog({
             onClick={onConfirm}
             className="rounded border border-slate-900 bg-slate-900 px-2.5 py-1 text-xs text-white hover:bg-slate-800"
           >
-            Submit bid
+            {copy.submit.confirm}
           </button>
         </div>
       </div>

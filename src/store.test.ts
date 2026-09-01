@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { getAppState, openTender, setUnitPrices } from "./store";
+import {
+  getAppState,
+  openTender,
+  readTenders,
+  runCheck,
+  selectLanguage,
+  selectRole,
+  setUnitPrices
+} from "./store";
 import type { AppliedPrice, SuggestionSource } from "./types";
 
 const WS = "66666666-6666-4666-8666-666666666666";
@@ -14,9 +22,7 @@ const SOURCE: SuggestionSource = {
 const position = (oz: string, quantity: number, contingency = false) => ({
   oz,
   text: oz,
-  text_de: oz,
   long_text: null,
-  long_text_de: null,
   quantity,
   unit: "m2",
   category: "wall",
@@ -33,7 +39,6 @@ const detail = {
   tender: {
     id: "T-2026-014",
     title: "t",
-    title_de: "t",
     client: "c",
     city: "c",
     trade: "painting",
@@ -58,6 +63,24 @@ const applied = (oz: string, unitPrice: number, lineTotal: number): AppliedPrice
 
 let writeResponse: unknown;
 
+const checkResponse = {
+  ok: true,
+  bidder_id: "B-A",
+  tender_id: "T-2026-014",
+  status: "draft",
+  complete: false,
+  open_positions: [],
+  outliers: [],
+  missing_documents: [],
+  due_date: "2026-09-10",
+  due_in_days: 9,
+  totals: { net: 0, contingency: 0, positions_priced: 0, positions_open: 2 },
+  positions_priced: 0,
+  positions_open: 2,
+  undo_available: false,
+  warnings: []
+};
+
 function stubApi() {
   vi.stubGlobal(
     "fetch",
@@ -67,6 +90,12 @@ function stubApi() {
       }
       if (init?.method === "POST" && input.endsWith("/prices")) {
         return new Response(JSON.stringify(writeResponse));
+      }
+      if (input.startsWith("/api/tenders?") || input === "/api/tenders") {
+        return new Response(JSON.stringify({ ok: true, bidder_id: "B-A", tenders: [] }));
+      }
+      if (input.endsWith("/check")) {
+        return new Response(JSON.stringify(checkResponse));
       }
       return new Response(JSON.stringify(detail));
     }) as unknown as typeof fetch
@@ -79,7 +108,9 @@ beforeEach(async () => {
   await openTender("T-2026-014");
 });
 
-afterEach(() => {
+afterEach(async () => {
+  await selectLanguage("en");
+  await selectRole("bidder");
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -190,4 +221,37 @@ it("marks the bid a draft as soon as the first row is written", async () => {
   // Without this the client side would keep saying "no bid yet" while a draft
   // sits on screen.
   expect(getAppState().detail!.tender.my_bid_status).toBe("draft");
+});
+
+it("re-reads everything on screen when the language changes, and nothing else", async () => {
+  // The texts live in the Worker, so anything already fetched has to come back
+  // in the new language. Found the hard way: the client's tender list kept its
+  // German titles after a switch to English, because only the open tender was
+  // being re-read.
+  await selectRole("client");
+  await readTenders();
+  await runCheck("T-2026-014");
+
+  const fetchMock = globalThis.fetch as unknown as { mock: { calls: [string][] } };
+  const before = fetchMock.mock.calls.length;
+
+  await selectLanguage("de");
+
+  const paths = fetchMock.mock.calls.slice(before).map((call) => call[0]);
+  expect(paths).toContain("/api/tenders/T-2026-014");
+  expect(paths).toContain("/api/tenders");
+  expect(paths).toContain("/api/tenders/T-2026-014/check");
+  // The proposals are not among them: what a person sees of one is the source
+  // chip and the price book line, and neither of those is translated.
+  expect(paths.filter((path) => path.includes("/suggestions"))).toEqual([]);
+  expect(getAppState().language).toBe("de");
+});
+
+it("does not go back to the Worker when the language did not change", async () => {
+  const fetchMock = globalThis.fetch as unknown as { mock: { calls: unknown[] } };
+  const before = fetchMock.mock.calls.length;
+
+  await selectLanguage("en");
+
+  expect(fetchMock.mock.calls.length).toBe(before);
 });

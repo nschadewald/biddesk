@@ -1,4 +1,6 @@
 import { formatDate, formatEuro } from "./format";
+import { useCopy } from "./i18n";
+import { useAppState } from "./store";
 import type { CheckResult } from "./types";
 
 /**
@@ -10,8 +12,15 @@ import type { CheckResult } from "./types";
  * far off this contractor's own history, a deadline running out. Those are
  * facts about the bid, not the system's opinion of itself, and because red
  * occurs nowhere else it still means something when it occurs here.
+ *
+ * The document labels arrive already in the reader's language: the Worker
+ * resolves them, because the name of a certificate is what a person holds in
+ * their hand. `check.warnings` is not shown here at all -- it is the sentence
+ * an agent reads, and it stays English.
  */
 export default function CheckPanel({ check, onClose }: { check: CheckResult; onClose: () => void }) {
+  const copy = useCopy();
+  const language = useAppState().language;
   const findings =
     check.open_positions.length + check.outliers.length + check.missing_documents.length;
 
@@ -19,59 +28,63 @@ export default function CheckPanel({ check, onClose }: { check: CheckResult; onC
     <section className="border-b border-slate-200 py-3 text-sm">
       <div className="flex items-baseline justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Check result
+          {copy.check.title}
         </h3>
         <button
           type="button"
           onClick={onClose}
           className="text-xs text-slate-400 hover:text-slate-900"
         >
-          Close
+          {copy.check.close}
         </button>
       </div>
 
       <p className="mt-2 text-xs text-slate-600">
-        {findings === 0
-          ? "Nothing to flag."
-          : `${findings} finding${findings === 1 ? "" : "s"}.`}{" "}
-        {check.complete ? "Every position is priced." : null} Deadline{" "}
-        {formatDate(check.due_date)},{" "}
+        {findings === 0 ? copy.check.nothingToFlag : copy.check.findings(findings)}{" "}
+        {check.complete ? copy.check.allPriced : null}{" "}
+        {copy.check.deadline(formatDate(check.due_date, language))},{" "}
         {check.due_in_days >= 0
-          ? `${check.due_in_days} days left`
-          : `${Math.abs(check.due_in_days)} days ago`}
+          ? copy.check.daysLeft(check.due_in_days)
+          : copy.check.daysAgo(Math.abs(check.due_in_days))}
         .
       </p>
 
       <ul className="mt-2 flex flex-col gap-1">
         {check.open_positions.length > 0 && (
-          <Finding label="Positions without a price">
-            {check.open_positions.join(", ")}
-          </Finding>
+          <Finding label={copy.check.openPositions}>{check.open_positions.join(", ")}</Finding>
         )}
 
         {check.outliers.map((outlier) => (
-          <Finding key={outlier.oz} label={`${outlier.oz} is off your own past price`}>
-            {formatEuro(outlier.unit_price)} against {formatEuro(outlier.price_book_price)} from{" "}
-            <span className="font-mono text-[11px]">{outlier.price_book_id}</span>,{" "}
-            {outlier.deviation_pct > 0 ? "+" : ""}
-            {outlier.deviation_pct} %
+          <Finding key={outlier.oz} label={copy.check.outlier(outlier.oz)}>
+            {copy.check.outlierAgainst(
+              formatEuro(outlier.unit_price),
+              formatEuro(outlier.price_book_price)
+            )}{" "}
+            <span className="font-mono text-[11px]">{outlier.price_book_id}</span>
+            {copy.check.outlierDeviation(
+              `${outlier.deviation_pct > 0 ? "+" : ""}${outlier.deviation_pct}`
+            )}
           </Finding>
         ))}
 
         {check.missing_documents.map((document) => (
           <Finding
             key={document.doc_type}
-            label={document.reason === "expired" ? "Expired document" : "Missing document"}
+            label={
+              document.reason === "expired"
+                ? copy.check.documentExpired
+                : copy.check.documentMissing
+            }
           >
             {document.label}
-            {document.valid_until ? ` · valid until ${document.valid_until}` : null}
+            {document.valid_until
+              ? copy.check.validUntil(formatDate(document.valid_until, language))
+              : null}
           </Finding>
         ))}
       </ul>
 
-      <p className="mt-2 text-xs text-slate-500">
-        Compared against this contractor&apos;s own price book, not against market rates.
-      </p>
+      <p className="mt-2 text-xs text-slate-500">{copy.check.footnote}</p>
     </section>
   );
 }

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { formatEuro, formatMonthYear, formatQuantity } from "./format";
-import type { Position, PriceRejection, Suggestion, SuggestionSource } from "./types";
+import { useCopy } from "./i18n";
+import { useAppState } from "./store";
+import type { Language, Position, PriceRejection, Suggestion, SuggestionSource } from "./types";
 
 /**
  * One line of the bill of quantities, with its proposal if there is one.
@@ -48,6 +50,8 @@ export default function PositionRow({
   onAccept: (suggestion: Suggestion) => void;
   onEnter: (oz: string, unitPrice: number) => void;
 }) {
+  const copy = useCopy();
+  const language = useAppState().language;
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(() => formatForInput(position.my_unit_price));
 
@@ -102,7 +106,7 @@ export default function PositionRow({
           {position.text}
           {position.contingency && (
             <span className="ml-2 rounded border border-slate-200 px-1 py-0.5 text-[10px] uppercase tracking-wide text-slate-500">
-              contingency
+              {copy.row.contingency}
             </span>
           )}
         </td>
@@ -114,7 +118,7 @@ export default function PositionRow({
         <td className="py-2 pr-3">
           <div className="flex flex-col items-end gap-1">
             <label className="sr-only" htmlFor={`price-${position.oz}`}>
-              Unit price for {position.oz}
+              {copy.row.unitPriceFor(position.oz)}
             </label>
             <input
               id={`price-${position.oz}`}
@@ -143,14 +147,19 @@ export default function PositionRow({
                 provenance must not disappear at the moment it starts to count. */}
             {chip && (
               <span className="flex max-w-full items-center gap-1">
-                <SourceChip chip={chip} open={open} onToggle={() => setOpen(!open)} />
+                <SourceChip
+                  chip={chip}
+                  language={language}
+                  open={open}
+                  onToggle={() => setOpen(!open)}
+                />
                 {proposal && !locked && (
                   <button
                     type="button"
                     onClick={() => onAccept(proposal)}
                     className="shrink-0 rounded border border-slate-300 px-1.5 py-0.5 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
                   >
-                    Use
+                    {copy.row.use}
                   </button>
                 )}
               </span>
@@ -158,14 +167,20 @@ export default function PositionRow({
 
             {noMatch && (
               // A gap waiting for a hand, not a warning. No icon, no colour.
-              <span className="text-xs text-slate-500">no comparable entry</span>
+              <span className="text-xs text-slate-500">{copy.row.noComparableEntry}</span>
             )}
 
             {rejection && (
               // Stays in the row with its reason. A message that fades away is a
-              // message nobody read.
-              <span className="text-right text-xs text-slate-500">
-                not written · <span className="font-mono">{rejection.reason}</span>
+              // message nobody read. Two audiences, one row: the code is what an
+              // agent corrects itself on, the sentence is what a person acts on.
+              <span className="flex flex-col items-end text-right text-xs text-slate-500">
+                <span>
+                  {copy.row.notWritten} · <span className="font-mono">{rejection.reason}</span>
+                </span>
+                {copy.row.rejection[rejection.reason] && (
+                  <span className="text-slate-500">{copy.row.rejection[rejection.reason]}</span>
+                )}
               </span>
             )}
           </div>
@@ -180,7 +195,7 @@ export default function PositionRow({
         <tr className="border-b border-slate-100 bg-slate-50">
           <td />
           <td colSpan={5} className="px-0 py-2 pr-3">
-            <OriginalLine chip={chip} />
+            <OriginalLine chip={chip} language={language} copy={copy} />
           </td>
         </tr>
       )}
@@ -196,10 +211,12 @@ type ChipData = {
 
 function SourceChip({
   chip,
+  language,
   open,
   onToggle
 }: {
   chip: ChipData;
+  language: Language;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -213,26 +230,35 @@ function SourceChip({
     >
       <span className="tabular-nums">{formatEuro(chip.unit_price)}</span>
       <span className="truncate text-slate-500">
-        {source.source_project}, {formatMonthYear(source.source_date)}
+        {source.source_project}, {formatMonthYear(source.source_date, language)}
       </span>
     </button>
   );
 }
 
 /** The past line a price came from, verbatim. This is the whole promise. */
-function OriginalLine({ chip }: { chip: ChipData }) {
+function OriginalLine({
+  chip,
+  language,
+  copy
+}: {
+  chip: ChipData;
+  language: Language;
+  copy: ReturnType<typeof useCopy>;
+}) {
   const source = chip.source;
   return (
     <div className="text-xs text-slate-600">
       <p className="text-slate-900">{source.source_position_text}</p>
       <p className="mt-0.5">
-        {source.source_project} · {formatMonthYear(source.source_date)} ·{" "}
+        {source.source_project} · {formatMonthYear(source.source_date, language)} ·{" "}
         {formatEuro(chip.unit_price)} ·{" "}
         <span className="font-mono text-[11px]">{source.price_book_id}</span>
       </p>
       {chip.matched && (
         <p className="mt-0.5 text-slate-500">
-          matched_terms {chip.matched.terms} · matched_on {chip.matched.on.join(", ")}
+          {/* Tool data, printed as it stands. Never a scale, never a percentage. */}
+          {copy.row.matched(chip.matched.terms, chip.matched.on.join(", "))}
         </p>
       )}
     </div>

@@ -2,7 +2,7 @@
 
 Agent-ready tender room for building trades. Einreichung für die WebMCP Challenge.
 **Deadline: Donnerstag, 03.09.2026, 22:00 Uhr Berlin (13:00 PT). Ziel: Mittwochabend einreichen.**
-**Stand Di 01.09., 11:00: gebaut und deployt.** Zwölf Werkzeuge, beide Rollen, GAEB-Import, Evals und Lighthouse belegt – Einzelheiten in `docs/07-technik-entscheidungen.md`. **Offen: Devpost-Text und Video.** **Feature Freeze Mi 02.09. 15:00**, danach nur noch Video/README/Devpost. Tagesplan: docs/03-spec-biddesk.md §9/§10.
+**Stand Di 01.09., 11:00: gebaut und deployt.** Zwölf Werkzeuge, beide Rollen, GAEB-Import, DE/EN-Umschalter, Evals und Lighthouse belegt – Einzelheiten in `docs/07-technik-entscheidungen.md`. **Offen: Devpost-Text und Video.** **Feature Freeze Mi 02.09. 15:00**, danach nur noch Video/README/Devpost. Tagesplan: docs/03-spec-biddesk.md §9/§10.
 
 ## Wo steht was
 - `docs/01-challenge-analyse.md` – Regeln, Jury, Bewertungskriterien, Technikstand WebMCP, Was-gewinnt-These
@@ -57,7 +57,9 @@ Agent-ready tender room for building trades. Einreichung für die WebMCP Challen
 - **Fristen und Nachweis-Gültigkeiten bleiben relativ** (`date('now','+N day')`). Feste Daten würden während der Jurierung bis 21.09. ablaufen.
 - **Design: Arbeitsgerät, nicht Cockpit.** Hell, dicht, zurückhaltend (Referenz: Google-Docs-Vorschlagsmodus als Interaktion, Linear/Stripe als Optik). Batch-Preise laufen im UI gestaffelt ein (60–80 ms/Zeile, `prefers-reduced-motion` beachten), nie als Sprung. **Keine Konfidenzbalken, keine Prozente, keine Ampel an Preisen** – der Quellen-Chip ist die Vertrauensanzeige, Unsicherheit erscheint als leeres Feld mit „no comparable entry". Rot nur im Prüfergebnis. Details: docs/03-spec-biddesk.md §2b.
 - Kein Login. Jeder Besucher bekommt einen Workspace (isolierte Seed-Kopie) über `POST /api/workspace`, Kennung nur in localStorage, Reset-Knopf im Agent-Panel.
-- UI-Sprache Englisch (Jury). Seed-Texte zweisprachig (`text_en`, `text_de`); DE-Umschalter ist Stretch.
+- **DE/EN-Umschalter im Kopfbereich, Vorgabe Englisch**, Wahl in localStorage. Die Sprache reist im Header `X-Language` und wird im Worker in `toTender`/`toPosition` aufgelöst; ohne Header gilt `en`, deshalb ändern sich Evals, `/how-to-test` und `seed/verify_seed.py` nicht. **Werkzeuge bleiben englisch** (Namen, Beschreibungen, Schemas, `reason`, `warnings`, Fehlerobjekte, Log-Zeilen); der Sprache folgen nur Positionstexte und Nachweis-Bezeichnungen. **Ein Sprachwechsel darf nie eine Neuregistrierung auslösen** – die Sprache steht in keiner Abhängigkeitsliste von `useWebMCP`, sonst feuert `toolchange` grundlos.
+- **Kein hartkodierter sichtbarer String.** Alle Oberflächentexte stehen in `src/i18n.ts`; die deutsche Hälfte ist als `typeof en` typisiert, ein fehlender Schlüssel ist ein Compilerfehler. Gilt auch für Bildschirme, die später dazukommen. Ausnahmen: `/how-to-test` (Juroren-Seite, englisch) und die Sprachauswahl, die jede Sprache in ihrer eigenen Sprache nennt.
+- Beträge und Mengen bleiben in beiden Sprachen `de-DE` (13.213,50 EUR ist an sechs Stellen Prüfzahl); Datumsangaben folgen der Sprache.
 - Alle Firmen und Preise sind fiktiv. Keine echten Personen, keine Marktdaten-Behauptungen.
 - Bedarfspositionen (contingency) zählen nicht in die Angebotssumme.
 

@@ -9,9 +9,11 @@ import {
   importTender,
   readComparison,
   readPriceBook,
+  readStoredLanguage,
   readSuggestions,
   resetWorkspace,
   setBidder,
+  setLanguage,
   submitBid,
   writeAnswer,
   writeClarification,
@@ -31,6 +33,7 @@ import type {
   CheckResult,
   Clarification,
   ClarificationList,
+  Language,
   PriceBookResponse,
   PriceComparison,
   PriceRejection,
@@ -59,6 +62,8 @@ export type AppState = {
   workspaceId: string | null;
   bidderId: string | null;
   role: Role;
+  /** Which language a person reads the tender in. Tools are English either way. */
+  language: Language;
   tenderId: string;
   detail: TenderDetail | null;
   /** Proposals for the open tender, keyed by item number. Never entered values. */
@@ -89,6 +94,7 @@ let state: AppState = {
   workspaceId: null,
   bidderId: null,
   role: "bidder",
+  language: readStoredLanguage(),
   tenderId: DEMO_TENDER,
   detail: null,
   suggestions: {},
@@ -101,6 +107,10 @@ let state: AppState = {
   comparison: null,
   failure: null
 };
+
+// The stored choice has to reach the request layer before the first fetch goes
+// out, or the opening screen arrives in the wrong language and corrects itself.
+setLanguage(state.language);
 
 const listeners = new Set<() => void>();
 
@@ -333,6 +343,39 @@ export async function selectBidder(id: string): Promise<void> {
   await openTender(state.tenderId);
 }
 
+/**
+ * Switching the interface language.
+ *
+ * The texts come from the Worker, so the open tender is re-read -- but nothing
+ * about the tool layer is touched. `useWebMCP` depends on the role and on
+ * whether a bid can still be handed in, and on neither of those does this
+ * change: no block is withdrawn, no block is registered, `toolchange` does not
+ * fire and the self-diagnosis keeps counting the same number. A person changing
+ * the language of their screen is not an event an agent needs to hear about.
+ */
+export async function selectLanguage(language: Language): Promise<void> {
+  if (language === state.language) return;
+  setLanguage(language);
+  set({ language });
+
+  // Everything already on screen that came from the Worker is re-read, or it
+  // would sit there in the language it was fetched in. Found in exactly that
+  // way: the client's tender list kept its German titles after a switch back
+  // to English, because only the open tender was being re-read.
+  await openTender(state.tenderId).catch(() => undefined);
+  if (state.check !== null) await runCheck(state.tenderId).catch(() => undefined);
+  // The tender list and the price comparison are what the client screen shows,
+  // so they are re-read exactly when that screen is the one being looked at.
+  if (state.role === "client") {
+    await readTenders().catch(() => undefined);
+    await loadComparison(state.tenderId).catch(() => undefined);
+  }
+
+  // Proposals are NOT re-read: what a person sees of one is the source chip and
+  // the price book line behind it, and neither is translated. Its `reason` is
+  // tool data and stays English in both languages.
+}
+
 export async function selectRole(role: Role): Promise<void> {
   if (role === state.role) return;
   // Leaving a role puts its findings away with it.
@@ -470,10 +513,7 @@ export async function boot(): Promise<void> {
     await openTender(state.tenderId);
     void loadBidders();
   } catch (caught) {
-    set({
-      status: "failed",
-      failure: caught instanceof Error ? caught.message : "Could not load the tender."
-    });
+    set({ status: "failed", failure: caught instanceof Error ? caught.message : null });
   }
 }
 
