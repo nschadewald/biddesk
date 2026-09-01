@@ -49,6 +49,24 @@ Aufnahme im ChatGPT-Desktop-Browser, Fenster so breit, dass Tabelle und Agent-Pa
 
 ---
 
+## Für den Aufnehmenden — bitte zuerst lesen
+
+**Was aufgenommen wird:** https://biddesk.n-schadewald.workers.dev im **ChatGPT-Desktop-Browser** (nicht Chrome, nicht extern). Modell **5.6 Sol** oder Terra — bei Luna ist WebMCP deaktiviert.
+
+**Der Handoff.** ChatGPT fragt einmal nach dem Arbeitsmodus. **Annehmen.** Wird er abgelehnt, verweigert ChatGPT für den Rest der Unterhaltung und die Seite sieht funktionslos aus, obwohl alles korrekt läuft. Abhilfe: neue Unterhaltung.
+
+**Vor jeder Aufnahme:**
+1. „Reset demo" im Agent-Panel drücken — Tabelle leer, Summe 0,00 €, Log leer.
+2. Fensterbreite prüfen: Tabelle und Agent-Panel müssen **nebeneinander** stehen, ohne Überlappung (ab ca. 1240 px). Darunter klappt das Panel weg und die halbe Aussage fehlt.
+3. Die grüne Zeile oben rechts muss „WebMCP detected · 10 tools registered" sagen. Sagt sie das nicht, ist der Browser falsch — nicht aufnehmen.
+4. Nach einem Deploy 15 Sekunden warten, sonst laufen Aufrufe ins Leere.
+
+**Was zwingend im Bild sein muss**, sonst fehlt der Beweis: die grüne Selbstdiagnose mit der Werkzeugzahl, das Live-Log rechts während der Aufrufe, die Herkunfts-Chips an den Preisen, die zwei leeren Zeilen mit „no comparable entry", der Bestätigungsdialog vor der Abgabe, und die Werkzeugzahl **nach** der Abgabe (10 → 9).
+
+**Nicht schneiden weg:** das gestaffelte Einlaufen der Zeilen bei Prompt 1. Es ist die Kernaussage in Bewegung — dass man beim Entstehen zusieht.
+
+**Freeze-Regel, wichtig:** Die Oberfläche darf sich zwischen Aufnahme und Einreichung nicht mehr ändern, sonst zeigt das Video ein anderes Produkt als die Live-URL. Vor der Aufnahme mit Nils abstimmen, dass der Stand steht.
+
 ## Produktionshinweise
 - **Sicherungsaufnahme zuerst:** einmal ungeschnitten komplett durchlaufen und mitschneiden, bevor geschnitten wird.
 - Aufnahme 1080p, OBS oder Windows-Spielleiste. Schnitt Clipchamp/DaVinci.
