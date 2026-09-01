@@ -1,6 +1,141 @@
 # Technik-Entscheidungen und Befunde
 
-Laufendes Protokoll. Eine Überschrift je Bauschritt aus `docs/03-spec-biddesk.md` §9.
+Laufendes Protokoll. Unten eine Überschrift je Bauschritt aus `docs/03-spec-biddesk.md` §9;
+oben das, was davon übrig bleibt, wenn man den Code schon hat.
+
+---
+
+# Was diese Session gelernt hat
+
+Alles hier steht so **nicht im Code** – entweder weil es eine Plattformeigenheit ist, die man
+erst im Betrieb bemerkt, oder weil der Code heute nur noch das Ergebnis zeigt und nicht mehr
+den Fehlschlag davor. Elf Bauschritte, 31.08.–01.09.2026.
+
+## Plattform: Cloudflare und D1
+
+**D1 begrenzt die Terme in einem zusammengesetzten SELECT.** Neun `UNION ALL`-Zweige quittiert
+D1 mit `too many terms in compound SELECT` (`SQLITE_ERROR 7500`). Für „eine Zahl je Tabelle"
+also **skalare Unterabfragen in einer Zeile** statt einer Union. Betraf zuerst ein Prüfskript,
+dann die Bauweise des Preisspiegels – der holt heute **eine** Abfrage mit Joins und faltet in
+JavaScript.
+
+**Cloudflare beantwortet `Python-urllib` mit Fehler 1010** („The owner of this website has banned
+your browser"). Jedes Prüf- und Eval-Skript gegen die produktive URL braucht einen eigenen
+`User-Agent`; Browser und Puppeteer sind nicht betroffen. Kostet zehn Minuten Ratlosigkeit,
+wenn man es nicht weiß.
+
+**Nach einem Deploy propagieren die Assets rund 15 Sekunden.** In den ersten Sekunden danach
+kommen 404 auf `/`, Cloudflare-Fehler 1042 auf `/api/*` und teilweise fehlgeschlagene
+Eval-Läufe (einmal 2/11, einmal 5/11, beide Male ohne Codefehler). **Vor einem Prüflauf warten**,
+sonst jagt man Gespenster. Gilt auch für den Freeze-Deploy am Mittwoch.
+
+**`?raw`-Importe bündeln `seed/seed.sql` in den Worker.** Ein `npm run build` reicht zum
+Einbündeln, es gibt keinen zweiten Weg, den Seed „einzuspielen".
+
+## Messen: wo die Instrumente lügen
+
+**`getBoundingClientRect()` misst die Layoutbox, nicht das Gemalte.** Eine Tabelle in einem
+`overflow-x-auto`-Container ragt rechnerisch heraus, obwohl sie sichtbar abgeschnitten ist. Ein
+erster Messlauf meldete deshalb eine Überlappung bei 1024 px, die es nicht gab. Richtig gemessen
+wird **am Scroll-Container**, plus `scrollWidth > clientWidth` für „scrollt wirklich".
+
+**Die Automatisierungsbrücke hungert die Timer der Seite aus.** Eine Staffelung von 70 ms je
+Zeile ist darüber nicht messbar – sie erscheint entweder als ein Sprung oder als eine Sekunde
+je Zeile. Belegt wurde sie deshalb dreifach anders: Unit-Test mit `vi.useFakeTimers()`,
+gemessene **Reihenfolge** (streng von oben nach unten) und ein Screenshot mitten im Lauf.
+
+**Ein Git-Worktree unter `.claude/`** enthielt eine zweite Kopie aller Testdateien; vitest zählte
+24 Dateien und 194 Tests statt 12 und 97. In `vitest.config.ts` ausgeschlossen. Eine Zahl, die
+im README steht, muss stimmen.
+
+## Layout: `minmax(0, 1fr)`
+
+Die Preis- und Summenspalte schob sich unter das Agent-Panel. Ursache war nicht absolute
+Positionierung, sondern eine Grid-Spalte **ohne Mindestbreite null**: Bei `1fr` darf eine breite
+Tabelle die Spaltenbreite mitbestimmen. `grid-cols-[minmax(0,1fr)_auto]` verbietet das. Jede
+breite Tabelle sitzt zusätzlich in einem eigenen `overflow-x-auto`, damit sie in sich scrollt
+statt die Seite zu schieben.
+
+Unterhalb des Umbruchpunkts stapelt sich das Panel und klappt ein – aber `order-first`, denn
+unter einer vierzehnzeiligen Tabelle wäre die Selbstdiagnose beim Ankommen außerhalb des Bildes,
+und sie ist die Einstiegshilfe.
+
+## WebMCP: der deklarative Weg hat drei Fallen
+
+Ein Formular mit `toolname` wird vom Browser zu einem Werkzeug. Alle drei folgenden Fehler
+zeigen sich **ausschließlich** auf einem Browser, der das umsetzt – auf Chrome 148 ist der
+imperative Zwilling aktiv und alles wirkt gesund. Zusammen bedeuteten sie:
+`ask_clarification` meldete Erfolg und legte **nie** eine Rückfrage an.
+
+1. **`toolautosubmit` fehlte.** Ohne das Attribut füllt der Browser die Felder und wartet auf
+   einen menschlichen Klick. Der Aufruf des Agenten hängt (Puppeteer lief in den Timeout),
+   nichts wird abgeschickt, und die CLI meldet nur `pending form submission`. Eine Rückfrage ist
+   ein gewöhnlicher, umkehrbarer Schreibvorgang – der Agent darf sie abschließen. Das eine, was
+   eine Hand braucht, ist bewusst **kein** Formular.
+2. **React-kontrollierte Felder werden zurückgesetzt.** Der Browser schreibt direkt ins DOM,
+   React bemerkt es nicht und stellt beim nächsten Rendern den Zustandswert wieder her – und es
+   rendert dauernd, allein das Live-Log genügt. Der Submit las zwei leere Felder. Formularfelder
+   für Werkzeuge gehören **unkontrolliert**.
+3. **`form.reset()` bricht den laufenden Aufruf ab.** Der Browser antwortet wörtlich mit
+   `Tool execution cancelled by a form reset`. Zurückgesetzt wird nur noch, wenn ein **Mensch**
+   abgeschickt hat (`event.agentInvoked === false`).
+
+Dazu: **`respondWith` muss synchron im Dispatch aufgerufen werden**, mit einem noch laufenden
+Promise – nicht nach einem `await`. Und: Das Formular kennt **kein** `tender_id`, es fragt zu
+dem, was offen ist; der imperative Zwilling verlangte es zunächst. **Ein Name darf nicht zwei
+Verträge haben**, je nachdem welcher Browser ihn bedient.
+
+## WebMCP: gemessene API-Wirklichkeit in Chrome 152
+
+- `document.modelContext` ist da, **`navigator.modelContext` nicht**. Der Fallback bleibt
+  richtig, aber „Chrome bedient beides" stimmt für 152 nicht.
+- **`getTools()` liefert ein Promise**, kein Array. Wer synchron auf `Array.isArray` prüft,
+  fällt still auf die eigene Buchführung zurück – bei uns mit richtigem Ergebnis, aber die
+  Browserliste wird nie benutzt.
+- **`executeTool(tool, args)` erwartet ein `RegisteredTool`-Objekt** (aus `getTools()`) und die
+  Argumente als **JSON-String**, nicht als Objekt. Beides falsch zu machen kostet zwei Anläufe.
+- `SubmitEvent.prototype` trägt `respondWith` und `agentInvoked`. Das ist die belastbare
+  **Feature-Erkennung** für den deklarativen Weg – zuverlässiger als aus `getTools()` zu raten.
+- Der **Origin Trial funktioniert ohne Flag**: normales Chrome 152, `<meta http-equiv=
+  "origin-trial">` im Kopf, Selbstdiagnose zählt zehn Werkzeuge.
+
+## GAEB: die Kategorie kommt aus dem Positionstext, nie aus der Überschrift
+
+Ein X83 nennt keine Kategorie, die zu unserem Preisbuch passt, und GAEB-Überschriften sind
+Freitext, je Büro anders. Abgeleitet wird deshalb aus dem **Wortlaut der Position**.
+
+Der erste Versuch berücksichtigte Positionstext **und** Überschrift – und produzierte prompt
+einen **falschen Preis mit korrektem Herkunfts-Chip**, also genau das, wogegen dieses Produkt
+gebaut ist: Ein echtes Leistungsverzeichnis fasst Wand- und Deckenarbeiten unter eine
+Überschrift („Wand- und Deckenflächen"). Die enthält „Decken", also bekam auch die Wandposition
+`ceiling` und damit **9,10 €** statt ihrer eigenen **8,40 €**.
+
+Jetzt entscheidet der Positionstext allein; die Überschrift wird nur befragt, wenn er nichts
+hergibt. **Auf den eigenen Beispieldateien wäre das nie aufgefallen**, weil unsere eigenen
+Überschriften sortenrein sind – das ist das Argument für die fremde Testdatei in einem Satz.
+
+Sicher ist das Ableiten überhaupt nur, weil **aus einer Kategorie nie ein Preis wird**: Eine
+falsche kostet einen Vorschlag, und ein fehlender Vorschlag ist ein leeres Feld.
+
+## Arbeitsweise, die sich bewährt hat
+
+**Gegen die Produktion prüfen, nicht gegen den lokalen Stand.** Jeder Schritt endete mit einem
+Skript gegen die deployte URL. Vier Fehler wären sonst durchgerutscht: der verschwindende
+Herkunfts-Chip, der stehengebliebene `my_bid_status`, die drei Formularfehler und der falsche
+Kategoriepreis. Kein einziger davon war im Unit-Test sichtbar.
+
+**Tests gegen `seed/seed.json` rechnen, nicht gegen abgeschriebene Zahlen.** `matching.test.ts`
+und `comparison.test.ts` lesen den Seed selbst. Als sich der Seed in Schritt 8 änderte, fiel
+sofort auf, dass Colorpoint jetzt sieben statt sechs Lücken hat – statt dass eine Zahl im Test
+still falsch geworden wäre.
+
+**Prüfskripte lügen auch.** Drei „Fehlschläge" waren Fehler im Skript, nicht im Produkt: zu
+weit gefasste Zeilenzählung über alle Workspaces, ein Substring-Treffer auf eine Seed-Rückfrage,
+und `getBoundingClientRect` (siehe oben). Erst das Skript prüfen, dann das Produkt verdächtigen.
+
+---
+
+# Protokoll je Bauschritt
 
 ## Schritt 1 – Deploy-Pfad (Mo 31.08.2026)
 

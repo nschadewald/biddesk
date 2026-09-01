@@ -34,13 +34,18 @@ Aufnahme im ChatGPT-Desktop-Browser, Fenster so breit, dass Tabelle und Agent-Pa
 **Bild:** Rollenwechsel zum Auftraggeber. Offene Ausschreibung: Zähler 2 → 3, versiegelt. Dann der Preisspiegel der geschlossenen Fassaden-Ausschreibung.
 **VO:** "The client sees the bid arrive — but not its prices. Sealed until the deadline, for their agent too. On a closed tender, the full comparison: position by position, with one bidder's scaffolding price flagged at twice the median."
 
+## Optionaler Beat (nur wenn die Zeit es hergibt, sonst weglassen)
+**Bild:** Eine GAEB-X83-Datei wird auf die Seite gezogen, eine neue Ausschreibung entsteht, danach ein Bepreisungslauf.
+**VO:** "And this is where a tender actually comes from: a GAEB file out of the client's tendering software. Dragged in, priced with the same tools."
+*Hinweis: Dieser Beat kostet ~12 Sekunden. Wenn das Video über 2:40 läuft, fällt er — der Import steht im README und in den Screenshots.*
+
 ## 2:05–2:20 · Beweis
 **Bild:** ChatGPTs eigene Werkzeugansicht ("2 mit Lesezugriff"), dann Chrome ohne Flag mit der grünen Selbstdiagnose, dann kurz die Eval-Tabelle im README.
 **VO:** "Twelve tools, ten in the contractor role, five for the client. Read-only where it reads, confirmation where it commits. Ten eval cases — two of which test that we refuse the right things."
 
 ## 2:20–2:30 · Abbinder
 **Bild:** Architektur in einem Bild: Browser-Agent → Tools → Worker + D1. Darunter der Satz.
-**VO:** "No model in the backend. The intelligence is the user's own agent; the site only offers tools — and one of them can't be used to invent a number. Built in three days for the WebMCP Challenge."
+**VO:** "No model in the backend. The intelligence is the user's own agent; the site only offers tools — and none of them can be used to invent a number."
 
 ---
 

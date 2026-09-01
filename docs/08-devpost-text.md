@@ -60,6 +60,13 @@ Stack: React + Vite + TypeScript, Hono on Cloudflare Workers, D1. No login — e
 - The eval run **found three real bugs** in the declarative path that were invisible on our test browser — including a missing `toolautosubmit` that made clarifications silently do nothing.
 - **Lighthouse agentic-browsing: 0.75** initially; every tool-related audit passes (accessibility tree, registered tools, schema validity). The missing quarter was a missing `/llms.txt`.
 - **Origin trial**: works in stock Chrome 152 with no flag.
+- **GAEB DA XML import**: a bill of quantities in the file format German tenders actually travel in, dragged onto the page, becomes a priceable tender — tested with a file the parser had never seen: namespace prefixes on every element, three levels of nesting, different unit spellings, one item without an outline text, no `Provis` marker anywhere. Nine of nine positions, quantities with German decimal commas, units normalised, contingency items recognised from the section heading alone. No code change.
+
+### Why we tested against a stranger's file
+
+The first import run "passed" — and produced a **wrong price carrying a correct provenance chip**, the one outcome this product exists to prevent. Real bills of quantities group wall and ceiling work under one heading ("Wand- und Deckenflächen"). Our category derivation read the heading, found "Decken", and gave a wall position the ceiling price: 9.10 € instead of 8.40 €. Traceable, explainable, wrong.
+
+It could not have surfaced on our own sample files, because our own headings are tidy. The position text now decides alone; the heading is consulted only when the text yields nothing. This was the third bug of the same family — each one found by testing against something unfamiliar rather than against ourselves.
 
 ## An honest boundary we measured
 
@@ -80,6 +87,6 @@ So the precise claim is:
 
 ## What's next
 
-GAEB DA XML import (the file format German bills of quantities actually travel in), a paste-in import for firms without it, and real historical quotes instead of a seeded price book.
+Real historical quotes instead of a seeded price book — importing a firm's past bids from PDF or GAEB X84 is the step that turns this from a demonstration into something a contractor could use on Monday. Beyond that: X84 export of the finished bid, and a paste-in import for firms whose software predates GAEB.
 
 Built from scratch during the submission period, 31 August – 2 September 2026, by MERKUR Impulse GmbH, Düsseldorf.

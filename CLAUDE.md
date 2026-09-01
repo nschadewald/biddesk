@@ -2,14 +2,14 @@
 
 Agent-ready tender room for building trades. Einreichung für die WebMCP Challenge.
 **Deadline: Donnerstag, 03.09.2026, 22:00 Uhr Berlin (13:00 PT). Ziel: Mittwochabend einreichen.**
-**Stand Mo 31.08., noch nichts gebaut. Budget 30–40 h bis Mi abends → voller Scope (13 Tools, beide Rollen).** Tagesplan und Prioritäten: docs/03-spec-biddesk.md §9/§10. Erste Handlung heute: Deploy-Pfad auf die finale URL beweisen. Tagesziel Montag: ChatGPT-Desktop ruft ein Tool von dieser URL auf. **Feature Freeze Mi 02.09. 15:00**, danach nur noch Video/README/Devpost.
+**Stand Di 01.09., 11:00: gebaut und deployt.** Zwölf Werkzeuge, beide Rollen, GAEB-Import, Evals und Lighthouse belegt – Einzelheiten in `docs/07-technik-entscheidungen.md`. **Offen: Devpost-Text und Video.** **Feature Freeze Mi 02.09. 15:00**, danach nur noch Video/README/Devpost. Tagesplan: docs/03-spec-biddesk.md §9/§10.
 
 ## Wo steht was
 - `docs/01-challenge-analyse.md` – Regeln, Jury, Bewertungskriterien, Technikstand WebMCP, Was-gewinnt-These
 - `docs/02-idee-ausschreibungen.md` – Varianten und warum V2 light
-- `docs/03-spec-biddesk.md` – **die Build-Spec** (Rollen, Seed-LV, Screens, 13 Tools mit Schemas, Architektur, Sicherheit, Evals, DoD, Tagesplan)
+- `docs/03-spec-biddesk.md` – **die Build-Spec** (Rollen, Seed-LV, Screens, 12 Werkzeuge mit Schemas, Architektur, Sicherheit, Evals, DoD, Tagesplan). §12.2 löst die alte „13“ auf.
 - `docs/04-submission.md` – Devpost-Checkliste, Video-Skript, Write-up-Gerüst
-- `seed/` – **fertige Seed-Daten, nicht neu erfinden**: `seed.json` (Quelle der Wahrheit), `schema.sql`, `seed.sql` (`{{WS}}` ersetzen), `gaeb/T-2026-014.x83` (Beispieldatei für den Import), `verify_seed.py` (muss „ALLES GRUEN" sagen). Details und Fallstricke: `seed/README.md`.
+- `seed/` – **fertige Seed-Daten, nicht neu erfinden**: `seed.json` (Quelle der Wahrheit), `schema.sql`, `seed.sql` (`{{WS}}` ersetzen), `gaeb/T-2026-014.x83` (deckt sich mit dem Seed) und `gaeb/T-2026-021.x83` (**die dem Parser unbekannte Abnahmedatei** – andere Überschriften, Einheiten, Positionszahl), `verify_seed.py` (muss „ALLES GRUEN" sagen). Details und Fallstricke: `seed/README.md`.
 - Arbeitsteilung: Technik hier in Claude Code; Konzept, Texte, Video über Cowork. Entscheidungen und Learnings in `docs/` festhalten, nicht nur im Chat.
 
 ## Stack (fest)
@@ -17,21 +17,25 @@ Agent-ready tender room for building trades. Einreichung für die WebMCP Challen
 - Basis-Template: `cloudflare/agents` → `examples/webmcp-react`. Cloudflare-Konto „MERKUR Impulse"; benutzerweiter `CLOUDFLARE_API_TOKEN` auf NB-NSC hat Workers-Edit-Rechte.
 - **Produktive URL: https://biddesk.n-schadewald.workers.dev** · D1 `biddesk` (WEUR), Binding `DB` · Konfiguration ist **`wrangler.jsonc`** (nicht .toml).
 - **Repo: https://github.com/nschadewald/biddesk** (öffentlich, MIT erkannt). gh-Cache nennt noch das alte Konto `nuelsde` – gleiche User-ID, kein Handlungsbedarf; die Devpost-URL lautet `nschadewald/biddesk`.
-- **Workspace reist im Header `X-Workspace-Id`**, nicht in der URL. Alle Tool-Fetches müssen ihn aus dem Store mitsenden.
-
-## Zwei Fallstricke aus der Praxis (31.08., docs/07)
-- **D1 begrenzt Terme in zusammengesetzten SELECTs.** Neun `UNION ALL`-Zweige → `too many terms in compound SELECT` (SQLITE_ERROR 7500). **`get_price_comparison` NICHT über UNION ALL bauen**, sondern mit skalaren Unterabfragen.
-- **Cloudflare beantwortet python-urllib mit Fehler 1010.** Jedes Eval-/Prüfskript braucht einen eigenen User-Agent. Browser sind nicht betroffen.
+- **Workspace reist im Header `X-Workspace-Id`**, nicht in der URL. Alle Tool-Fetches müssen ihn aus dem Store mitsenden; der gewählte Bieter reist als `X-Bidder-Id` daneben.
 - Kein LLM im Backend. Heuristiken deterministisch und erklärbar.
 - Lizenz MIT. Repo öffentlich auf GitHub (Devpost verlangt sichtbare Lizenzdatei).
 
+## Fallstricke aus der Praxis (die vollständige Liste steht in docs/07)
+- **D1 begrenzt Terme in zusammengesetzten SELECTs.** Neun `UNION ALL`-Zweige → `too many terms in compound SELECT` (SQLITE_ERROR 7500). **`get_price_comparison` NICHT über UNION ALL bauen**, sondern mit skalaren Unterabfragen.
+- **Cloudflare beantwortet python-urllib mit Fehler 1010.** Jedes Eval-/Prüfskript braucht einen eigenen User-Agent. Browser und Puppeteer sind nicht betroffen.
+- **Nach einem Deploy ~15 Sekunden warten**, bevor geprüft wird. Vorher: 404 auf `/`, Fehler 1042 auf `/api/*`, halb fehlgeschlagene Eval-Läufe – jedes Mal ohne Codefehler.
+- **`getBoundingClientRect()` misst die Layoutbox, nicht das Gemalte.** In einem Overflow-Container ragt eine Tabelle rechnerisch heraus, obwohl sie sichtbar abgeschnitten ist. Am Scroll-Container messen, plus `scrollWidth > clientWidth`.
+
 ## WebMCP-Regeln (nicht verhandelbar)
-- Tools über zentralen Wrapper registrieren: `document.modelContext` zuerst, Fallback `navigator.modelContext` (Spec-Draft 21.07.2026 hat die API verschoben; Chrome 149–156 bedient beides).
+- Tools über zentralen Wrapper registrieren: `document.modelContext` zuerst, Fallback `navigator.modelContext`. **In Chrome 152 gemessen: nur `document.modelContext` existiert**, `navigator.modelContext` nicht mehr – der Fallback bleibt als Versicherung, „bedient beides“ stimmt aber nicht.
 - Jedes Tool: `name`, `title`, `description` (sagt, wann es zu benutzen ist und welche UI-Wirkung es hat), `inputSchema` (JSON Schema, `additionalProperties:false`, Feldbeschreibungen), `execute`, `annotations`.
 - `readOnlyHint:true` auf allen Lese-Tools. `untrustedContentHint:true` auf allem, was Fremdtext zurückgibt (Bieterfragen/Antworten).
 - Tools werfen nie; Fehler als `{ ok:false, error, hint }`. Ausgaben sind JSON-Daten, kein HTML/Markdown, keine Anweisungen.
 - Destruktives (`submit_bid`) nur mit UI-Bestätigung durch den Menschen; danach Tool per AbortSignal abmelden.
 - Kontextabhängig registrieren (Rolle Bidder/Client) → `toolchange` feuert.
+- **Ein Name, ein Werkzeug.** `ask_clarification` ist deklarativ (Formular); der imperative Zwilling wird nur angemeldet, wenn der Browser den deklarativen Weg nicht kann (Feature-Erkennung an `SubmitEvent.prototype`). Beide Fassungen müssen dieselben Argumente nehmen.
+- **Formular-Werkzeuge:** `toolautosubmit` ist Pflicht, die Felder müssen **unkontrolliert** sein, `respondWith` synchron im Dispatch mit noch laufendem Promise, und **kein `form.reset()`**, solange ein Agent-Aufruf läuft. Alle vier waren echte Fehler, siehe docs/07.
 - Jeder Tool-Aufruf landet im Agent-Panel-Log (Zeit, Tool, Input, Output-Kurzform, Dauer).
 - Tools und manuelle Bedienung nutzen dieselben Store-Aktionen (eine Wahrheit, UI aktualisiert live).
 - **Permissions-Policy: KEIN eigener Header.** Laut Chrome-Doku ist `tools` bereits per Default auf `self` – ein selbst gesetzter Header kann die Werkzeugerkennung nur kaputtmachen. Wir setzen keine Cross-Origin-iframes ein und verlassen uns auf den Default; das gehört so ins Write-up (im Tool Inspector gegenprüfen).
@@ -45,14 +49,14 @@ Agent-ready tender room for building trades. Einreichung für die WebMCP Challen
 - **Offene Ausschreibungen sind versiegelt:** `get_price_comparison` liefert vor Fristende nur Anzahl und Eingangszeit, keine Preise. Voller Preisspiegel nur für T-2026-009.
 - Ausgabefeld heißt `matched_terms` (Zahl) + `matched_on`, **nicht** `confidence`. Nie als Skala anzeigen.
 - **Kein geratener Preis.** Jeder Vorschlag trägt seine Herkunft (Projekt, Datum, Originalzeile) und ist im UI anklickbar. Ohne Treffer: „no comparable entry", kein Wert.
-- **Das Leistungsverzeichnis ist unantastbar.** Kein Tool ändert Positionen, Mengen oder Texte der Ausschreibung. Kein Löschen, kein Anlegen von Ausschreibungen im MVP.
+- **Das Leistungsverzeichnis ist unantastbar.** Kein Werkzeug ändert Positionen, Mengen oder Texte, keines löscht, **keines legt eine Ausschreibung an**. Seit dem GAEB-Import kann ein **Mensch** eine Datei hineinziehen und daraus eine Ausschreibung erzeugen – dafür gibt es bewusst kein Werkzeug.
 - Auftraggeber-Rolle darf im MVP nur lesen und Rückfragen beantworten.
-- **`suggest_prices`:** Kategorie UND Einheit müssen passen; Keyword-Treffer als **Teilstring** auf normalisiertem Text (deutsche Komposita: „Schimmelbehandlung" enthält „schimmel"+„behandlung"); **mindestens ein Treffer**, sonst kein Vorschlag. `high` ab 2 Treffern, `medium` bei 1. Sollergebnis B-A auf T-2026-014: 12 Vorschläge, genau 2× none (03.04, 04.02), netto 13.213,50 €. Prüfbar mit `seed/verify_seed.py`.
+- **`suggest_prices`:** Kategorie UND Einheit müssen passen; Keyword-Treffer als **Teilstring** auf normalisiertem Text (deutsche Komposita: „Schimmelbehandlung" enthält „schimmel"+„behandlung"); **mindestens ein Treffer**, sonst kein Vorschlag. Ausgegeben wird die **Trefferzahl** (`matched_terms`), kein `high`/`medium` – im Code kommt kein Konfidenzwort vor. Sollergebnis B-A auf T-2026-014: 12 Vorschläge, genau 2× none (03.04, 04.02), netto 13.213,50 €. Prüfbar mit `seed/verify_seed.py`.
 - **Kein `?ws=`-Parameter und kein „Stand teilen"-Knopf.** Zustand lebt nur in localStorage.
 - **Selbstdiagnose im Agent-Panel zählt über `getTools()`**, nie eine fest verdrahtete Zahl. Bieterrolle 10 Werkzeuge, nach Abgabe 9; Auftraggeber 5; insgesamt 12 verschiedene.
 - **Fristen und Nachweis-Gültigkeiten bleiben relativ** (`date('now','+N day')`). Feste Daten würden während der Jurierung bis 21.09. ablaufen.
 - **Design: Arbeitsgerät, nicht Cockpit.** Hell, dicht, zurückhaltend (Referenz: Google-Docs-Vorschlagsmodus als Interaktion, Linear/Stripe als Optik). Batch-Preise laufen im UI gestaffelt ein (60–80 ms/Zeile, `prefers-reduced-motion` beachten), nie als Sprung. **Keine Konfidenzbalken, keine Prozente, keine Ampel an Preisen** – der Quellen-Chip ist die Vertrauensanzeige, Unsicherheit erscheint als leeres Feld mit „no comparable entry". Rot nur im Prüfergebnis. Details: docs/03-spec-biddesk.md §2b.
-- Kein Login. Jeder Besucher bekommt einen Workspace (isolierte Seed-Kopie), `?ws=` in der URL, Reset-Button.
+- Kein Login. Jeder Besucher bekommt einen Workspace (isolierte Seed-Kopie) über `POST /api/workspace`, Kennung nur in localStorage, Reset-Knopf im Agent-Panel.
 - UI-Sprache Englisch (Jury). Seed-Texte zweisprachig (`text_en`, `text_de`); DE-Umschalter ist Stretch.
 - Alle Firmen und Preise sind fiktiv. Keine echten Personen, keine Marktdaten-Behauptungen.
 - Bedarfspositionen (contingency) zählen nicht in die Angebotssumme.
@@ -62,10 +66,10 @@ Agent-ready tender room for building trades. Einreichung für die WebMCP Challen
 **GATE MO 31.08. BESTANDEN.** ChatGPT-Desktop (5.6 Sol, Aufwand Hoch) hat `get_tender` und `webmcp_list_tools` auf der produktiven URL aufgerufen, T-2026-015 korrekt mit 6 Positionen zurückgegeben, nichts verändert.
 
 **Für das README unverzichtbar (am 31.08. selbst erlebt):** Der ChatGPT-Desktop-Browser erkennt die Werkzeuge sofort (Symbol in der Adressleiste → „Website-Tools (2), 2 mit Lesezugriff"), ruft sie aber erst auf, wenn der **Work-Mode-Handoff angenommen** wird. Wird er einmal abgelehnt, verweigert ChatGPT für den REST DER UNTERHALTUNG und antwortet „I can't interact with the open tender site" – die Seite sieht dann funktionslos aus, obwohl alles korrekt registriert ist. Abhilfe: neue Unterhaltung, Handoff annehmen. Dieser Hinweis MUSS in „How to test in 60 seconds", sonst zieht ein Juror den falschen Schluss.
-- Chrome: `chrome://flags/#enable-webmcp-testing` + Extension „Model Context Tool Inspector" + DevTools-WebMCP-Panel.
+- **Chrome braucht kein Flag mehr.** Der Origin-Trial-Token steht in `index.html`; in Chrome 152 ohne Flag gemessen, Selbstdiagnose zählt zehn Werkzeuge. Das Flag `chrome://flags/#enable-webmcp-testing` bleibt der Rückfallweg, dazu Extension „Model Context Tool Inspector" und das DevTools-WebMCP-Panel.
 - ChatGPT-Desktop-Browser (WebMCP seit ~26.08.2026): Pfeil in der Adressleiste zeigt Tools; Bestätigung bei sensiblen Aktionen prüfen.
 - Vor jedem Commit: `npm test` (vitest) + `npm run typecheck`. Vor Deploy: Seed/Reset lokal durchspielen.
-- Testmatrix und Eval-Fälle: `docs/03-spec-biddesk.md` §6.
+- Testmatrix und Eval-Fälle: `docs/03-spec-biddesk.md` §6. **Ausgeführt** liegen sie in `evals/`: `python evals/assert_outcomes.py` (Bieter, über die offizielle `webmcp-evals`-CLI), `node evals/client_role.mjs` (Auftraggeber), `node evals/gaeb_import.mjs` (GAEB-Abnahme). Alle brauchen lokal Chrome 149+.
 
 ## Nicht tun
 - Keine externen Datenquellen für die Einreichung (DÖE-API nur als Stretch nach DoD).
