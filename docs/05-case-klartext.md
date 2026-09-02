@@ -120,4 +120,4 @@ Ehrlichkeit hält das Gespräch sauber:
 > Stellen Sie sich vor, Ihre Software hätte ein beschriftetes Bedienpult für KI-Assistenten. Nicht „die KI klickt sich irgendwie durch", sondern: Diese Dinge darfst du, diese nur mit Unterschrift.
 
 **Für LinkedIn (Aufhänger):**
-> Ein Malermeister braucht zwei Stunden, um 14 Zeilen zu bepreisen. Nicht weil er langsam ist – sondern weil die Werte in fünf alten Angeboten stecken. Wir haben in sechs Tagen gebaut, wie das anders geht.
+> Ein Malermeister braucht zwei Stunden, um 14 Zeilen zu bepreisen. Nicht weil er langsam ist – sondern weil die Werte in fünf alten Angeboten stecken. Wir haben in einer Woche gebaut, wie das anders geht.

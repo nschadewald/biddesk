@@ -32,6 +32,8 @@ Then: "run a check on my bid." An outlier against the firm's own history, an exp
 
 Both drive the **same document through the same store actions**. A tool call and a manual edit are indistinguishable to the UI, and undo works on both. Three states stay visually distinct, and they are states, not grades: a value with a provenance chip (taken from the price book), a value without one (typed by a person), and an empty cell that says why it is empty.
 
+The price book is a screen of its own: every line the matcher can see, grouped by trade and unit, searched with the very normalisation the matcher uses, and a coverage grid whose empty cells are the gaps — `metal / pcs` for this firm, which is why the radiators stay empty. An empty cell links to the positions it would have priced, and to the way out. Switch the contractor in the header and the grid changes with it: same bill of quantities, three different firms, three different sets of gaps.
+
 The division of labour is explicit rather than implied:
 - The agent may read everything, propose freely, and write prices it can trace. Anything else — a dictated price, a derived one, a remark, a renewed certificate — becomes a confirmation on the row; a person's click writes it.
 - The human may do anything, including things the agent cannot.
@@ -45,7 +47,7 @@ The division of labour is explicit rather than implied:
 - Registration through one wrapper: `document.modelContext`, falling back to `navigator.modelContext` (the July 2026 draft moved the API; Chrome 152 no longer exposes the old location — we support both anyway).
 - `readOnlyHint` on every read tool; `untrustedContentHint` on anything returning text written by another party. Clarification text is truncated to 120 characters in the log, labelled untrusted, and never rendered as HTML.
 - Both API styles: twelve imperative tools plus `ask_clarification` as a **declarative form** (`toolname` / `tooldescription` / `toolparamdescription` / `toolautosubmit`). The form counts as a tool only once the browser lists it in `getTools()` — presence of the API is not proof. Chrome 152 lists it about 30 ms after insertion; ChatGPT's browser does not list form-declared tools at all, so there the imperative twin registers after 600 ms of silence. One name, one tool, in every browser we measured.
-- The self-diagnosis in the header counts what the browser reports, not what the page registered. We learned that the hard way: `getTools()` returns a promise in Chrome 152, and for three days our own counter had silently fallen back to its own bookkeeping. It now awaits the browser — and says "not confirmed by this browser" when it cannot.
+- The self-diagnosis in the agent panel counts what the browser reports, not what the page registered. We learned that the hard way: `getTools()` returns a promise in Chrome 152, and for three days our own counter had silently fallen back to its own bookkeeping. It now awaits the browser — and says "not confirmed by this browser" when it cannot.
 - Batch writes: `set_unit_price` validates each row, writes the valid ones in one atomic D1 batch, and returns `applied` / `rejected` with machine-readable reasons. One call is one block in the change log, and undo takes the block back.
 - Registration uses `Promise.allSettled` — one tool the browser rejects does not cost the others.
 - Tools never throw. Errors are `{ok:false, error, hint}`; output is plain JSON, never HTML or instructions.
@@ -91,7 +93,7 @@ So the precise claim is — the rule first, then its boundary:
 
 ## What's next
 
-Real historical quotes instead of a seeded price book — importing a firm's past bids from PDF or GAEB X84 is the step that turns this from a demonstration into something a contractor could use on Monday. Beyond that: X84 export of the finished bid, a paste-in import for firms whose software predates GAEB, and the price book as a screen of its own, with its coverage gaps visible.
+Real historical quotes instead of a seeded price book — importing a firm's past bids from PDF or GAEB X84 is the step that turns this from a demonstration into something a contractor could use on Monday. Beyond that: X84 export of the finished bid and a paste-in import for firms whose software predates GAEB.
 
 And beyond the price: a tender is also twenty pages of conditions, deadlines and qualification requirements — the two lines on page 23 that sink a bid. Screening those against a firm's capacity and material lead times is where a language model actually shines, and it fits the same rule: findings are wording, not business facts, and nothing enters the bid without a person. We started with the hard facts on purpose, because that is where trust is decided — an agent that invents nothing at the price is one you will believe about the risk.
 

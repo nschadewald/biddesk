@@ -49,9 +49,9 @@ bescheinigung in Rot**, Tage bis zur Frist. Jeder Befund mit seinem Handlungssat
 certificate that expired three weeks ago. The only red in the whole app — and next to each
 finding, what to do about it."
 **Bild:** Prompt: *"My new tax clearance certificate is valid until 15 August 2027."* Im
-Check-Panel am roten Befund die Bestätigung: „12 Aug 2026 → 15 Aug 2027 · You confirm that a
+Check-Panel am roten Befund die Bestätigung: „<bisheriges Datum> → 15 Aug 2027 · You confirm that a
 certificate valid until 15 Aug 2027 exists. Nothing is uploaded or checked here." Klick. Der
-Befund verschwindet.
+Befund verschwindet. *(Das bisherige Datum rechnet der Seed relativ zum Aufnahmetag — rund drei Wochen zurück; nicht hart im Text erwarten.)*
 **VO:** "Same pattern, different fact. Nothing is uploaded, nothing is verified — the page says
 so in plain words. A person states it, a person confirms it, and the check goes quiet."
 **Bild:** Prompt 4, Rückfrage erscheint in der Liste. Kurz.
