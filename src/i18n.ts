@@ -34,7 +34,10 @@ const en = {
     roleClient: "Client",
     biddingAs: "Bidding as",
     language: "Language",
-    howToTest: "How to test in 60 seconds"
+    howToTest: "How to test in 60 seconds",
+    views: "Screen",
+    viewBid: "Bid",
+    viewPriceBook: "Price book"
   },
 
   app: {
@@ -252,6 +255,38 @@ const en = {
     outlierNote: "Underlined: more than 30 % away from the median of this position —"
   },
 
+  priceBook: {
+    title: "Price book",
+    subtitle: (bidder: string) =>
+      `${bidder}'s own past quotes — every proposal in the bid points to one of these lines`,
+    entries: (n: number) => `${n} ${n === 1 ? "entry" : "entries"}`,
+    loading: "Loading price book…",
+    searchLabel: "Search original wording and keywords",
+    searchPlaceholder: "e.g. schimmel",
+    noMatches: "No entry matches.",
+    coverageTitle: "Coverage",
+    coverageHint:
+      "Entries per category and unit, from this workspace's tenders and this price book. An empty cell is a gap: a position of that shape gets no proposal.",
+    noEntry: "no entry",
+    cellTitle: (category: string, unit: string) => `${category} / ${unit}`,
+    showingCell: (category: string, unit: string) => `showing ${category} / ${unit} only`,
+    showAll: "Show all entries",
+    positionsUnder: (n: number) =>
+      `${n} position${n === 1 ? "" : "s"} in this workspace ${n === 1 ? "falls" : "fall"} under it:`,
+    noPositionsUnder: "No position in this workspace has this shape.",
+    // Word for word what check_bid says about such a position. A test holds
+    // the two together.
+    actionNoEntry: (category: string, unit: string) =>
+      `no entry for ${category}/${unit} — set the price yourself, or ask your agent to derive one; you confirm it.`,
+    columnOriginal: "Original line",
+    columnProject: "Project",
+    columnDate: "Date",
+    columnPrice: "Unit price",
+    columnKeywords: "Keywords",
+    neverTranslated:
+      "Original lines, project names and keywords are the record and are never translated."
+  },
+
   importZone: {
     reading: "Reading the file…",
     prompt: "Drop a GAEB DA XML file (.x83 / .X83) here to import a bill of quantities",
@@ -277,7 +312,10 @@ const de: Copy = {
     roleClient: "Auftraggeber",
     biddingAs: "Bieter",
     language: "Sprache",
-    howToTest: "In 60 Sekunden testen (englisch)"
+    howToTest: "In 60 Sekunden testen (englisch)",
+    views: "Ansicht",
+    viewBid: "Angebot",
+    viewPriceBook: "Preisbuch"
   },
 
   app: {
@@ -464,6 +502,36 @@ const de: Copy = {
     columnMedian: "Median",
     outlierTitle: "Mehr als 30 % vom Median entfernt",
     outlierNote: "Unterstrichen: mehr als 30 % vom Median dieser Position entfernt —"
+  },
+
+  priceBook: {
+    title: "Preisbuch",
+    subtitle: (bidder) =>
+      `Die eigenen früheren Angebote von ${bidder} — jeder Vorschlag im Angebot zeigt auf eine dieser Zeilen`,
+    entries: (n) => `${n} ${n === 1 ? "Eintrag" : "Einträge"}`,
+    loading: "Preisbuch wird geladen…",
+    searchLabel: "Originalzeile und Schlagworte durchsuchen",
+    searchPlaceholder: "z. B. schimmel",
+    noMatches: "Kein Eintrag passt.",
+    coverageTitle: "Abdeckung",
+    coverageHint:
+      "Einträge je Kategorie und Einheit, aus den Ausschreibungen dieses Arbeitsbereichs und diesem Preisbuch. Eine leere Zelle ist eine Lücke: Eine Position dieser Bauart bekommt keinen Vorschlag.",
+    noEntry: "kein Eintrag",
+    cellTitle: (category, unit) => `${category} / ${unit}`,
+    showingCell: (category, unit) => `nur ${category} / ${unit}`,
+    showAll: "Alle Einträge zeigen",
+    positionsUnder: (n) =>
+      `${n} ${n === 1 ? "Position" : "Positionen"} in diesem Arbeitsbereich ${n === 1 ? "fällt" : "fallen"} darunter:`,
+    noPositionsUnder: "Keine Position in diesem Arbeitsbereich hat diese Bauart.",
+    actionNoEntry: (category, unit) =>
+      `kein Eintrag für ${category}/${unit} — setzen Sie den Preis selbst, oder lassen Sie ihn von Ihrem Agenten herleiten; Sie bestätigen ihn.`,
+    columnOriginal: "Originalzeile",
+    columnProject: "Projekt",
+    columnDate: "Datum",
+    columnPrice: "Einheitspreis",
+    columnKeywords: "Schlagworte",
+    neverTranslated:
+      "Originalzeilen, Projektnamen und Schlagworte sind der Beleg und werden nie übersetzt."
   },
 
   importZone: {

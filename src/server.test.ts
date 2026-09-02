@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { copyFor } from "./i18n";
 import worker from "./server";
 
 /**
@@ -428,4 +429,18 @@ it("treats a date already on file as nothing to do, not as an error", async () =
   } finally {
     documentOnFile = "2026-08-11";
   }
+});
+
+it("says the same sentence about a gap on the price book screen as in the check", async () => {
+  // The screen's wording is a copy of the Worker's, so the two are held
+  // together here rather than trusted to stay alike.
+  const english = await get("/api/tenders/T-2026-014/check");
+  const german = await get("/api/tenders/T-2026-014/check", "de");
+  const gap = (body: Record<string, unknown>) =>
+    (body.actions as { finding: string; oz?: string; action: string }[]).find(
+      (entry) => entry.finding === "open_position" && entry.oz === "02.01"
+    )!.action;
+
+  expect(gap(english)).toBe(copyFor("en").priceBook.actionNoEntry("metal", "pcs"));
+  expect(gap(german)).toBe(copyFor("de").priceBook.actionNoEntry("metal", "pcs"));
 });

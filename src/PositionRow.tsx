@@ -50,7 +50,8 @@ export default function PositionRow({
   onAccept,
   onEnter,
   onConfirm,
-  onDiscard
+  onDiscard,
+  onGap
 }: {
   position: Position;
   suggestion: Suggestion | undefined;
@@ -63,6 +64,8 @@ export default function PositionRow({
   onEnter: (oz: string, unitPrice: number) => void;
   onConfirm?: (oz: string) => void;
   onDiscard?: (oz: string) => void;
+  /** The way from a gap to the price book: the matrix, at this category and unit. */
+  onGap?: (category: string, unit: string) => void;
 }) {
   const copy = useCopy();
   const language = useAppState().language;
@@ -184,8 +187,20 @@ export default function PositionRow({
             )}
 
             {noMatch && !pending && (
-              // A gap waiting for a hand, not a warning. No icon, no colour.
-              <span className="text-xs text-slate-500">{copy.row.noComparableEntry}</span>
+              // A gap waiting for a hand, not a warning. No icon, no colour --
+              // and, where the price book screen exists, the way to the cell
+              // this gap falls into.
+              onGap ? (
+                <button
+                  type="button"
+                  onClick={() => onGap(position.category, position.unit)}
+                  className="text-xs text-slate-500 underline decoration-dotted underline-offset-4 hover:text-slate-900"
+                >
+                  {copy.row.noComparableEntry}
+                </button>
+              ) : (
+                <span className="text-xs text-slate-500">{copy.row.noComparableEntry}</span>
+              )
             )}
 
             {entered && position.set_by === "human" && (

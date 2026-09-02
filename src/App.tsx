@@ -8,6 +8,7 @@ import ImportDropZone from "./ImportDropZone";
 import { formatDate, formatEuro } from "./format";
 import { useCopy } from "./i18n";
 import PositionRow from "./PositionRow";
+import PriceBookScreen from "./PriceBookScreen";
 import SubmitDialog from "./SubmitDialog";
 import {
   answerClarification,
@@ -18,6 +19,7 @@ import {
   confirmPendingPrice,
   confirmSubmit,
   discardPendingPrice,
+  openPriceBookAt,
   requestSubmit,
   resetDemo,
   runCheck,
@@ -25,6 +27,7 @@ import {
   selectLanguage,
   selectRole,
   setUnitPrices,
+  showView,
   undoLastChange,
   useAppState
 } from "./store";
@@ -64,9 +67,11 @@ export default function App() {
           bidderId={state.bidderId}
           language={state.language}
           clientName={state.detail?.tender.client ?? null}
+          view={state.view}
           onRole={(role) => void selectRole(role)}
           onBidder={(id) => void selectBidder(id)}
           onLanguage={(language) => void selectLanguage(language)}
+          onView={showView}
         />
         {state.status === "failed" ? (
           <p className="text-sm text-slate-600">
@@ -79,6 +84,8 @@ export default function App() {
           <p className="text-sm text-slate-500">{copy.app.loadingTender}</p>
         ) : state.role === "client" ? (
           <ClientScreen />
+        ) : state.view === "priceBook" ? (
+          <PriceBookScreen />
         ) : (
           <BidScreen />
         )}
@@ -244,6 +251,7 @@ function BidScreen() {
               onEnter={enter}
               onConfirm={(oz) => void confirmPendingPrice(oz)}
               onDiscard={discardPendingPrice}
+              onGap={openPriceBookAt}
             />
           ))}
         </tbody>

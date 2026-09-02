@@ -26,6 +26,7 @@ import {
   type TenderFilters
 } from "./api";
 import { planPriceWrites } from "./pricing";
+import type { Shape, WorkspacePosition } from "./priceBook";
 import type {
   AnswerResponse,
   AppliedPrice,
@@ -39,6 +40,7 @@ import type {
   PendingDocument,
   PendingPrice,
   PriceBookResponse,
+  PriceBookRow,
   PriceComparison,
   PriceRejection,
   Role,
@@ -62,8 +64,13 @@ import { bindLogToWorkspace, logStore, recordHumanWait } from "./webmcp/log";
 
 export const DEMO_TENDER = "T-2026-014";
 
+/** The two screens of the contractor role. The bid is where a visitor lands. */
+export type View = "bid" | "priceBook";
+
 export type AppState = {
   status: "booting" | "ready" | "failed";
+  /** Bid or price book. A read-only second view; it never touches the demo path. */
+  view: View;
   workspaceId: string | null;
   bidderId: string | null;
   role: Role;
@@ -104,11 +111,18 @@ export type AppState = {
   tenders: Tender[];
   /** The client's view of a tender. Sealed while the tender is still open. */
   comparison: PriceComparison | null;
+  /** The selected contractor's price book, once the price book screen asked for it. */
+  priceBook: PriceBookRow[] | null;
+  /** Every position of every tender in this workspace, for the coverage matrix. */
+  workspacePositions: WorkspacePosition[] | null;
+  /** The matrix cell being looked at, if any. */
+  priceBookCell: Shape | null;
   failure: string | null;
 };
 
 let state: AppState = {
   status: "booting",
+  view: "bid",
   workspaceId: null,
   bidderId: null,
   role: "bidder",
@@ -125,6 +139,9 @@ let state: AppState = {
   bidders: [],
   tenders: [],
   comparison: null,
+  priceBook: null,
+  workspacePositions: null,
+  priceBookCell: null,
   failure: null
 };
 
@@ -236,6 +253,56 @@ export async function getPriceBook(filters: PriceBookFilters = {}): Promise<Pric
   const { workspaceId: current, data } = await readPriceBook(workspaceId, filters);
   if (current !== workspaceId) set({ workspaceId: current });
   return data;
+}
+
+/** Switches between the bid and the price book. No route, no reload, no lost workspace. */
+export function showView(view: View): void {
+  if (view === state.view) return;
+  set({ view });
+}
+
+/** The price book screen's own read: the same endpoint the tool uses, kept on hand. */
+export async function loadPriceBook(): Promise<PriceBookRow[]> {
+  const data = await getPriceBook();
+  // Only the book of the contractor still selected: a switch in between wins.
+  if (data.bidder_id === state.bidderId || state.bidderId === null) {
+    set({ priceBook: data.entries });
+  }
+  return data.entries;
+}
+
+/**
+ * Every position of every tender in the workspace, for the axes of the
+ * coverage matrix. Three reads through the endpoints that exist; nothing new.
+ * Never through openTender, which would change the tender on screen.
+ */
+export async function loadWorkspacePositions(): Promise<WorkspacePosition[]> {
+  const workspaceId = await requireWorkspace();
+  const { data: list } = await listTenders(workspaceId);
+  const details = await Promise.all(
+    list.tenders.map((tender) => loadTender(tender.id, workspaceId).then((row) => row.detail))
+  );
+  const positions = details.flatMap((detail) =>
+    detail.positions.map((position) => ({
+      tender_id: detail.tender.id,
+      tender_title: detail.tender.title,
+      oz: position.oz,
+      text: position.text,
+      category: position.category,
+      unit: position.unit
+    }))
+  );
+  set({ workspacePositions: positions });
+  return positions;
+}
+
+export function selectPriceBookCell(cell: Shape | null): void {
+  set({ priceBookCell: cell });
+}
+
+/** The way back from a gap in the bid: the matrix, with that cell selected. */
+export function openPriceBookAt(category: string, unit: string): void {
+  set({ view: "priceBook", priceBookCell: { category, unit } });
 }
 
 /** Someone asked not to be animated at. Then we do not animate. */
@@ -523,7 +590,10 @@ export async function selectBidder(id: string): Promise<void> {
     pendingPrices: {},
     pendingDocuments: {},
     check: null,
-    comparison: null
+    comparison: null,
+    // Another contractor, another book. The screen re-reads it on its own.
+    priceBook: null,
+    priceBookCell: null
   });
   await openTender(state.tenderId);
 }
@@ -549,6 +619,8 @@ export async function selectLanguage(language: Language): Promise<void> {
   // to English, because only the open tender was being re-read.
   await openTender(state.tenderId).catch(() => undefined);
   if (state.check !== null) await runCheck(state.tenderId).catch(() => undefined);
+  // The matrix lists positions by their text, which follows the language.
+  if (state.workspacePositions !== null) await loadWorkspacePositions().catch(() => undefined);
   // The tender list and the price comparison are what the client screen shows,
   // so they are re-read exactly when that screen is the one being looked at.
   if (state.role === "client") {
@@ -712,6 +784,7 @@ export async function resetDemo(): Promise<void> {
   await resetWorkspace(workspaceId);
   logStore.clear();
   set({
+    view: "bid",
     tenderId: DEMO_TENDER,
     suggestions: {},
     rejections: {},
@@ -719,7 +792,10 @@ export async function resetDemo(): Promise<void> {
     pendingDocuments: {},
     check: null,
     pendingSubmit: null,
-    comparison: null
+    comparison: null,
+    priceBook: null,
+    workspacePositions: null,
+    priceBookCell: null
   });
   await openTender(DEMO_TENDER);
 }

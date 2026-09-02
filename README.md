@@ -106,6 +106,11 @@ in the contractor role the client's tools do not exist at all.
 | `get_price_comparison` | client | yes | Compares bids. Returns no prices at all while a tender is still open. |
 | `answer_clarification` | client | no | Publishes an answer to every bidder, not only to the one who asked. |
 
+The price book behind `get_price_book` and `suggest_prices` is also a screen (header → *Price
+book*): the contractor's own past lines, searchable with the matcher's own normalisation, and a
+coverage matrix that shows per category and unit a count or "no entry" — the radiators gap of
+prompt 2 as a cell, and a different book the moment you switch the contractor.
+
 Eleven are registered in the contractor role, ten after a bid is handed in, five in the client
 role. The self-diagnosis in the agent panel counts what the **browser** reports, not what the
 page registered: a tool the page offers but the browser does not vouch for is shown as such and

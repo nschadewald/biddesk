@@ -1539,3 +1539,85 @@ Freeze-Stand.
 - ChatGPT-Abnahme der Zählung 11 / 5 / 11 (Nils).
 - Video und Devpost-Einreichung.
 - Eine der beiden Spec-Kopien – nach der Einreichung.
+
+## Schritt 19 – Der Preisbuch-Bildschirm (Mi 02.09.2026, Freeze-Fenster bis 16:30)
+
+### Warum, und warum jetzt
+
+Das Preisbuch ist die zentrale Idee des Produkts und war im Bildschirm unsichtbar – man kam nur
+über `get_price_book` daran. Für die Jury ist das die Lücke bei „a complete product experience",
+im Kundengespräch die Stelle, an der „Woher kämen die Werte?" keine Antwort im Bild hatte. Der
+Freeze aus Schritt 18 wurde dafür um ein Fenster verlängert; der erste Anlauf um 14:48 wurde nach
+Regel gemeldet statt begonnen, weil zwölf Minuten nicht reichen, und mit neuer Box um 16:30
+gebaut.
+
+### Reiner Lesebereich
+
+Zweite Ansicht neben dem Angebot, nur Bieterrolle, aus dem Kopf erreichbar (`Angebot` /
+`Preisbuch`) – **kein Routenwechsel**, also kein Neuladen und kein verlorener Workspace; das
+Angebot bleibt der Einstieg. Kein Werkzeug, kein Endpunkt, keine Schreibfläche: `GET
+/api/price-book` liefert die Liste, `GET /api/tenders` und `GET /api/tenders/:id` die Achsen
+der Matrix. Der Demo-Pfad ist unberührt; die Werkzeugzahl bleibt 11/10/5.
+
+Drei Dinge, die den Bildschirm wahr halten:
+
+- **Dieselbe `normalise()`** wie im Matcher (`src/matching.ts`) für die Suche über Originalzeile
+  und Schlagworte – keine zweite Implementierung, sonst zeigte der Bildschirm eine andere Wahrheit
+  als der Agent. Getestet: „schimmel", „SCHIMMEL", „Gerüst"/„geruest".
+- **Die Achsen entstehen aus den Daten**: Kategorien und Einheiten der Ausschreibungen dieses
+  Workspace, vereinigt mit denen des Preisbuchs – nie aus einer Liste im Code. Ein Test nimmt
+  `labour` aus beiden Quellen und sieht die Zeile verschwinden, bringt `kg` über eine Position
+  herein und sieht die Spalte erscheinen. Für Farbwerk Meier ist **metal / pcs leer** – die
+  Heizkörper-Lücke aus Prompt 2, zum ersten Mal als Bild; Brandt hat die Zelle, Colorpoint nicht.
+- **Abdeckung ist eine Zahl oder nichts.** Keine Prozente, keine Balken, keine Farbe (§13.3).
+  Der Bieterwechsel im Kopf tauscht Liste und Matrix sofort: 12 / 15 / 7 Einträge, 7 / 9 / 4
+  besetzte Zellen. Das ist der Beweis aus §13.2 Punkt 1 als Bild.
+
+Klick auf eine leere Zelle: welche Positionen aus welchen Ausschreibungen darunterfallen, und
+darunter der Handlungssatz aus Schritt 16 – **wörtlich derselbe wie in `check_bid`**; ein Test in
+`server.test.ts` hält die Kopie in `src/i18n.ts` und den Worker-Text zusammen, in beiden Sprachen.
+Rückweg: „no comparable entry" im Angebot ist jetzt anklickbar und öffnet die Matrix mit der
+passenden Zelle.
+
+Originalzeilen, Projektnamen und Schlagworte werden in keiner Sprache übersetzt; der Bildschirm
+sagt das unten in einem Satz.
+
+### Platz für Schritt 20
+
+Die Ansicht ist in Abschnitte gebaut (Kopf, Abdeckung, Suche und Liste). Das Einfügen alter
+Angebote (CC-09) bekommt einen eigenen Abschnitt darunter, ohne dass hier etwas umgebaut werden
+muss.
+
+### Der Fund: Ein Bildschirm darf die Werkzeugzahl nicht bewegen
+
+Die erste Live-Sonde meldete auf der Preisbuch-Ansicht **„10 tools registered"** – im
+Angebots-Bildschirm 11. Ursache: Das Rückfragen-Formular ist das deklarative `ask_clarification`,
+und es stand nur im Angebots-Bildschirm im DOM. Wechselt die Ansicht, verlässt das Formular das
+DOM, Chrome zieht das Werkzeug binnen ~20 ms ab (Schritt 14), der Zustandsautomat geht auf
+`absent`, und auch der imperative Zwilling wird nicht angemeldet – ein Agent auf der
+Preisbuch-Ansicht hätte keine Rückfrage stellen können. In ChatGPT dasselbe über den Zwilling.
+
+„Wenn er den Demo-Pfad auch nur berührt, ist er falsch gebaut": Er berührte ihn. Behoben, indem
+der Rückfragen-Abschnitt auch unter dem Preisbuch steht – nicht zum Lesen, sondern damit das
+Formular auf der Seite bleibt. Danach gemessen: 11 im Angebot, 11 im Preisbuch, Formular im DOM,
+`getTools()` listet `ask_clarification`, 11 nach dem Rückweg. jsdom hätte das nie gezeigt (ohne
+`SubmitEvent`-Erweiterung ist der Zwilling immer da); nur der echte Browser konnte es.
+
+Zweiter kleiner Fund, im Testlauf: Der erste App-Test (unverändert seit Tag eins) lief unter Last
+in 6,8 s in die 5-s-Standardfrist. Frist in `vitest.config.ts` auf 15 s – ein Timeout ist kein
+Befund über den Code.
+
+### Stand
+
+178 Unit-Tests in 17 Dateien (neu: `src/priceBook.test.ts` gegen `seed.json`), Typecheck sauber,
+`verify_seed.py` grün, Bieter-Evals 14/14 (E1 weiterhin 12/0/13.213,50, E6 13.457,50 nach Klick),
+Client-Evals C1–C3 grün (11 Werkzeuge), GAEB bestanden. Deploy **`3a71db0a`**; live in beiden
+Sprachen geprüft: 12 / 7 / 15 Einträge je Bieter, `metal / pcs` leer für Meier und Colorpoint,
+Rückweg von 03.04 in die Zelle mit den zwei Positionen dieser Bauart (T-2026-014 · 03.04,
+T-2026-015 · 03.01) und dem Handlungssatz.
+
+### Offen
+
+- ChatGPT-Abnahme der Zählung 11 / 5 / 11 (Nils).
+- CC-09 (Altangebote einfügen), Video, Devpost-Einreichung.
+- Eine der beiden Spec-Kopien – nach der Einreichung.

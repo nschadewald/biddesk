@@ -1,4 +1,5 @@
 import { useCopy } from "./i18n";
+import type { View } from "./store";
 import type { Bidder, Language, Role } from "./types";
 
 /**
@@ -24,9 +25,11 @@ export default function Header({
   bidderId,
   language,
   clientName,
+  view,
   onRole,
   onBidder,
-  onLanguage
+  onLanguage,
+  onView
 }: {
   role: Role;
   bidders: Bidder[];
@@ -34,9 +37,12 @@ export default function Header({
   language: Language;
   /** The client of the open tender, so the role option can name it. */
   clientName: string | null;
+  /** Bid or price book. Only the contractor has a second screen. */
+  view: View;
   onRole: (role: Role) => void;
   onBidder: (id: string) => void;
   onLanguage: (language: Language) => void;
+  onView: (view: View) => void;
 }) {
   const copy = useCopy();
 
@@ -75,6 +81,28 @@ export default function Header({
             ))}
           </select>
         </label>
+      )}
+
+      {role === "bidder" && (
+        // The price book is a second screen, not a route: switching never
+        // reloads and never loses the workspace. The bid stays the entrance.
+        <nav aria-label={copy.header.views} className="flex gap-1 text-xs">
+          {(["bid", "priceBook"] as const).map((entry) => (
+            <button
+              key={entry}
+              type="button"
+              aria-current={view === entry ? "page" : undefined}
+              onClick={() => onView(entry)}
+              className={
+                view === entry
+                  ? "rounded border border-slate-900 px-2 py-1 text-slate-900"
+                  : "rounded border border-slate-300 px-2 py-1 text-slate-600 hover:border-slate-400 hover:text-slate-900"
+              }
+            >
+              {entry === "bid" ? copy.header.viewBid : copy.header.viewPriceBook}
+            </button>
+          ))}
+        </nav>
       )}
 
       <label className="flex items-center gap-2 text-xs text-slate-500">

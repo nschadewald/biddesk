@@ -24,10 +24,34 @@ const positions = [
 ].map((position) => ({
   ...position,
   long_text: null,
-  category: "prep",
+  // The two gaps of the demo have the shapes Farbwerk Meier's book lacks.
+  category: position.oz === "03.04" ? "metal" : position.oz === "04.02" ? "labour" : "prep",
   my_unit_price: null,
   line_total: null
 }));
+
+const PRICE_BOOK = [
+  {
+    id: "PB-A-005",
+    category: "wall",
+    unit: "m2",
+    keywords: ["anstrich", "wand"],
+    unit_price: 8.4,
+    source_project: "Luegallee 40",
+    source_date: "2026-03-14",
+    source_position_text: "Wandflächen zweimal Dispersion"
+  },
+  {
+    id: "PB-A-012",
+    category: "prep",
+    unit: "m2",
+    keywords: ["schimmel", "behandlung"],
+    unit_price: 18.5,
+    source_project: "Kaiserswerther Str. 12",
+    source_date: "2025-11-03",
+    source_position_text: "Schimmelbehandlung Wandflächen"
+  }
+];
 
 const GERMAN_TITLE = "Malerarbeiten Treppenhaus – Rheinallee 12";
 const RATIONALE = "4 radiators at 25 min each at your rate of 58 EUR";
@@ -135,8 +159,41 @@ function stubApi(options: { priced?: boolean } = {}) {
           })
         );
       }
+      if (input.startsWith("/api/price-book")) {
+        return new Response(JSON.stringify({ ok: true, bidder_id: "B-A", entries: PRICE_BOOK }));
+      }
+      if (input.includes("/suggestions")) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            bidder_id: "B-A",
+            tender_id: "T-2026-014",
+            suggestions: [
+              { oz: "03.04", unit_price: null, matched_terms: 0, matched_on: [], based_on: null, reason: "no comparable entry in your price book" }
+            ]
+          })
+        );
+      }
       return input === "/api/tenders"
-        ? new Response(JSON.stringify({ ok: true, bidder_id: "B-A", tenders: [] }))
+        ? new Response(
+            JSON.stringify({
+              ok: true,
+              bidder_id: "B-A",
+              tenders: [
+                {
+                  id: "T-2026-014",
+                  title: "Staircase painting works – Rheinallee 12",
+                  client: "Rheinpark Property Management",
+                  city: "Düsseldorf",
+                  trade: "painting",
+                  status: "open",
+                  due_date: "2026-09-10",
+                  positions_count: 14,
+                  my_bid_status: "none"
+                }
+              ]
+            })
+          )
         : input.endsWith("/comparison")
           ? new Response(
               JSON.stringify({
@@ -438,4 +495,68 @@ it("records a relayed document date only on the person's click, and the finding 
   await waitFor(() => expect(documentWrites).toEqual([{ valid_until: "2027-08-15" }]));
   await waitFor(() => expect(screen.queryByText("Expired document")).not.toBeInTheDocument());
   expect(screen.queryByText("Confirm this document?")).not.toBeInTheDocument();
+});
+
+it("opens the price book from the header: the selected contractor's lines and their coverage", async () => {
+  stubApi();
+  const { showView, selectPriceBookCell } = await import("./store");
+  render(<App />);
+  await waitFor(() => expect(screen.getAllByRole("row").length).toBeGreaterThan(1));
+
+  try {
+    await userEvent.click(screen.getByRole("button", { name: "Price book" }));
+    await screen.findByRole("heading", { name: "Price book" });
+    expect(screen.getAllByText("2 entries").length).toBeGreaterThan(0);
+
+    // The record, verbatim, with where it came from.
+    expect(screen.getByText("Wandflächen zweimal Dispersion")).toBeInTheDocument();
+    expect(screen.getByText("Luegallee 40")).toBeInTheDocument();
+
+    // Coverage as a count or a gap: the axes come from the tender and the book
+    // together, so metal/pcs (the radiators) is a cell -- and an empty one.
+    const matrix = within(screen.getByTestId("coverage"));
+    expect(matrix.getByRole("button", { name: "wall / m2" })).toHaveTextContent("1");
+    expect(matrix.getByRole("button", { name: "metal / pcs" })).toHaveTextContent("no entry");
+
+    // The search uses the matcher's normalisation: case does not matter.
+    await userEvent.type(screen.getByLabelText("Search original wording and keywords"), "SCHIMMEL");
+    expect(screen.getByText("Schimmelbehandlung Wandflächen")).toBeInTheDocument();
+    expect(screen.queryByText("Wandflächen zweimal Dispersion")).not.toBeInTheDocument();
+
+    // And back, without a reload: the bid is still there.
+    await userEvent.click(screen.getByRole("button", { name: "Bid" }));
+    await screen.findByText("Net total");
+  } finally {
+    showView("bid");
+    selectPriceBookCell(null);
+  }
+});
+
+it("leads from a gap in the bid to the matrix cell it falls into", async () => {
+  stubApi();
+  const { showView, selectPriceBookCell, suggestPrices } = await import("./store");
+  render(<App />);
+  await waitFor(() => expect(screen.getAllByRole("row").length).toBeGreaterThan(1));
+
+  try {
+    await act(async () => {
+      await suggestPrices("T-2026-014");
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "no comparable entry" }));
+
+    await screen.findByRole("heading", { name: "Price book" });
+    const detail = within(screen.getByTestId("cell-detail"));
+    expect(detail.getByText("metal / pcs · no entry")).toBeInTheDocument();
+    // Which positions fall under the gap, and the way out in check_bid's words.
+    await detail.findByText(/T-2026-014 · 03.04/);
+    expect(detail.getByText(/Radiators incl. pipes/)).toBeInTheDocument();
+    expect(
+      detail.getByText(
+        "no entry for metal/pcs — set the price yourself, or ask your agent to derive one; you confirm it."
+      )
+    ).toBeInTheDocument();
+  } finally {
+    showView("bid");
+    selectPriceBookCell(null);
+  }
 });
