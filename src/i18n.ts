@@ -157,6 +157,10 @@ const en = {
       "Everything on this page stays readable without WebMCP. Only the tools are missing.",
     badgeRead: "read",
     badgeForm: "form",
+    // A tool the page offers but the browser does not vouch for. Shown, never
+    // counted: a self-diagnosis that claims more than the browser is advertising.
+    badgeUnconfirmedForm: "declared by form · not confirmed by this browser",
+    badgeUnconfirmed: "not confirmed by this browser",
     // The five prompts of the demo run (spec section 12.1). They are the smoke
     // test, the eval cases and the video script at once, so they stand here in
     // the wording the jury is meant to type.
@@ -359,6 +363,8 @@ const de: Copy = {
       "Diese Seite bleibt auch ohne WebMCP vollständig lesbar. Es fehlen nur die Werkzeuge.",
     badgeRead: "lesend",
     badgeForm: "Formular",
+    badgeUnconfirmedForm: "per Formular deklariert · von diesem Browser nicht bestätigt",
+    badgeUnconfirmed: "von diesem Browser nicht bestätigt",
     prompts: [
       "Öffne die Ausschreibung T-2026-014 und bepreise jede Position aus meinem Preisbuch. Lass alles ohne Treffer leer und sag mir, welche das sind.",
       "Warum steht bei den Heizkörpern kein Preis?",

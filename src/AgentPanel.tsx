@@ -155,8 +155,10 @@ function SelfDiagnosis({
   compact?: boolean;
 }) {
   // The count is read from the registry at runtime, never written down here:
-  // a hard-wired number is wrong the first time a tool is withdrawn.
-  const count = webmcp.tools.length;
+  // a hard-wired number is wrong the first time a tool is withdrawn. And it is
+  // the count of what the BROWSER confirms -- a form we declared but the browser
+  // never listed is shown below, marked, and left out of the number.
+  const count = webmcp.tools.filter((tool) => tool.confirmed).length;
 
   if (webmcp.supported && webmcp.error === null) {
     return (
@@ -208,8 +210,12 @@ function ToolNames({ tools, copy }: { tools: ListedTool[]; copy: Copy }) {
     <ul className="mt-1.5 flex flex-wrap gap-1">
       {tools.map((tool) => (
         <li
-          key={tool.name}
-          className="rounded border border-emerald-200 bg-white px-1.5 py-0.5 font-mono text-[11px] text-emerald-900"
+          key={`${tool.kind}:${tool.name}`}
+          className={
+            tool.confirmed
+              ? "rounded border border-emerald-200 bg-white px-1.5 py-0.5 font-mono text-[11px] text-emerald-900"
+              : "rounded border border-dashed border-slate-300 bg-white px-1.5 py-0.5 font-mono text-[11px] text-slate-500"
+          }
           title={tool.title}
         >
           {tool.name}
@@ -218,11 +224,20 @@ function ToolNames({ tools, copy }: { tools: ListedTool[]; copy: Copy }) {
               {copy.panel.badgeRead}
             </span>
           )}
-          {tool.kind === "declarative" && (
+          {tool.kind === "declarative" && tool.confirmed && (
             // Declared by a form in the page rather than by a registration
-            // call. Both API styles, side by side, in the same list.
+            // call, and the browser lists it. Both API styles, side by side.
             <span className="ml-1 font-sans text-[10px] uppercase text-emerald-700">
               {copy.panel.badgeForm}
+            </span>
+          )}
+          {!tool.confirmed && (
+            // Offered by the page, not vouched for by this browser. Said in
+            // words and kept out of the number above.
+            <span className="ml-1 font-sans text-[10px] text-slate-500">
+              {tool.kind === "declarative"
+                ? copy.panel.badgeUnconfirmedForm
+                : copy.panel.badgeUnconfirmed}
             </span>
           )}
         </li>

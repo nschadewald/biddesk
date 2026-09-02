@@ -1113,3 +1113,86 @@ bestanden, `verify_seed.py` grün.
   Bildschirm fällt einem deutschen Leser auf. Die Entscheidung ist eine Marken-, keine
   Technikfrage; anzupassen sind sechs Zeichenketten in `src/i18n.ts`.
 - Eine der beiden Spec-Kopien sollte verschwinden (siehe oben).
+
+## Schritt 14 – ChatGPT sah neun Werkzeuge, die Seite zählte zehn (Mi 02.09.2026)
+
+### Der Befund
+
+ChatGPTs eigene Werkzeugansicht: „Verfügbare Website-Tools (9) · 6 mit Lesezugriff, 3 mit
+Schreibzugriff". Es fehlte `ask_clarification`. Das Agent-Panel sagte gleichzeitig „10 tools
+registered", mit `ask_clarification FORM`. Prompt 4 kam trotzdem durch – der Screenshot zeigte
+wie: Die Frage stand **getippt im Formularfeld, nicht gesendet**. Der Agent hatte ins Formular
+geschrieben, weil er das Werkzeug nicht sah. §13.3d, nur ungewollt.
+
+### Die Ursache: Feature-Erkennung mit Sichtbarkeit verwechselt
+
+`useWebMCP` meldete den imperativen Zwilling nur an, wenn `declarativeWorks` falsch war – und
+das war `supportsDeclarativeTools() && (known === null || known.has("ask_clarification"))`.
+In ChatGPT ist die `SubmitEvent`-Erweiterung vorhanden (Chromium-Unterbau), aber die
+Agentenschicht listet Formular-Werkzeuge nicht. `known === null` hieß „der Browser sagt nichts",
+und daraus wurde „dann wird es schon gehen". Die Selbstdiagnose zählte das Formular, weil die
+Registry es **annahm**, nicht weil ein Browser es bestätigt hatte.
+
+Dazu die Notiz aus Schritt 10, die hier zuschlug: `getTools()` liefert in Chrome 152 ein
+**Promise**. Die Prüfung auf `Array.isArray` fiel deshalb immer auf die eigene Buchführung
+zurück – die Browserliste wurde nie benutzt, und die Selbstdiagnose war seit Schritt 3 in
+Wahrheit eine Selbstbeschreibung.
+
+### Die Beweislast ist umgedreht
+
+Der deklarative Pfad gilt als bestätigt **nur, wenn der Browser ihn listet**. Kann der Browser
+das nicht bestätigen, wird der Zwilling angemeldet. Die Selbstdiagnose zählt, was der Browser
+listet; liefert er keine Liste, zählen nur die imperativ registrierten Werkzeuge, und das
+Formular erscheint als „declared by form · not confirmed by this browser" – sichtbar, nicht
+gezählt.
+
+Drei gemessene Tatsachen aus Chrome 152 bestimmen, wie das gebaut ist (Sonde per Puppeteer,
+nicht geschätzt):
+
+| Messung | Wert |
+|---|---|
+| `getTools()` | Promise, löst zu einem Array von Objekten `{name, title, description, inputSchema, origin, window}` |
+| Formular-Werkzeug gelistet | **~30 ms nach** dem DOM-Einfügen des `<form toolname>`, dabei `toolchange` **am Modellkontext** (nicht am `document`) |
+| Imperative Werkzeuge gelistet | ~275 ms **vor** dem Formular – die Rolle wird registriert, bevor die Tabelle geladen ist |
+| Doppelname | `registerTool` wird mit `InvalidStateError: Duplicate tool name` **abgewiesen**; das Formular-Werkzeug bleibt |
+| Formular entfernt / wieder eingefügt | Werkzeug binnen ~22 ms weg bzw. ~44 ms wieder da |
+
+Daraus folgt: Die Entscheidung über den Zwilling darf **nicht** beim Registrieren des
+Rollenblocks fallen (da existiert das Formular noch gar nicht), sondern erst nach einem
+Wartefenster ab Deklaration. `declareFormTool` setzt das Formular auf `pending`, fragt den
+Browser sofort, bei jedem `toolchange` und bei 150/300/600 ms erneut; nach 600 ms ohne Listung
+ist es `unconfirmed`, und erst dann meldet der Hook den Zwilling an. Solange `pending`, wird
+unter dem Namen nichts registriert – sonst gäbe es in Chrome die Kollision. Wo der Browser
+gar kein `getTools` hat, ist das Formular sofort `unconfirmed`.
+
+Das Urteil über ein Formular ist das des Zustandsautomaten, **kein Namensvergleich**: Sobald
+ein Zwilling unter demselben Namen registriert ist, kann die Browserliste nicht mehr sagen,
+welchen der beiden sie meint.
+
+### Als Test festgeschrieben
+
+`src/webmcp/useWebMCP.test.tsx`, mit einem Browser-Stub in drei Ausprägungen und `getTools()`
+als Promise wie in Chrome 152: Browser listet das Formular → kein Zwilling, während der
+Wartezeit nichts registriert; Browser listet Werkzeuge, aber nie das Formular → nach 600 ms
+Zwilling, zehn bestätigt, das Formular daneben unbestätigt; kein `getTools` → Zwilling sofort,
+Selbstdiagnose ohne das Formular. Dazu der Rollenwechsel, der Zwilling und Formularstatus
+mitnimmt. `registry.test.ts` prüft jetzt außerdem, dass ein Promise aus `getTools()` abgewartet
+wird und dass ein vom Browser gelistetes, von uns nie angebotenes Werkzeug trotzdem zählt.
+
+### Was hier nicht geprüft werden konnte
+
+Die eigentliche Abnahme ist ChatGPT: Werkzeugansicht 10, 4 mit Schreibzugriff, dieselbe Zahl
+im Agent-Panel, und Prompt 4 als `ask_clarification` im Live-Log statt als getippter Text.
+Das kann nur Nils. Was hier belegt ist: Chrome 152 zeigt weiterhin zehn mit dem Formular als
+bestätigtem Werkzeug (Client-Eval), und die drei Browser-Ausprägungen verhalten sich im Test
+wie beschrieben.
+
+### Stand
+
+133 Unit-Tests in 16 Dateien. Evals und `verify_seed.py` siehe Abnahme des Commits.
+
+### Offen
+
+- ChatGPT-Abnahme (Nils).
+- Devpost-Text und Video.
+- Eine der beiden Spec-Kopien.

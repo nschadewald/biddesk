@@ -362,6 +362,8 @@ Der Widerspruch war echt: Die frühere „13" zählte `list_clarifications` dopp
 
 **Die Selbstdiagnose zählt zur Laufzeit über `getTools()`**, sie enthält keine fest verdrahtete Zahl. Damit kann sie nie wieder der Wirklichkeit widersprechen.
 
+**Wie die 10 zustande kommt (01.09., aus dem ChatGPT-Befund):** neun imperativ registrierte Werkzeuge plus `ask_clarification` – als Formular dort, wo der Browser das Formular-Werkzeug in `getTools()` **listet**, sonst als imperativer Zwilling. Die Feature-Erkennung an `SubmitEvent` entscheidet das nicht mehr: Sie beweist die DOM-API, nicht, dass ein Agent das Werkzeug sieht. ChatGPTs Browser trägt die Erweiterung, listet aber keine Formulare – die Seite zählte zehn, der Agent sah neun, und Prompt 4 endete als getippter, nie gesendeter Text im Formularfeld. Gezählt wird deshalb nur, was der Browser bestätigt; ein deklariertes, aber nicht gelistetes Formular erscheint als „declared by form · not confirmed by this browser" und nicht in der Zahl. Solange der Browser noch entscheidet, wird unter dem Namen nichts angemeldet – Chrome 152 weist einen Doppelnamen mit `InvalidStateError` ab.
+
 ### 12.3 Known Limitations – bewusst dokumentiert statt gebaut
 
 1. **Kein vergaberechtlich belastbares Verfahren.** Echte Ausschreibungen verlangen versiegelte Angebote bis zum Submissionstermin und ein manipulationssicheres Protokoll. BidDesk zeigt Status und Sperre, keine Kryptografie. Grenze der Demo, nicht der Idee.

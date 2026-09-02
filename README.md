@@ -93,14 +93,19 @@ in the contractor role the client's tools do not exist at all.
 | `answer_clarification` | client | no | Publishes an answer to every bidder, not only to the one who asked. |
 
 Ten are registered in the contractor role, nine after a bid is handed in, five in the client
-role. The self-diagnosis in the agent panel counts them live via `getTools()`.
+role. The self-diagnosis in the agent panel counts what the **browser** lists via `getTools()`,
+never what the page assumes: a tool the page offers but the browser does not vouch for is shown
+as such and left out of the number.
 
 **Both WebMCP styles are in use.** Eleven tools are registered imperatively through a central
 wrapper. `ask_clarification` is declared by a `<form toolname="ask_clarification">` in the
 page, with `toolparamdescription` on each field — one submit handler serves a person and an
-agent alike. Exactly one of the two is ever registered for that name: a feature test on
-`SubmitEvent` decides, and the imperative twin exists only for browsers that cannot make a tool
-out of a form.
+agent alike. Exactly one of the two is ever registered for that name, and the browser decides
+which: where it lists the form's tool, the form is the tool; where it does not list it within a
+moment, or cannot list tools at all, the imperative twin is registered instead. That rule
+replaced a feature test on `SubmitEvent`, which proved the DOM API existed and nothing more —
+ChatGPT's browser carries the extension underneath, but its agent layer never lists forms, so
+the page counted ten tools while the agent saw nine.
 
 ## Architecture
 

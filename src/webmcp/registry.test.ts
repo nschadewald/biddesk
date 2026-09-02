@@ -242,6 +242,11 @@ it("lists a tool declared by a form beside the registered ones", async () => {
   expect(listed.map((entry) => entry.name)).toEqual(["get_tender", "ask_clarification"]);
   expect(listed.find((entry) => entry.name === "ask_clarification")?.kind).toBe("declarative");
   expect(listed.find((entry) => entry.name === "get_tender")?.kind).toBe("imperative");
+  // Listed, but this stub browser cannot list its tools, so it cannot vouch for
+  // the form: shown, and not counted.
+  await Promise.resolve();
+  expect(getTools().find((entry) => entry.name === "ask_clarification")?.confirmed).toBe(false);
+  expect(getTools().find((entry) => entry.name === "get_tender")?.confirmed).toBe(true);
 
   undeclare();
   expect(getTools().map((entry) => entry.name)).toEqual(["get_tender"]);
@@ -296,5 +301,30 @@ it("trusts the browser's own getTools over our bookkeeping", async () => {
     newSignal()
   );
 
-  expect(getTools().map((entry) => entry.name)).toEqual(["a"]);
+  // Both are shown -- b was registered, after all -- but only a is vouched for.
+  expect(getTools().map((entry) => [entry.name, entry.confirmed])).toEqual([
+    ["a", true],
+    ["b", false]
+  ]);
+});
+
+it("awaits a getTools that answers with a Promise, as Chrome 152 does", async () => {
+  Object.defineProperty(document, "modelContext", {
+    configurable: true,
+    value: {
+      registerTool: () => Promise.resolve(),
+      // Not an array: a Promise of one. Array.isArray on this was the old
+      // mistake, and it silently fell back to our own bookkeeping.
+      getTools: () => Promise.resolve([{ name: "a" }, { name: "from_elsewhere" }])
+    }
+  });
+
+  await registerToolBlock([tool("a", async () => ({ ok: true }))], newSignal());
+
+  expect(getTools().map((entry) => [entry.name, entry.confirmed])).toEqual([
+    ["a", true],
+    // Listed by the browser though never offered by us: real to an agent, so
+    // real to the count.
+    ["from_elsewhere", true]
+  ]);
 });

@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Role } from "../types";
 import {
-  browserToolNames,
+  formToolStatus,
   getTools,
   registerToolBlock,
   registryStore,
@@ -69,25 +69,28 @@ export function useWebMCP(role: Role, canSubmit: boolean): WebMCPStatus {
     return () => controller.abort();
   }, [role, canSubmit]);
 
-  // ask_clarification is declared by the form on the page. The imperative twin
-  // is registered ONLY where a form cannot declare a tool, because one name has
-  // to mean one tool. The declarative API extends SubmitEvent, so its presence
-  // there is the signal; a browser that also lists its tools confirms it.
+  // Re-renders whenever anything the registry knows changes: a block registered
+  // or withdrawn, the browser's list refreshed, a form confirmed or given up on.
+  useSyncExternalStore(registryStore.subscribe, registryStore.getSnapshot, registryStore.getSnapshot);
+  const form = formToolStatus("ask_clarification");
+
+  // ask_clarification is declared by the form on the page, and the form IS the
+  // tool wherever the browser CONFIRMS it by listing it. The imperative twin is
+  // registered where the browser cannot make a tool of a form at all, and where
+  // it could but did not list this one in time -- ChatGPT's browser carries the
+  // SubmitEvent extension underneath yet never lists the form, and a feature
+  // test alone had us offering ten tools while the agent saw nine. One name,
+  // one tool: while the browser is still deciding, nothing is registered, so
+  // the twin can never land beside the form (Chrome refuses the duplicate).
   useEffect(() => {
     if (role !== "bidder") return;
-    const known = browserToolNames();
-    const declarativeWorks =
-      supportsDeclarativeTools() && (known === null || known.has("ask_clarification"));
-    if (declarativeWorks) return;
+    const twinNeeded = !supportsDeclarativeTools() || form === "unconfirmed";
+    if (!twinNeeded) return;
 
     const controller = new AbortController();
     void registerToolBlock(askClarificationFallback, controller.signal);
     return () => controller.abort();
-  }, [role]);
-
-  // Re-renders whenever a block is registered or withdrawn, so the count in the
-  // panel is read from the registry rather than from a literal.
-  useSyncExternalStore(registryStore.subscribe, registryStore.getSnapshot, registryStore.getSnapshot);
+  }, [role, form]);
 
   return { ...state, tools: getTools() };
 }
