@@ -1,4 +1,4 @@
-# Devpost submission text (English) — Fassung 02.09., 17:45 — nach CC-09, gekürzt auf ~1.200 Wörter
+# Devpost submission text (English) — Fassung 02.09., 18:30 — nach CC-09 und Nils' Videodurchlauf, ~1.350 Wörter
 
 **Tagline:** The agent-ready tender room for building trades.
 
@@ -16,11 +16,11 @@ The property manager has the other side of the same page: bids arrive, sealed un
 
 ## The core flow, in sixty seconds
 
-*"Price every position from my price book; leave anything without a match empty and tell me which."* Twelve of fourteen rows fill in, each carrying a chip — *from your quote · Luegallee 40 · March 2026* — that opens to the original line. Two rows stay empty: the firm has never priced radiators, and the agent says so instead of guessing. Net total: 13,213.50 €.
+*"Price every position from my price book; leave anything without a match empty and tell me which."* Twelve of fourteen rows fill in, each carrying a chip — *from your quote · Luegallee 40 · March 2026* — that opens to the original line. Two rows stay empty — radiators, and an hourly rate the price book has no line for — and the agent says so instead of guessing. Net total: 13,213.50 €.
 
-*"Set 03.04 to 61 euros — four radiators, twenty-five minutes each, at my rate."* The agent has no source for that number, so it neither refuses nor pretends. It puts the price on the row, with the reasoning, and waits. A click writes it — recorded as the person's, no chip. 13,457.50 €.
+*"Set 03.04 to 61 euros — four radiators, twenty-five minutes each, at my rate — and 04.02 to 48 euros, my hourly rate."* The agent has no source for those numbers, so it neither refuses nor pretends. It puts them on the rows, with the reasoning, and waits. A click writes each — recorded as the person's, no chip. 13,457.50 €.
 
-*"Check my bid."* An outlier against the firm's own history; a tax clearance certificate that expired three weeks ago. Each finding with its way out. *"My new certificate is valid until 15 August 2027"* — same pattern: a confirmation in the check panel, a click, and the finding goes quiet. Nothing is uploaded or verified, and the page says so.
+*"Check my bid."* One finding: a tax clearance certificate that expired three weeks ago, with its way out beside it. *"My new certificate is valid until 15 August 2027"* — same pattern: a confirmation in the check panel, a click, and the finding goes quiet. Nothing is uploaded or verified, and the page says so.
 
 *"Submit the bid."* The agent stops. A dialog shows the final total; a person clicks. Afterwards `submit_bid` is unregistered: eleven tools before, ten after. The page didn't ask the agent to behave — it took the capability away.
 
@@ -50,7 +50,7 @@ React + Vite + TypeScript, Hono on Cloudflare Workers, D1; every visitor gets an
 
 ## What we can show, not just claim
 
-- **202 unit and integration tests**, typecheck clean, seed verified by script.
+- **218 unit and integration tests**, typecheck clean, seed verified by script, and a deploy that counts its tests before it trusts them.
 - **Tool-chain evals**: eight contractor cases (14 of 14 steps) plus four client cases, three consecutive clean runs. Five of the eight test our *limits*: a gap is explained, not filled; a sourceless price and a renewed certificate wait for a person; a price contradicting its source is refused; "submit the bid" never submits on its own.
 - **Lighthouse agentic-browsing: 1.00** (0.75 before `/llms.txt`).
 - **Origin trial**: works in stock Chrome 152, no flag. Runs in ChatGPT's desktop browser.
@@ -59,7 +59,7 @@ React + Vite + TypeScript, Hono on Cloudflare Workers, D1; every visitor gets an
 
 ## Known limitations, on purpose
 
-Not a legally sound procurement process (sealing and locking, not cryptography) · the price book is seeded, importing a firm's own quotes is not built · no authentication — the role is a server-side fact, but anyone can switch it · matching trades recall for precision · one contractor per workspace, desktop first · tool guarantees are not browser guarantees · certificates are metadata, renewing one records a date a person states.
+Not a legally sound procurement process (sealing and locking, not cryptography) · contingency positions are quoted apart and never block the hand-in, as in the trade · the price book is seeded, importing a firm's own quotes is not built · no authentication — the role is a server-side fact, but anyone can switch it · matching trades recall for precision · one contractor per workspace, desktop first · tool guarantees are not browser guarantees · certificates are metadata, renewing one records a date a person states.
 
 ## Impact and what's next
 

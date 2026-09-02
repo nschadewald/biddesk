@@ -586,12 +586,16 @@ app.get("/api/price-book", bidderOnly, async (c) => {
   const workspaceId = c.get("workspaceId");
   const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
   const category = c.req.query("category");
+  const unit = c.req.query("unit");
   const query = c.req.query("query");
 
   let entries = await readPriceBook(c.env.DB, workspaceId, bidderId);
 
   if (category) {
     entries = entries.filter((entry) => entry.category === category.toLowerCase());
+  }
+  if (unit) {
+    entries = entries.filter((entry) => entry.unit === unit.toLowerCase());
   }
   if (query) {
     // Same normalisation as the matcher, so what a search finds and what a

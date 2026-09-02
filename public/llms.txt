@@ -15,8 +15,8 @@ comparable entry stays empty and says so, rather than receiving a guess.
 ## Tools, contractor role (eleven)
 
 - `list_tenders` — read: the tenders in this room, with deadline, size and this firm's bid status.
-- `get_tender` — read: opens one tender and returns its full bill of quantities.
-- `get_price_book` — read: this firm's own past positions, with project, date and original wording.
+- `get_tender` — read: opens one tender and returns its bill of quantities, with this firm's prices and their price book source where set; long text only on request.
+- `get_price_book` — read: this firm's own past positions. Without a filter a summary per category and unit; with category, unit or query the lines, with project and date.
 - `suggest_prices` — read: proposes prices from that price book, and only from it.
 - `set_unit_price` — write: enters prices that name the price book line they came from; a price without one is not written but proposed, and only the person's click on the page records it.
 - `check_bid` — read: open positions, outliers against this firm's own history, expired documents, days left.

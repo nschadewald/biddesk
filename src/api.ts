@@ -187,7 +187,7 @@ export async function listTenders(workspaceId: string, filters: TenderFilters = 
   return readThroughWorkspace<TenderList>(`/api/tenders${suffix}`, workspaceId);
 }
 
-export type PriceBookFilters = { category?: string; query?: string };
+export type PriceBookFilters = { category?: string; unit?: string; query?: string };
 
 export async function readPriceBook(workspaceId: string, filters: PriceBookFilters = {}) {
   const query = new URLSearchParams();

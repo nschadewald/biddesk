@@ -98,9 +98,9 @@ the side that holds it — the client's `get_tender` says it returns no prices, 
 | Tool | Role | Read-only | What it does |
 |---|---|---|---|
 | `list_tenders` | both | yes | Lists tenders with deadline and size; the contractor also sees their own bid status, the client does not. Does not navigate. |
-| `get_tender` | both | yes | Opens a tender and returns its bill of quantities. Contractor: with their own prices and the required documents. Client: the positions alone, no key of any bid. Carries `untrustedContentHint`: position texts are the client's, or a file's. |
+| `get_tender` | both | yes | Opens a tender and returns its bill of quantities. Contractor: with their own prices, each with its price book id, project and date, and the required documents. Client: the positions alone, no key of any bid. Long text only with `include_long_text`. Carries `untrustedContentHint`: position texts are the client's, or a file's. |
 | `list_clarifications` | both | yes | Questions and the client's answers. Carries `untrustedContentHint`: written by other parties. |
-| `get_price_book` | contractor | yes | The contractor's own past positions, with project, date and original wording. |
+| `get_price_book` | contractor | yes | The contractor's own past positions. Without a filter: a summary per category and unit with counts. With `category`, `unit` or `query`: the lines, with project and date. |
 | `suggest_prices` | contractor | yes | Proposes prices from that price book. Proposes only — `set_unit_price` applies them. |
 | `set_unit_price` | contractor | no | Writes 1–50 rows. Each must name the price book line it came from and match its price. |
 | `check_bid` | contractor | yes | Open positions, outliers against the firm's own history, expired documents, days left. |
@@ -115,6 +115,15 @@ The price book behind `get_price_book` and `suggest_prices` is also a screen (he
 book*): the contractor's own past lines, searchable with the matcher's own normalisation, and a
 coverage matrix that shows per category and unit a count or "no entry" — the radiators gap of
 prompt 2 as a cell, and a different book the moment you switch the contractor.
+
+**Every description fits a budget**, held by a test: at most 500 characters, saying in this order
+what the tool does, when to use it, what the visitor sees, and where its authority ends; a
+parameter description at most 150. A rule of the process — a sourceless price waits for a
+click, a stated document date waits for a click, a blocker is not a confirmation — is stated
+once, in the tool it belongs to. Answers carry what the agent acts on (item, text, quantity,
+unit, price, price book id, project, date), not what the chip on the row shows: unpriced rows
+carry no empty price fields, the original wording of an old quote stays on the screen, and the
+price book without a filter is a summary per category and unit rather than every line.
 
 Eleven are registered in the contractor role, ten after a bid is handed in, five in the client
 role. The self-diagnosis in the agent panel counts what the **browser** reports, not what the

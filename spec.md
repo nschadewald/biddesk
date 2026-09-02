@@ -478,6 +478,14 @@ Bewusst nicht oder nur gekürzt:
 
 Und eine Zeile Text unter dem Log, die mehr wert ist als sie kostet: **„This log stays in your browser. Nothing is sent anywhere."** Das stimmt – es gibt keine Analytik – und beantwortet die Frage, die ein Juror bei einem Aufzeichnungsfenster automatisch stellt.
 
+### 13.4b Toolbudget – was ein Agent liest, kostet ihn Kontext (02.09., CC-10 Teil 2)
+
+Zwei Reviews zählten acht von dreizehn Beschreibungen über 500 Zeichen und zwei Antworten über 1.500. Seitdem, gehalten von `src/webmcp/budget.test.ts`: **Beschreibung ≤ 500 Zeichen** in der Reihenfolge Zweck · wann · sichtbarer Effekt · Sicherheitsgrenze; **Parameterbeschreibung ≤ 150**; Prozessregeln stehen einmal – der Preis ohne Quelle in `set_unit_price`, das Nachweisdatum in `set_document_validity`, der Blocker in `submit_bid` –, die anderen Werkzeuge verweisen mit einem Halbsatz. Die Führung aus CC-04 (Herleiten → `rationale` → Bestätigung; Nachweis → Datum nennen) bleibt, nur kürzer.
+
+**Antworten tragen, worauf der Agent handelt:** `oz`, `text`, `quantity`, `unit`, `category`, `contingency`, und bei bepreisten Zeilen `my_unit_price`, `price_book_id`, `source_project`, `source_date` (bei Menschenpreisen `set_by:"human"` und die Bemerkung). Die Originalzeile des alten Angebots gehört dem Chip auf der Oberfläche, nicht der Antwort; unbepreiste Zeilen tragen keine fünf leeren Preisfelder; `long_text` nur mit `include_long_text:true`; `get_price_book` ohne Filter liefert eine Zusammenfassung je Kategorie/Einheit mit Anzahl, mit `category`, `unit` oder `query` die Zeilen; `check_bid` lässt die englischen `warnings` weg, die die Befunde wiederholen. Kein neues Werkzeug, E1–E8 unverändert.
+
+**Decken:** 1.500 Zeichen, wo die Daten es zulassen (Preisbuch-Zusammenfassung, gefiltertes Preisbuch, `check_bid` nach Prompt 1). Wo die Daten vierzehn Positionen eines echten Leistungsverzeichnisses mit Preisen sind, zählt die kompakte Form: die Decke ist die gemessene Größe plus Rand, damit der Test rot wird, wenn ein Feld zurückkriecht, nicht wenn der Seed ein Wort wächst. Zahlen vorher/nachher in docs/07, Schritt 23.
+
 ### 13.5 Preisspiegel – wie er entsteht und was vorher zu sehen ist
 
 **Der Auftraggeber darf offene Angebote nicht sehen.** Das ist keine Design-Frage, sondern das Submissionsprinzip: Angebote sind bis zum Fristende versiegelt. Genau so wird es gebaut, und es ist der bessere Demo-Moment.

@@ -1839,4 +1839,84 @@ jemand `npm run deploy` in einem Pfad ohne Leerzeichen anders erlebt als hier.
 ### Stand
 
 209 Unit-Tests in 19 Dateien (neu: `scripts/deploy-gate.test.ts`, 6 Tests), Typecheck sauber,
-Basiszahl 209. Deploy über den Wächter: siehe unten.
+Basiszahl 209. Erster Deploy über den Wächter: **`b94e8863`** (18:12) – Tor bestanden mit 209
+gezählten Tests, Build, Deploy, 15 s, alle drei Eval-Sätze grün, „deploy accepted". Commit
+`a803b01`. Eine Kleinigkeit blieb offen: `wrangler deployments list` ließ sich nicht auf die
+vorherige Versions-Id parsen („previous version unknown"), der Rollback-Befehl im Fehlerfall
+nennt dann keine Id – `npx wrangler rollback` fragt sie interaktiv ab.
+
+## Schritt 23 – Toolbudget (Mi 02.09.2026, CC-10 Teil 2)
+
+### Warum
+
+Zwei Reviews zählten acht von dreizehn Beschreibungen über 500 Zeichen und zwei Antworten über
+1.500. Was ein Agent liest, kostet ihn Kontext, und den hat er dann nicht für die Person. Die
+langen Beschreibungen waren aus gutem Grund lang geworden – jede Sackgasse aus CC-04 und CC-05
+hatte ihren Satz in jedem Werkzeug bekommen, das sie berührte –, aber ein Satz, der dreimal
+steht, ist zweimal zu viel.
+
+### Was sich geändert hat
+
+**Beschreibungen.** Jede sagt in dieser Reihenfolge: Zweck, wann, sichtbarer Effekt,
+Sicherheitsgrenze. Prozessregeln stehen einmal: der Preis ohne Quelle in `set_unit_price`, das
+Nachweisdatum in `set_document_validity`, der Blocker in `submit_bid`; `suggest_prices` verweist
+mit einem Halbsatz. Die Führung aus CC-04 bleibt (Herleiten → `rationale` → Bestätigung;
+Nachweis → Datum nennen), nur kürzer.
+
+| Beschreibung | vorher | nachher |
+|---|---:|---:|
+| `set_unit_price` | 1473 | 495 |
+| `suggest_prices` | 1199 | 493 |
+| `set_document_validity` | 1163 | 477 |
+| `submit_bid` | 1127 | 492 |
+| `check_bid` | 992 | 484 |
+| `get_tender` (Bieter / Client) | 822 / 699 | 489 / 495 |
+| `get_price_comparison` | 697 | 485 |
+| `ask_clarification` | 696 | 479 |
+| `list_tenders` (Bieter / Client) | 469 / 558 | 316 / 383 |
+| `get_price_book` | 483 | 421 |
+| `answer_clarification` | 451 | 378 |
+| `list_clarifications` (Bieter / Client) | 425 / 406 | 361 / 331 |
+| `undo_last_change` | 375 | 285 |
+| längste Parameterbeschreibung | 231 (`price_book_id`) | 136 |
+
+**Antworten.** Regel: Der Agent bekommt, worauf er handelt – `oz`, `text`, `quantity`, `unit`,
+`category`, `contingency`, bei bepreisten Zeilen `my_unit_price`, `price_book_id`,
+`source_project`, `source_date` (bei Menschenpreisen `set_by:"human"` und die Bemerkung). Die
+Originalzeile des alten Angebots gehört dem Chip, nicht der Antwort. Unbepreiste Zeilen tragen
+keine fünf leeren Preisfelder; `long_text` nur mit `include_long_text:true`; `get_price_book`
+ohne Filter ist eine Zusammenfassung je Kategorie/Einheit mit Anzahl, mit `category`, `unit`
+(neu, auch im Worker) oder `query` die Zeilen ohne `source_position_text`; `suggest_prices`
+ohne die Originalzeile in `based_on`; `set_unit_price` ohne das `source`-Objekt in `applied`;
+`check_bid` ohne `warnings` (sie wiederholen die Befunde auf Englisch) und ohne die zwei Zähler,
+die in `totals` stehen. Die API ist unverändert – der Chip, das Preisbuch und die Tests am
+Worker brauchen alles davon –, die Projektion sitzt in `tools.ts`. Kein neues Werkzeug.
+
+| Antwort (Zeichen) | vorher | nachher |
+|---|---:|---:|
+| `get_tender` T-2026-014, unbepreist | 4493 | 2458 |
+| `get_tender` T-2026-014, 12 Preise (nach Prompt 1) | ~4900 | 3796 |
+| `get_price_book` Meier, ohne Filter | 3302 | 428 |
+| `get_price_book` Meier, `category:"wall"` | – | 545 |
+| `suggest_prices` T-2026-014 | 4071 | 3294 |
+| `check_bid` (vorher: frisch, 14 offen; nachher: nach Prompt 1) | 4481 | 1099 |
+
+Die 1.500 sind erreicht, wo die Daten es zulassen: Preisbuch-Zusammenfassung, gefiltertes
+Preisbuch, `check_bid` nach Prompt 1. Wo die Daten vierzehn Positionen eines echten
+Leistungsverzeichnisses mit Preisen sind, ist die kompakte Form das Budget – und die Decke im
+Test die gemessene Größe plus Rand (2.600 / 4.000 / 3.500), damit der Test rot wird, wenn ein
+Feld zurückkriecht, nicht wenn ein Positionstext ein Wort wächst. `src/webmcp/budget.test.ts`
+misst gegen den echten Seed: die 14 Positionen, Meiers 12 Zeilen, die 12 Preise aus E1.
+
+### Was beim Kürzen zweimal daneben ging
+
+Die ersten Fassungen waren nach Gefühl auf 500 geschrieben und lagen bei 507 bis 665 – das Gefühl
+irrt um zehn Prozent nach unten. Das Patch-Skript zählt seitdem die Laufzeitlänge, bevor es
+schreibt, und bricht ab, wenn eine über 500 liegt; erst dann läuft der Test. Zweitens: Mein
+eigener Test verlangte „Use it" in jeder Beschreibung und fiel über „Use that path" in
+`set_unit_price` – der Test prüfte eine Wendung, nicht die Sache. Jetzt prüft er das Wort.
+
+### Stand
+
+218 Unit-Tests in 20 Dateien (neu: `src/webmcp/budget.test.ts`, 9 Tests), Typecheck sauber,
+E1–E8 unverändert. Deploy: siehe unten.
