@@ -1996,7 +1996,27 @@ rendert im nächsten das Prüfpanel – dessen Befund nennt jetzt „03.04" alle
 `getByText("03.04")` fand zwei Elemente. `afterEach` schließt seitdem die Prüfung; die
 Zeilenabfrage sucht in der Tabelle.
 
+### Gemessen, nicht vermutet
+
+Deploy über den Wächter: **`1c62fb06`** (19:08), Tor mit 222 gezählten Tests, danach alle drei
+Eval-Sätze grün, „deploy accepted", Rollback-Hinweis nennt erstmals die Vorgängerversion. Dann der
+Weg aus dem Befund, live, mit Chrome 152 über die Werkzeuge und die Seite: frischer Workspace,
+P1 (12 / 13.213,50), 03.04 auf 61 € bestätigt, Bescheinigung erneuert und bestätigt, „Check bid"
+→ **„1 finding. All 12 positions in the total are priced. 1 contingency position is open; it does
+not block the hand-in."**, darunter der Bedarfs-Befund in Slate mit dem Handlungssatz „no entry
+for labour/h …"; „Submit bid" → Dialog **„Positions priced 12 of 12 · Contingency positions
+priced 1 of 2 · 04.02 is without a price — a contingency position, quoted apart; it does not
+block the hand-in."**; abgebrochen; 04.02 auf 48 € bestätigt → Bedarfspositionen **850,00 €**,
+Summenleiste „12 of 12 · contingency 2 of 2", Dialog „2 of 2" ohne Satz. Netto 13.457,50 €.
+Deutsch: „Nichts zu beanstanden. Alle 12 Positionen der Angebotssumme sind bepreist.", „12 von
+12 · Bedarf 2 von 2", „Bepreiste Bedarfspositionen 2 von 2". Nichts abgegeben.
+
+Beim ersten Anlauf der Live-Abnahme öffnete sich kein Dialog – der abgelaufene Nachweis ist seit
+CC-09 ein Blocker, und mein Skript hatte den Schritt „Bescheinigung erneuern" aus dem Videoskript
+ausgelassen. Der Wächter im Kopf hat funktioniert; das Skript wurde ergänzt, nicht das Produkt.
+
 ### Stand
 
-222 Unit-Tests in 21 Dateien (neu: `src/SubmitDialog.test.tsx`), Typecheck sauber. Deploy über
-den Wächter: siehe unten.
+222 Unit-Tests in 21 Dateien (neu: `src/SubmitDialog.test.tsx`), Typecheck sauber,
+`verify_seed.py` grün, Bieter-Evals 14/14, Client-Evals C1–C4, GAEB bestanden. Deploy
+**`1c62fb06`** = **Videostand**. Commits `9aff439`, `a196e99`.
