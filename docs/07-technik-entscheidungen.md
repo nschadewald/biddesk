@@ -2113,6 +2113,17 @@ als eine Zeile unter die Eval-Tabelle, wenn Nils sie liefert.
 ### Stand
 
 227 Unit-Tests in 22 Dateien (neu: `src/HowToTest.test.tsx`), Typecheck sauber, Basiszahl 227.
-Commits B und C gepusht, **nicht deployt** – der Deploy fährt CC-10 Teil 3 und CC-12 zusammen aus,
-auf Nils' Signal, und ist danach der Freeze-Stand für Do 12:00. Nachtrag mit Deploy-Id und
-Live-Matrix folgt.
+Commits `694e417` (B) und `256f0b4` (C).
+
+### Der Deploy, auf Signal (19:47)
+
+`npm run deploy` auf „deploy jetzt": Tor mit 227 gezählten Tests, Build, Deploy **`764fc2fc`**,
+15 s, alle drei Eval-Sätze grün – Bieter erstmals mit E9, **16 von 16 Schritten über 9 Fälle**,
+Client C1–C4, GAEB. Danach live nachgefahren: `/how-to-test` mit sieben Karten in Panelreihenfolge,
+Satz 3 mit beiden Lücken, kein Überlauf bei 1240 px, der `blocked`-Satz und „Three more" auf der
+Seite; Selbstdiagnose „WebMCP detected · 11 tools registered", `getTools()` 11; E9-Fixture
+`Q-003` live, offen, unter Colorpoint. Bieter-Evals zwei weitere Male hintereinander gefahren,
+beide 16/16 – „three consecutive clean runs" in der README ist damit gemessen, nicht übernommen.
+
+**`764fc2fc` auf `256f0b4` ist der Freeze-Stand für Do 12:00.** Ab hier nur noch Befunde aus der
+Nacht und dem Morgen, keine neuen Funktionen.
