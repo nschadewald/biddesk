@@ -34,7 +34,7 @@ comparable entry stays empty and says so, rather than receiving a guess.
 
 ## More
 
-- [How to test in 60 seconds](https://biddesk.n-schadewald.workers.dev/how-to-test): the two browsers that work, the five prompts, and what each should visibly produce.
+- [How to test in 60 seconds](https://biddesk.n-schadewald.workers.dev/how-to-test): the two browsers that work, the seven prompts of the demo, and what each should visibly produce.
 - [README](https://github.com/nschadewald/biddesk#readme): architecture, security model, eval results, known limitations.
 
 ## Trust model

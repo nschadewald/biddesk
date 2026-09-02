@@ -2072,4 +2072,47 @@ eigentliche Antwort auf die Injektion, und sie stand schon vor E9 – E9 macht s
 
 225 Unit-Tests in 21 Dateien, Typecheck sauber, `verify_seed.py` grün. **Nicht deployt:** die
 Fixture liegt im Seed, E9 ist gegen die Live-URL erst nach dem Deploy grün; der Deploy folgt auf
-„Aufnahme fertig" über den Wächter, der E9 dann mitfährt.
+„Aufnahme fertig" über den Wächter, der E9 dann mitfährt. Commit `cb35253`.
+
+## Schritt 26 – Die Jury-Seite erzählt denselben Ablauf wie das Panel (Mi 02.09.2026, CC-12)
+
+### Der Befund
+
+`/how-to-test` – im Kopf verlinkt, im Devpost-Text genannt, die eine Seite, die ein Juror mit der
+Live-URL in der Hand liest – stammte von vor CC-04, CC-05 und CC-09. Sie führte fünf Prompts in
+einer eigenen Liste, kannte weder den bestätigten Preis noch den Nachweis über den Chat, und sagte
+zu „Submit the bid": „A dialog appears with the final total." Wer ihr in dieser Reihenfolge
+folgte, hatte 03.04 offen und den Nachweis abgelaufen, bekam seit CC-09 `blocked` ohne Dialog –
+und las daneben, ein Dialog müsse erscheinen. Eine Seite, die gegen das Produkt aussagt, ist
+schlimmer als keine.
+
+### Die Entscheidung: eine Quelle
+
+Die Karten sind die sieben Sätze des Panels, **aus derselben Quelle**: `copyFor("en").panel.prompts`
+in `src/i18n.ts`. Die Seite hält nur noch die Erwartungstexte, je Index. `HowToTest.test.tsx`
+prüft, dass die Seite genau die sieben Panelsätze in der Panelreihenfolge zeigt – Panel, Skript
+und Jury-Seite laufen damit nicht wieder auseinander. Die Erwartungen je Karte nennen jetzt, was
+seit CC-04/05/09 gilt: P3 schreibt nichts und wartet (AWAITING CONFIRMATION), nach dem Klick
+13.457,50 € und 850,00 € Bedarf; P4 ein Befund in Rot mit Handlungssatz, in Klammern die
+Blocker-Lesart vor P3; P5 nichts hochgeladen, nichts geprüft, ein Datum, das eine Person genannt
+hat; P7 Dialog und Klick – **und der Satz, der fehlte:** wer vor P3 und P5 abgibt, bekommt
+`blocked` mit der Liste und keinen Dialog, und das ist das Produkt, kein Fehler. „Two more worth a
+minute" wurde „Three more": Bieterwechsel, Rollenwechsel und E9 – die Frage des Mitbieters, die
+als Daten zurückkommt. Kopfbox: „Ten of them" war seit CC-05 falsch, jetzt „Eleven … five as the
+client", Chrome „measured in Chrome 152 without a flag", Selbstdiagnose „11 tools registered".
+
+### Zahlen
+
+README: Eval-Zeile **16 of 16 steps across 9 cases (E1–E9)** (die Zahl nach dem Live-Lauf, siehe
+Nachtrag), C4 mit sechs Feldern und `long_text` nur auf Anfrage, „the seven prompts were run by
+hand". `llms.txt`: „the seven prompts of the demo". Spec §12.1 in beiden Kopien: ein Absatz, dass
+es seit CC-10 0b und CC-11 sieben Sätze sind, mit der einen Quelle. Werkzeugzahlen 13 / 11 / 10 / 5
+unverändert. Die E9-Beobachtung aus ChatGPT steht **nicht** als Platzhalter in der README; sie kommt
+als eine Zeile unter die Eval-Tabelle, wenn Nils sie liefert.
+
+### Stand
+
+227 Unit-Tests in 22 Dateien (neu: `src/HowToTest.test.tsx`), Typecheck sauber, Basiszahl 227.
+Commits B und C gepusht, **nicht deployt** – der Deploy fährt CC-10 Teil 3 und CC-12 zusammen aus,
+auf Nils' Signal, und ist danach der Freeze-Stand für Do 12:00. Nachtrag mit Deploy-Id und
+Live-Matrix folgt.

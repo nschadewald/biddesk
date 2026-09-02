@@ -349,6 +349,8 @@ Sichtbar: Der Agent gibt **nicht** ab, sondern liefert `needs_confirmation` mit 
 
 *Zusatzprompt für den zweiten Akt (nicht Teil der fünf):* „Compare all bids for the facade tender and tell me who is cheapest but complete." → Preisspiegel für T-2026-009 mit markiertem Ausreißer bei Colorpoint.
 
+**Seit CC-10 Teil 0b und CC-11 (02.09.) sind es sieben Sätze**, in der Reihenfolge des Videoskripts (`docs/09`): die fünf oben, dazu als dritter der diktierte Preis für beide Lücken („Set 03.04 to 61 euros — four radiators, twenty-five minutes each, at my rate — and 04.02 to 48 euros, my hourly rate." → `needs_confirmation`, zwei Bestätigungen auf den Zeilen, danach 13.457,50 € netto und 850,00 € Bedarf) und als fünfter die erneuerte Bescheinigung („My new tax clearance certificate is valid until 15 August 2027." → Bestätigung im Prüfpanel, nichts hochgeladen, nichts geprüft). P5 heißt damit P7 und antwortet seit CC-09 vor P3 und P5 mit `blocked` statt mit dem Dialog. Die eine Quelle der sieben ist `src/i18n.ts` (`panel.prompts`); das Agent-Panel und `/how-to-test` lesen sie von dort, ein Test hält beide daran fest.
+
 ### 12.2 Werkzeugzahl – aufgelöst
 
 Der Widerspruch war echt: Die frühere „13" zählte `list_clarifications` doppelt (beide Rollen) und enthielt `get_bid_state`, das nun in `check_bid` aufgegangen ist.
