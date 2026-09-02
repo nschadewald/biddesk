@@ -195,6 +195,19 @@ export function summariseOutput(output: unknown): string {
 
   const record = output as Record<string, unknown>;
 
+  // A price proposed without a source is neither written nor refused: it waits
+  // on its row for a click. Said as such, apart from applied and rejected.
+  if (record.status === "needs_confirmation" && Array.isArray(record.pending)) {
+    const parts = [`waiting for a person · ${record.pending.length} to confirm`];
+    if (Array.isArray(record.applied) && record.applied.length > 0) {
+      parts.push(`${record.applied.length} applied`);
+    }
+    if (Array.isArray(record.rejected) && record.rejected.length > 0) {
+      parts.push(`${record.rejected.length} rejected`);
+    }
+    return parts.join(" · ");
+  }
+
   // A tool that asks for a human decision has not failed. It reports what would
   // happen and stops, which is the whole point of the destructive one.
   if (record.needs_confirmation === true) {

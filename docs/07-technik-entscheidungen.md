@@ -1281,3 +1281,109 @@ grün, GAEB bestanden, `verify_seed.py` grün.
 
 - Devpost-Text und Video.
 - Eine der beiden Spec-Kopien.
+
+## Schritt 16 – Sackgassen werden Wege (Mi 02.09.2026)
+
+### Der Befund
+
+Zwei Durchläufe fanden dieselbe Stelle: An drei Punkten endete die Demo mit „geht nicht,
+tragen Sie es selbst ein" – leere Position ohne Preisbucheintrag, abgewiesener freier Preis,
+abgelaufener Nachweis. Genau dann sitzt der Nutzer im Chat und wechselt nicht auf die Seite.
+Der Kollege fand den Weg trotzdem: Der Agent tippte ins Formular (§13.3d) – und als er
+danach eine Bemerkung „nach eigener Kalkulation" wollte, hieß es, Bemerkungen gebe es nur mit
+Preisbuchnachweis. Genau umgekehrt wäre richtig.
+
+Aus dem Leitsatz „der Agent hat keine eigene Autorität" war im Bau „der Agent hört auf"
+geworden. `submit_bid` macht seit Tag eins vor, wie es richtig geht: keine eigene Autorität
+heißt **Bestätigung, nicht Sackgasse**. Gebaut wurde die zweite Hälfte dieses Musters.
+
+### Was gebaut ist, und wo die Wahrheit dabei bleibt
+
+`set_unit_price` teilt einen Aufruf in zwei Wege. Zeilen **mit** `price_book_id` gehen wie
+bisher an den Worker, der sie gegen das Preisbuch prüft. Zeilen **ohne** erreichen den Worker
+nicht: Sie werden auf der Seite zur Bestätigung an der Zeile – klein, kein Modal, mit
+Rechnung („61,00 € × 4 pcs = 244,00 €"), mit der Herleitung des Agenten (`rationale`, max.
+240 Zeichen) und mit dem Satz, woher der Wert **nicht** kommt: „not from your price book —
+you are setting this price yourself". Erst der Klick schreibt, und zwar über exakt denselben
+Weg wie eine Eingabe in die Tabelle: `set_by='human'`, keine `price_book_id`, die Herleitung
+als `note`, ein `change_log`-Block. `undo_last_change` kennt ihn deshalb.
+
+Die Antwort ist `{ ok:true, status:"needs_confirmation", pending:[…], applied, rejected }`.
+Im Live-Log steht sie als **AWAITING CONFIRMATION**, weder als `applied` noch als `rejected`
+– dieselbe dritte Wahrheit wie für `submit_bid confirm:false` aus Schritt 9.
+
+Drei Entscheidungen, die man leicht anders hätte treffen können:
+
+- **Die Regeln werden nicht dupliziert.** Die Seite prüft die quellenlosen Zeilen mit
+  demselben `planPriceWrites` aus `src/pricing.ts` wie der Worker, nur mit `setBy:"human"`
+  – denn genau das macht die Bestätigung aus ihnen. Unbekannte OZ, keine Zahl, negativ,
+  gesperrtes Angebot: dieselben Codes, im selben `rejected`.
+- **Menschenpreise sagen jetzt, was sie sind:** „von Ihnen gesetzt · Herleitung" als Text,
+  nie als Chip. Die drei Zustände aus §13.3 bleiben unverwechselbar; der Test aus CC-02, dass
+  ein Menschenpreis keinen Chip bekommt, ist grün geblieben.
+- **`check_bid` sagt zu jedem Befund, was zu tun ist** – fest von uns formuliert,
+  zweisprachig über `X-Language`, als `actions`. Dabei fiel auf, dass „offen" drei Dinge sein
+  kann: nichts dieser Bauart im Preisbuch (herleiten lassen), Bauart vorhanden, Wortlaut
+  passte nicht (Preisbuch nachsehen), oder ein **Vorschlag liegt schon da**, den der Mensch nur
+  nicht übernommen hat. Der dritte Fall hätte mit „herleiten" den langen Weg empfohlen; er
+  hat seinen eigenen Satz bekommen.
+
+Ein Fehler, den erst der Store-Test zeigte: `writeRow` trug `set_by` und `source` in die
+Zeile, aber nicht `note` – eine bestätigte Herleitung wäre erst nach dem Neuladen sichtbar
+gewesen. Behoben.
+
+### Die Invariante hält – und die Sabotage-Probe sagt es
+
+Jede Zeile in `bid_prices` hat entweder eine `price_book_id` (dann `set_by='agent'`, Preis
+gleich Preisbuchzeile) oder `set_by='human'`. Kein dritter Fall. Der `setBy === "agent"`-Block
+in `pricing.ts` steht unverändert; er ist jetzt Netz unter dem Netz, weil ein Werkzeugaufruf
+ohne Quelle den Worker gar nicht mehr erreicht.
+
+Probe wie in CC-02: Prüfung `price_without_source` aus dem Block entfernt, Tests gefahren:
+
+| Test | |
+|---|---|
+| `pricing.test.ts` · refuses an agent price that carries no price book line | rot |
+| `pricing.test.ts` · lets no agent row through without the line it came from, whatever else is in the batch | rot |
+| `server.test.ts` · writes nothing at all for an agent's price without a source – no row, no change_log block | rot |
+
+Zurückgesetzt, `git diff src/pricing.ts` leer, 18/18 wieder grün. Der Server-Test misst dabei
+nicht die Antwort, sondern ob `db.batch` überhaupt aufgerufen wurde – null Aufrufe heißt null
+Zeilen in `bid_prices` und null Blöcke im `change_log`.
+
+### Gemessen, nicht vermutet
+
+Eval-Fall **E6** („Set position 03.04 to 61 euros.") ersetzt E7: `needs_confirmation`,
+`pending` mit 03.04/61/244 und Herleitung, `applied` und `rejected` leer, danach `check_bid`
+mit netto **13.213,50 €** unverändert und 03.04 weiter offen, plus der Handlungssatz. 12/12
+Schritte über 7 Fälle; E1 weiterhin 12 applied, 0 rejected, 13.213,50 €. E8 (Preis
+widerspricht seiner Quelle) bleibt eine Abweisung – das ist ein anderer Fehler.
+
+Der Klick selbst ist kein Eval-Fall (ein Modell drückt keinen Knopf auf der Seite), sondern
+ein UI-Test: nach dem Klick `set_by='human'`, `price_book_id NULL`, netto **13.457,50 €**
+(61 × 4 Stück; 03.04 ist keine Bedarfsposition). Live in Chrome 152 mit Puppeteer nachgefahren:
+Log-Zeile `set_unit_price AWAITING CONFIRMATION WRITE 10 ms … waiting for a person · 1 to
+confirm`, Summe vor dem Klick 13.213,50 €, nach dem Klick 13.457,50 €, Zeile „set by you · 4
+radiators at 25 min each at your rate of 58 EUR", `check_bid` offen nur noch 04.02,
+`undo_last_change` → 1 Block zurück, 13.213,50 €.
+
+### Was ausdrücklich nicht gebaut wurde
+
+Kein dreizehntes Werkzeug (Nachweis über den Chat ist CC-06). Kein Schreibzugriff des Agenten
+aufs Preisbuch – ein Agent, der sich einen Eintrag anlegt und danach „belegt" daraus bepreist,
+hätte die Herkunft gewaschen; Einträge entstehen nur durch einen Menschen über die Oberfläche,
+wie beim GAEB-Import. Keine neue Garantie gegen Browsersteuerung: Ein Agent, der den Browser
+steuert, kann die Bestätigung klicken wie ein Mensch – Known Limitation 6 (§13.3d) bleibt
+wörtlich. Die Bestätigung ist ein Seiten-Tor, kein Kryptobeweis; genau wie bei `submit_bid`.
+
+### Stand
+
+159 Unit-Tests in 16 Dateien, Bieter-Evals 12/12 (P1–P5 + E6 + E8, englisch nach dem Deploy),
+Client-Evals grün, GAEB bestanden, `verify_seed.py` grün. README, spec §12.3/§13.1/§13.3c (beide
+Kopien), docs/08, `llms.txt` und CLAUDE.md tragen den präzisierten Satz.
+
+### Offen
+
+- Devpost-Text und Video.
+- Eine der beiden Spec-Kopien.
+- CC-06: der Nachweis über den Chat (Entscheidung Mi 12:00).

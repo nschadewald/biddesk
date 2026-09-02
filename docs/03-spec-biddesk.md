@@ -370,7 +370,7 @@ Der Widerspruch war echt: Die frühere „13" zählte `list_clarifications` dopp
 2. **Preisbuch stammt aus vorbereiteten Daten.** Import echter Altangebote (PDF, GAEB X84) fehlt. Der Beleg-Mechanismus ist echt, die Befüllung ist es nicht.
 3. **Keine Anmeldung, keine Autorisierung.** Der Rollenwechsel ist ein Demo-Mechanismus; jeder Besucher sieht beide Seiten. Rollen sind über Werkzeug-Registrierung getrennt, nicht über Rechte.
 4. **Das Matching ist bewusst konservativ.** Es opfert Trefferquote für Präzision: abweichende Formulierungen und Synonyme führen zu „no comparable entry" statt zu einem unsicheren Preis. Ein falscher Preis mit Herkunfts-Chip wäre schädlicher als eine Lücke.
-5. **Der Agent kann keinen frei genannten Preis eintragen.** Auch nicht, wenn der Mensch ihn im Chat diktiert – die Seite kann die Herkunft eines diktierten Werts nicht prüfen und verweigert deshalb, ihn als belegt zu verbuchen. Bewusst gewählt: lieber ein Weg weniger als ein Wert ohne Beleg. Freie Preise trägt der Mensch in die Tabelle ein.
+5. **Der Agent kann keinen frei genannten Preis eintragen – aber vorschlagen und herleiten.** (Umgeschrieben am 02.09., CC-04.) Ein Preis ohne Preisbuchzeile wird nicht geschrieben und nicht mehr abgewiesen: Er erscheint als kleine Bestätigung an der Zeile, mit Rechnung, mit der Herleitung des Agenten („4 Heizkörper à 25 Min bei Ihrem Stundensatz von 58 €") und mit dem Satz, woher der Wert *nicht* kommt. Erst der Klick des Menschen schreibt ihn – als `set_by='human'` ohne Herkunft, wahrheitsgemäß, weil eine Hand genau diesen Wert freigegeben hat, mit `change_log`-Block für `undo_last_change`. Keine eigene Autorität heißt Bestätigung, nicht Sackgasse – dasselbe Muster wie `submit_bid`.
 6. **Ein Bieter je Workspace, Desktop-first.** Gleichzeitiges Arbeiten mehrerer Bieter im selben Zustand ist nicht getestet; die Oberfläche ist für Desktop ausgelegt, weil der ChatGPT-Browser dort läuft.
 
 ### 12.4 GAEB – binärer Go/No-Go
@@ -388,6 +388,8 @@ Der Widerspruch war echt: Die frühere „13" zählte `list_clarifications` dopp
 > **„Ein Agent wird im Betrieb erst dann brauchbar, wenn er nichts erfindet, was im Angebot landet, und nichts allein verbindlich macht – dann aber sofort."**
 
 Englisch fürs Write-up (Fassung vom 31.08., enger als der erste Entwurf): *„An agent becomes useful inside a real business the moment it invents no business facts and holds no authority of its own."*
+
+**Präzisiert am 02.09. (CC-04), als Satz über den Preis:** *„No price enters a bid without either a traceable source in this firm's own history or a person's hand on that exact value."* – das ist die Fassung für README und Devpost. Sie nennt beide Wege, die es gibt, und schließt den dritten aus.
 
 Die frühere Formulierung „adds no information of its own" war zu absolut und wäre in der ersten Minute widerlegt worden: Der Agent formuliert sehr wohl – Prüfhinweise, Zusammenfassungen, Begründungen. **Die Trennlinie verläuft nicht zwischen Text und Schweigen, sondern zwischen Formulierung und Geschäftsfakt.**
 
@@ -439,6 +441,8 @@ Beim Bau von `set_unit_price` fiel auf, dass die Invariante „`price_book_id` O
 **Der Preis dafür, bewusst bezahlt:** „Trag bei 03.04 61 € ein" über den Agenten wird abgewiesen; der Mensch tippt es in die Tabelle. Das ist genau die Szene aus §12.1 – aber ein Juror wird diesen Satz mit hoher Wahrscheinlichkeit ausprobieren. Deshalb ist die **Abweisung ein gestalteter Moment, kein Fehler**: Der Grund muss menschenlesbar und handlungsweisend sein, sinngemäß *„I can't write a price that isn't in your price book. Enter it in the table yourself, or add it to your price book first."* Gut formuliert ist das eine Demonstration; schlecht formuliert sieht es kaputt aus.
 
 Umkehrbar in einer Zeile (`src/pricing.ts`, `setBy === "agent"`-Block) – dann fällt allerdings der Beweis. Nicht ohne Not umkehren.
+
+**Nachtrag 02.09. (CC-04): Aus der Abweisung wurde eine Bestätigung.** Die Invariante ist unverändert und der `setBy === "agent"`-Block steht noch – ein Werkzeugaufruf ohne `price_book_id` erreicht den Worker aber nicht mehr. Er wird auf der Seite zur Bestätigung an der Zeile; der Klick schreibt über denselben Weg wie eine Eingabe in die Tabelle, als `human`, mit der Herleitung als `note` und mit `change_log`-Block. „Trag bei 03.04 61 € ein" endet also nicht mehr mit „geht nicht", sondern mit einer Bestätigung, in der steht, woher der Wert *nicht* kommt. Sabotage-Probe: Prüfung im Block entfernt → drei Tests rot (`pricing.test.ts` zweimal, `server.test.ts` einmal), zurückgesetzt, `git diff` leer. Der präzisierte Satz steht in §13.1.
 
 ### 13.3d Die Grenze der Garantie – Fund aus dem ChatGPT-Durchlauf (31.08. abends)
 

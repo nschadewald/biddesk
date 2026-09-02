@@ -1,7 +1,10 @@
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  confirmPendingPrice,
+  discardPendingPrice,
   getAppState,
   openTender,
+  proposePrices,
   readTenders,
   runCheck,
   selectLanguage,
@@ -254,4 +257,97 @@ it("does not go back to the Worker when the language did not change", async () =
   await selectLanguage("en");
 
   expect(fetchMock.mock.calls.length).toBe(before);
+});
+
+describe("a price with no source", () => {
+  const written = (calls: unknown[][]) =>
+    calls
+      .filter((call) => String(call[0]).endsWith("/prices"))
+      .map((call) => JSON.parse(String((call[1] as RequestInit).body)) as {
+        set_by: string;
+        prices: Record<string, unknown>[];
+      });
+
+  it("waits on the row and writes nothing until a person clicks", async () => {
+    const fetchMock = globalThis.fetch as unknown as { mock: { calls: unknown[][] } };
+    const before = written(fetchMock.mock.calls).length;
+
+    const { pending, rejected } = await proposePrices("T-2026-014", [
+      { oz: "01.01", unit_price: 61, price_book_id: null, note: "derived" }
+    ]);
+
+    expect(rejected).toEqual([]);
+    // Quantity 10 in this fixture, so the line the person is asked about is 610.
+    expect(pending).toEqual([
+      { oz: "01.01", unit_price: 61, line_total: 610, current_unit_price: null, rationale: "derived" }
+    ]);
+    expect(getAppState().pendingPrices["01.01"]).toBeDefined();
+    expect(written(fetchMock.mock.calls).length).toBe(before);
+    expect(getAppState().detail!.positions[0]!.my_unit_price).toBeNull();
+
+    discardPendingPrice("01.01");
+    expect(getAppState().pendingPrices["01.01"]).toBeUndefined();
+  });
+
+  it("is written by the click as the person's, note included, and undo will know it", async () => {
+    await proposePrices("T-2026-014", [
+      { oz: "01.01", unit_price: 61, price_book_id: null, note: "derived" }
+    ]);
+    writeResponse = {
+      ok: true,
+      bidder_id: "B-A",
+      tender_id: "T-2026-014",
+      applied: [
+        { oz: "01.01", unit_price: 61, line_total: 610, note: "derived", set_by: "human", price_book_id: null, source: null }
+      ],
+      rejected: [],
+      totals: { net: 610, contingency: 0, positions_priced: 1, positions_open: 1 }
+    };
+    const fetchMock = globalThis.fetch as unknown as { mock: { calls: unknown[][] } };
+
+    await confirmPendingPrice("01.01");
+
+    // One write, through the same route as a value typed into the table: the
+    // Worker books it as human and logs it as a block of its own.
+    const sent = written(fetchMock.mock.calls).at(-1)!;
+    expect(sent.set_by).toBe("human");
+    expect(sent.prices).toEqual([{ oz: "01.01", unit_price: 61, note: "derived" }]);
+    expect(sent.prices[0]).not.toHaveProperty("price_book_id");
+
+    const row = getAppState().detail!.positions[0]!;
+    expect(row).toMatchObject({ my_unit_price: 61, set_by: "human", source: null, note: "derived" });
+    expect(getAppState().pendingPrices["01.01"]).toBeUndefined();
+  });
+
+  it("can carry only a remark: the price stays, the note is set", async () => {
+    // Start from a price the person set.
+    writeResponse = {
+      ok: true,
+      bidder_id: "B-A",
+      tender_id: "T-2026-014",
+      applied: [{ oz: "01.01", unit_price: 61, line_total: 610, note: null, set_by: "human", price_book_id: null, source: null }],
+      rejected: [],
+      totals: { net: 610, contingency: 0, positions_priced: 1, positions_open: 1 }
+    };
+    await setUnitPrices("T-2026-014", [{ oz: "01.01", unit_price: 61 }], "human");
+
+    const { pending } = await proposePrices("T-2026-014", [
+      { oz: "01.01", unit_price: 61, price_book_id: null, note: "own calculation" }
+    ]);
+    expect(pending[0]).toMatchObject({ unit_price: 61, current_unit_price: 61, rationale: "own calculation" });
+
+    writeResponse = {
+      ...(writeResponse as object),
+      applied: [{ oz: "01.01", unit_price: 61, line_total: 610, note: "own calculation", set_by: "human", price_book_id: null, source: null }]
+    };
+    const fetchMock = globalThis.fetch as unknown as { mock: { calls: unknown[][] } };
+    await confirmPendingPrice("01.01");
+
+    const sent = written(fetchMock.mock.calls).at(-1)!;
+    expect(sent.prices).toEqual([{ oz: "01.01", unit_price: 61, note: "own calculation" }]);
+    const row = getAppState().detail!.positions[0]!;
+    expect(row.my_unit_price).toBe(61);
+    expect(row.note).toBe("own calculation");
+    expect(row.set_by).toBe("human");
+  });
 });

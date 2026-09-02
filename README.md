@@ -13,11 +13,15 @@ price in here is invented.
 
 ## The one sentence
 
-> **Through the tools this page exposes, an agent cannot write a price that isn't traceable to
+> **No price enters a bid without either a traceable source in this firm's own history or a person's hand on that exact value.**
+
+And its boundary, measured rather than assumed:
+
+> Through the tools this page exposes, an agent cannot write a price that isn't traceable to
 > a previous quote by this firm. An agent that also controls the browser can type into the
 > form like a person would — and then the value is recorded exactly like a person's, without
 > provenance. That is the honest boundary of what a page can guarantee, and it is an argument
-> for tools over DOM control, not against them.**
+> for tools over DOM control, not against them.
 
 A price, a quantity, a deadline, a certificate status, a total: these are business facts, and
 they end up in a binding document. The agent may fetch them, read them and add them up. It may
@@ -25,7 +29,7 @@ never produce one. Wording — explanations, summaries, the order it does things
 
 We know where that boundary sits because we walked into it. In the full run on 31 August a
 juror-shaped sentence — *"set position 03.04 to 61 euros"* — worked, even though
-`set_unit_price` refuses a price without a source. The agent had browser control as well and
+`set_unit_price` then refused a price without a source. The agent had browser control as well and
 typed the number into the table, as a person would. The database says so: that row carries
 `set_by = 'human'` and no `price_book_id`, written eleven minutes after the twelve sourced
 rows, in a block of its own. Tools give an agent a narrow, checkable surface. DOM control
@@ -39,17 +43,26 @@ SELECT COUNT(*) FROM bid_prices WHERE price_book_id IS NULL AND set_by <> 'human
 -- 0, always
 ```
 
-That holds because a price arriving through a tool is booked as `agent` and is **refused**
-unless it names a price book line and matches that line's price. What `set_by = 'human'` then
-means is precise and worth reading carefully: *entered through the form, without a source* —
-by a person, or by an agent driving the browser as a person would. A tool that tries anything
-else gets:
+That holds because a price arriving through a tool with a source is booked as `agent` and is
+**refused** unless it names a price book line and matches that line's price — and a price
+arriving without a source is not written at all. It becomes a confirmation on its row, with
+the derivation the agent offers (*"4 radiators at 25 min each at your rate of 58 EUR"*), and
+only the person's click writes it, as `human` with no source. No authority of its own means
+confirmation, not a dead end — the same pattern `submit_bid` has followed from day one. What
+`set_by = 'human'` then means is precise and worth reading carefully: *a hand on that exact
+value* — typed into the table or confirmed on the row; by a person, or by an agent driving the
+browser as a person would. The tool answers a sourceless row like this, and writes nothing:
 
 ```json
-{ "oz": "03.04", "reason": "price_without_source",
-  "hint": "A price written by an agent must carry the price_book_id it came from.
-           If there is no comparable entry, the person enters the price in the table." }
+{ "ok": true, "status": "needs_confirmation",
+  "pending": [{ "oz": "03.04", "unit_price": 61, "line_total": 244,
+                "rationale": "4 radiators at 25 min each at your rate of 58 EUR" }],
+  "applied": [], "rejected": [] }
 ```
+
+The Worker still refuses a sourceless row booked as `agent`, should anything but the page's
+own confirmation ever send one. We removed that check on purpose and watched three tests go
+red before putting it back.
 
 ## How to test in 60 seconds
 
@@ -271,8 +284,8 @@ Named on purpose, not overlooked.
    at once is untested, and the layout assumes a desktop, because that is where the ChatGPT
    browser runs.
 6. **The guarantee covers the tools, not the browser.** Through `set_unit_price` an agent
-   cannot write a price without a source — it is refused, even when the user dictates the
-   number; the person types those into the table. But an agent that also drives the browser
+   cannot write a price without a source — it can propose one, and the person's click on the
+   row writes it as theirs. But an agent that also drives the browser
    can fill that field itself, and the value is then recorded exactly as a person's would be,
    with `set_by = 'human'` and no provenance. Observed in our own run, not theorised. No page
    can prevent it, and the fact that it takes DOM control to get around a tool is the argument

@@ -152,11 +152,24 @@ function project<T extends Record<string, unknown>>(sql: string, rows: T[]) {
   });
 }
 
+/** Every batch the Worker sent, with the SQL and the bound values of each statement. */
+let batches: { sql: string; args: unknown[] }[][] = [];
+
 function stubDb() {
+  batches = [];
   return {
+    async batch(statements: { sql: string; args: unknown[] }[]) {
+      batches.push(statements.map((statement) => ({ sql: statement.sql, args: statement.args })));
+      return [];
+    },
     prepare(sql: string) {
       const statement = {
-        bind: () => statement,
+        sql,
+        args: [] as unknown[],
+        bind: (...args: unknown[]) => {
+          statement.args = args;
+          return statement;
+        },
         async first() {
           if (/from workspaces/i.test(sql)) return { present: 1 };
           if (/from bidders/i.test(sql)) return { id: "B-A" };
@@ -182,6 +195,19 @@ async function get(path: string, language?: string) {
   if (language) headers["X-Language"] = language;
   const response = await worker.fetch(
     new Request(`https://biddesk.test${path}`, { headers }),
+    { DB: stubDb() } as unknown as Env,
+    {} as ExecutionContext
+  );
+  return (await response.json()) as Record<string, unknown>;
+}
+
+async function post(path: string, body: unknown) {
+  const response = await worker.fetch(
+    new Request(`https://biddesk.test${path}`, {
+      method: "POST",
+      headers: { "X-Workspace-Id": WS, "content-type": "application/json" },
+      body: JSON.stringify(body)
+    }),
     { DB: stubDb() } as unknown as Env,
     {} as ExecutionContext
   );
@@ -280,4 +306,71 @@ it("hands seed questions back in the reader's language, and typed ones as typed"
     expect(row).not.toHaveProperty("question_de");
     expect(row).not.toHaveProperty("answer_de");
   }
+});
+
+it("tells the person what to do about each finding, in their language", async () => {
+  const english = await get("/api/tenders/T-2026-014/check");
+  const german = await get("/api/tenders/T-2026-014/check", "de");
+  const actions = (body: Record<string, unknown>) =>
+    body.actions as { finding: string; oz?: string; action: string }[];
+
+  // 01.01 has a proposal in the price book the person has not taken; 02.01 has
+  // nothing of its shape at all. Two different ways out, neither a dead end.
+  // (This stub holds no documents, so the four required ones get their own
+  // sentence too; those are checked apart.)
+  const open = (body: Record<string, unknown>) =>
+    actions(body).filter((entry) => entry.finding === "open_position");
+  expect(actions(english).filter((entry) => entry.finding === "document")).toHaveLength(4);
+  expect(actions(english).find((entry) => entry.finding === "document")?.action).toBe(
+    "obtain the document and file it before the deadline."
+  );
+  expect(open(english)).toEqual([
+    {
+      finding: "open_position",
+      oz: "01.01",
+      action: "your price book proposes 8.4 from PB-A-005 — take it, or derive a price of your own; you confirm it."
+    },
+    {
+      finding: "open_position",
+      oz: "02.01",
+      action: "no entry for metal/pcs — set the price yourself, or ask your agent to derive one; you confirm it."
+    }
+  ]);
+  expect(actions(german)[1]!.action).toBe(
+    "kein Eintrag für metal/pcs — setzen Sie den Preis selbst, oder lassen Sie ihn von Ihrem Agenten herleiten; Sie bestätigen ihn."
+  );
+  // The warnings an agent reads stay English whatever the header says.
+  expect((german.warnings as string[])[0]).toMatch(/positions? without a price/);
+});
+
+it("writes nothing at all for an agent's price without a source -- no row, no change_log block", async () => {
+  const body = await post("/api/tenders/T-2026-014/prices", {
+    set_by: "agent",
+    prices: [{ oz: "02.01", unit_price: 61 }]
+  });
+
+  expect(body).toMatchObject({ ok: true, applied: [] });
+  expect((body.rejected as { reason: string }[])[0]!.reason).toBe("price_without_source");
+  // The Worker never opened a batch: nothing reached bid_prices or change_log.
+  expect(batches).toEqual([]);
+});
+
+it("writes a person's confirmed price as theirs, in a block undo will find", async () => {
+  const body = await post("/api/tenders/T-2026-014/prices", {
+    set_by: "human",
+    prices: [{ oz: "02.01", unit_price: 61, note: "4 radiators at 25 min each at your rate of 58 EUR" }]
+  });
+
+  expect(body).toMatchObject({
+    ok: true,
+    applied: [{ oz: "02.01", unit_price: 61, set_by: "human", price_book_id: null, source: null }]
+  });
+  // One batch: the draft bid, the row, and the change_log block for undo.
+  expect(batches).toHaveLength(1);
+  const [batch] = batches;
+  const priceRow = batch!.find((statement) => /INSERT INTO bid_prices/i.test(statement.sql))!;
+  expect(priceRow.args).toContain("human");
+  expect(priceRow.args).toContain("4 radiators at 25 min each at your rate of 58 EUR");
+  expect(priceRow.args.at(-1)).toBeNull();
+  expect(batch!.some((statement) => /INSERT INTO change_log/i.test(statement.sql))).toBe(true);
 });

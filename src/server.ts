@@ -16,6 +16,7 @@ import {
 import type {
   BidStatus,
   BidTotals,
+  CheckAction,
   Language,
   MissingDocument,
   Position,
@@ -91,6 +92,55 @@ const pick = (language: Language, english: string, german: string) =>
 const pickNullable = (language: Language, english: string | null, german: string | null) =>
   language === "de" ? german : english;
 
+/**
+ * What a check finding asks the person to do next. Written here, once, in both
+ * languages -- never by the agent. A finding that only says what is wrong
+ * leaves the person in the chat with "then it cannot be done"; a finding that
+ * says what to do next keeps the demo, and the bid, moving.
+ */
+const CHECK_ACTIONS = {
+  open_no_shape: {
+    en: (category: string, unit: string) =>
+      `no entry for ${category}/${unit} — set the price yourself, or ask your agent to derive one; you confirm it.`,
+    de: (category: string, unit: string) =>
+      `kein Eintrag für ${category}/${unit} — setzen Sie den Preis selbst, oder lassen Sie ihn von Ihrem Agenten herleiten; Sie bestätigen ihn.`
+  },
+  open_has_proposal: {
+    en: (price: number, id: string) =>
+      `your price book proposes ${price} from ${id} — take it, or derive a price of your own; you confirm it.`,
+    de: (price: number, id: string) =>
+      `Ihr Preisbuch schlägt ${price} aus ${id} vor — übernehmen Sie ihn, oder leiten Sie einen eigenen Preis her; Sie bestätigen ihn.`
+  },
+  open_no_match: {
+    en: (category: string, unit: string) =>
+      `entries for ${category}/${unit} exist, but none matched this wording — take one from your price book, or ask your agent to derive a price; you confirm it.`,
+    de: (category: string, unit: string) =>
+      `Einträge für ${category}/${unit} gibt es, aber keiner passt zu dieser Formulierung — nehmen Sie einen aus Ihrem Preisbuch, oder lassen Sie einen Preis von Ihrem Agenten herleiten; Sie bestätigen ihn.`
+  },
+  outlier: {
+    en: (deviation: number, id: string) =>
+      `${Math.abs(deviation)} % ${deviation > 0 ? "above" : "below"} your own past price ${id} — keep it if that is intended, otherwise take the price book line.`,
+    de: (deviation: number, id: string) =>
+      `${Math.abs(deviation)} % ${deviation > 0 ? "über" : "unter"} Ihrem eigenen früheren Preis ${id} — behalten Sie ihn, wenn das so gewollt ist, sonst übernehmen Sie die Preisbuchzeile.`
+  },
+  document_expired: {
+    en: "upload a current certificate, or set a new expiry date.",
+    de: "laden Sie einen aktuellen Nachweis hoch, oder setzen Sie ein neues Ablaufdatum."
+  },
+  document_not_held: {
+    en: "obtain the document and file it before the deadline.",
+    de: "beschaffen Sie den Nachweis und reichen Sie ihn vor der Frist ein."
+  },
+  deadline_passed: {
+    en: "the deadline has passed — ask the client whether a late bid is still accepted.",
+    de: "die Frist ist abgelaufen — fragen Sie den Auftraggeber, ob ein verspätetes Angebot noch angenommen wird."
+  },
+  deadline_close: {
+    en: "hand the bid in before the deadline; check it once more first.",
+    de: "geben Sie das Angebot vor der Frist ab; prüfen Sie es vorher noch einmal."
+  }
+} as const;
+
 const requiredDocuments = (language: Language, held: Map<string, string>): RequiredDocument[] =>
   REQUIRED_DOCUMENTS.map((document) => ({
     doc_type: document.doc_type,
@@ -123,6 +173,7 @@ type PositionRow = {
   contingency: number;
   my_unit_price: number | null;
   set_by: "agent" | "human" | null;
+  note: string | null;
   source_id: string | null;
   source_project: string | null;
   source_date: string | null;
@@ -154,6 +205,7 @@ const toPosition = (row: PositionRow, language: Language): Position => ({
   my_unit_price: row.my_unit_price,
   line_total: row.my_unit_price === null ? null : round2(row.quantity * row.my_unit_price),
   set_by: row.set_by,
+  note: row.note ?? null,
   source:
     row.source_id === null
       ? null
@@ -341,7 +393,7 @@ app.get("/api/tenders/:id", async (c) => {
     c.env.DB.prepare(
       `SELECT p.oz, p.text_en, p.text_de, p.long_text_en, p.long_text_de,
               p.quantity, p.unit, p.category, p.contingency,
-              bp.unit_price AS my_unit_price, bp.set_by,
+              bp.unit_price AS my_unit_price, bp.set_by, bp.note,
               pb.id AS source_id, pb.source_project, pb.source_date, pb.source_position_text
          FROM positions p
          LEFT JOIN bids b
@@ -948,6 +1000,42 @@ app.get("/api/tenders/:id/check", async (c) => {
     warnings.push(`Only ${tender.due_in_days} days left until the deadline.`);
   }
 
+  // One sentence per finding saying what to do next -- ours, in the reader's
+  // language. The warnings above stay English: they are read by an agent.
+  const actions: CheckAction[] = [];
+  for (const row of unpriced) {
+    const match = findMatch(priceBook, row);
+    const action =
+      match !== null
+        ? CHECK_ACTIONS.open_has_proposal[language](match.entry.unit_price, match.entry.id)
+        : hasComparableShape(priceBook, row)
+          ? CHECK_ACTIONS.open_no_match[language](row.category, row.unit)
+          : CHECK_ACTIONS.open_no_shape[language](row.category, row.unit);
+    actions.push({ finding: "open_position", oz: row.oz, action });
+  }
+  for (const outlier of outliers) {
+    actions.push({
+      finding: "outlier",
+      oz: outlier.oz,
+      action: CHECK_ACTIONS.outlier[language](outlier.deviation_pct, outlier.price_book_id)
+    });
+  }
+  for (const missing of missingDocuments) {
+    actions.push({
+      finding: "document",
+      doc_type: missing.doc_type,
+      action:
+        missing.reason === "expired"
+          ? CHECK_ACTIONS.document_expired[language]
+          : CHECK_ACTIONS.document_not_held[language]
+    });
+  }
+  if (tender.due_in_days < 0) {
+    actions.push({ finding: "deadline", action: CHECK_ACTIONS.deadline_passed[language] });
+  } else if (tender.due_in_days <= 3) {
+    actions.push({ finding: "deadline", action: CHECK_ACTIONS.deadline_close[language] });
+  }
+
   return c.json({
     ok: true,
     bidder_id: bidderId,
@@ -963,7 +1051,8 @@ app.get("/api/tenders/:id/check", async (c) => {
     positions_priced: totals.positions_priced,
     positions_open: totals.positions_open,
     undo_available: (changes?.blocks ?? 0) > 0,
-    warnings
+    warnings,
+    actions
   });
 });
 

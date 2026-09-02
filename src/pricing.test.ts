@@ -128,3 +128,32 @@ describe("line totals", () => {
     expect(result.applied[0]?.line_total).toBe(928);
   });
 });
+
+describe("never a third case", () => {
+  it("lets no agent row through without the line it came from, whatever else is in the batch", () => {
+    const { applied, rejected } = plan([
+      { oz: "01.01", unit_price: 480, price_book_id: "PB-A-001" },
+      { oz: "02.01", unit_price: 2.9 },
+      { oz: "03.04", unit_price: 61, note: "derived with the person" }
+    ]);
+
+    // The invariant, over a whole batch: an agent's row is written only with a
+    // price book line, and every row written by an agent carries one.
+    expect(applied.map((row) => [row.oz, row.price_book_id])).toEqual([["01.01", "PB-A-001"]]);
+    expect(applied.every((row) => row.set_by === "agent" && row.price_book_id !== null)).toBe(true);
+    expect(applied.every(hasTraceableOrigin)).toBe(true);
+    expect(rejected.map((row) => [row.oz, row.reason])).toEqual([
+      ["02.01", "price_without_source"],
+      ["03.04", "price_without_source"]
+    ]);
+    // The sourceless rows are not written by the Worker at all. They become a
+    // proposal on the page instead, and the person's click writes them as
+    // human -- through this same function, with setBy "human".
+    const { applied: confirmed } = plan([{ oz: "03.04", unit_price: 61, note: "derived" }], {
+      setBy: "human"
+    });
+    expect(confirmed).toEqual([
+      expect.objectContaining({ oz: "03.04", set_by: "human", price_book_id: null, note: "derived" })
+    ]);
+  });
+});

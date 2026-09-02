@@ -5,9 +5,11 @@
 > price book. Everything an agent can do here it does through WebMCP tools this page
 > registers — there is no hidden API and no LLM in the backend.
 
-The rule the whole application rests on: through these tools an agent cannot write a price
-that is not traceable to a previous quote by this firm. Prices, quantities, deadlines and
-document statuses may be fetched, read and added up, never produced. A position with no
+The rule the whole application rests on: no price enters a bid without either a traceable
+source in this firm's own history or a person's hand on that exact value. Through these tools
+an agent can transcribe a price from the price book, or propose one with a rationale for the
+person to confirm on the page -- it cannot write one on its own. Prices, quantities, deadlines
+and document statuses may be fetched, read and added up, never produced. A position with no
 comparable entry stays empty and says so, rather than receiving a guess.
 
 ## Tools, contractor role (ten)

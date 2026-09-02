@@ -142,13 +142,26 @@ check("E5 · confirm:false does NOT submit, it asks",
 check("E5 · and reports the total that would go out",
       e5 and abs(e5["summary"]["total_net"] - 13213.50) < 0.01, e5 and e5["summary"]["total_net"])
 
-e7 = out("E7", "set_unit_price")
-check("E7 · a dictated price with no source is refused",
-      e7 and e7["applied"] == [] and e7["rejected"][0]["reason"] == "price_without_source",
-      e7 and e7["rejected"])
-check("E7 · and the reason tells the agent what to do instead",
-      e7 and "enters the price in the table" in e7["rejected"][0]["hint"],
-      e7 and e7["rejected"][0]["hint"])
+# The dictated price is neither written nor refused: it waits on its row for
+# the person's click. The click itself is not an eval case -- a model cannot
+# press a button on the page -- it is covered by a UI test (App.test.tsx).
+e6 = out("E6", "set_unit_price")
+check("E6 · a dictated price with no source waits for the person",
+      e6 and e6["ok"] is True and e6["status"] == "needs_confirmation",
+      e6 and (e6.get("ok"), e6.get("status")))
+check("E6 · nothing written, nothing refused: the row is pending, with its rationale",
+      e6 and e6["applied"] == [] and e6["rejected"] == []
+      and [(p["oz"], p["unit_price"], p["line_total"]) for p in e6["pending"]] == [("03.04", 61, 244)]
+      and e6["pending"][0]["rationale"] == "4 radiators at 25 min each at your rate of 58 EUR",
+      e6 and (e6["applied"], e6["rejected"], e6["pending"]))
+e6c = out("E6", "check_bid")
+check("E6 · and the bid is untouched: net still 13.213,50 EUR, 03.04 still open",
+      e6c and abs(e6c["totals"]["net"] - 13213.50) < 0.01 and "03.04" in e6c["open_positions"],
+      e6c and (e6c["totals"]["net"], e6c["open_positions"]))
+check("E6 · the check names a way out for the open position, in the page's words",
+      e6c and any(a["finding"] == "open_position" and a.get("oz") == "03.04"
+                  and "you confirm it" in a["action"] for a in e6c.get("actions", [])),
+      e6c and [a["action"] for a in e6c.get("actions", []) if a.get("oz") == "03.04"])
 
 e8 = out("E8", "set_unit_price")
 check("E8 · a price that contradicts its source is refused",

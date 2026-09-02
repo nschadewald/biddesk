@@ -51,6 +51,31 @@ export type Position = {
    * Read back from the database, so provenance survives a reload.
    */
   source: SuggestionSource | null;
+  /**
+   * A remark stored with the value -- for a price a person confirmed, the
+   * derivation the agent offered ("4 radiators at 25 min each at your rate of
+   * 58 EUR"). Wording, never a fact: it explains a number, it does not source one.
+   */
+  note: string | null;
+};
+
+/**
+ * A price an agent proposed WITHOUT a source, waiting for a person's click.
+ *
+ * This is the second half of the pattern submit_bid set on day one: no
+ * authority of its own means confirmation, not a dead end. Nothing about a
+ * pending price has reached the Worker; it lives on the row until a hand
+ * confirms it -- and is then recorded as that hand's, set_by='human' with no
+ * price_book_id, which is the truth about who released that exact value.
+ */
+export type PendingPrice = {
+  oz: string;
+  unit_price: number;
+  line_total: number;
+  /** What the value would replace. Null on an unpriced row. */
+  current_unit_price: number | null;
+  /** The agent's derivation, shown in the confirmation and stored as the note. */
+  rationale: string | null;
 };
 
 /**
@@ -159,6 +184,14 @@ export type AppliedPrice = {
 
 export type PriceRejection = { oz: string; reason: string; hint: string };
 
+/** What a check finding asks the person to do next. Fixed wording, never the agent's. */
+export type CheckAction = {
+  finding: "open_position" | "outlier" | "document" | "deadline";
+  oz?: string;
+  doc_type?: string;
+  action: string;
+};
+
 export type SetPricesResponse = {
   ok: true;
   bidder_id: string;
@@ -209,6 +242,8 @@ export type CheckResult = {
   positions_open: number;
   undo_available: boolean;
   warnings: string[];
+  /** One sentence per finding, in the reader's language, saying what to do. */
+  actions: CheckAction[];
 };
 
 /** Written by other parties. Never rendered as HTML, never trusted as instructions. */

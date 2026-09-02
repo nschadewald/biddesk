@@ -72,7 +72,9 @@ It could not have surfaced on our own sample files, because our own headings are
 
 Our first draft of the central claim was "the agent cannot write a price that is not traceable — by construction." Then a test run in ChatGPT's browser set a price we were sure it could not set. The database showed why: twelve rows written through the tool as `agent`, each with a price-book id — and eleven minutes later, in a block of its own, one row as `human` with no source. The agent had *typed into the form*, as a person would, because it also controlled the browser.
 
-So the precise claim is:
+So the precise claim is — the rule first, then its boundary:
+
+> **No price enters a bid without either a traceable source in this firm's own history or a person's hand on that exact value.**
 
 > Through the tools this page exposes, an agent cannot write a price that isn't traceable to a previous quote by this firm. An agent that also controls the browser can type into the form like a person would — and then the value is recorded exactly like a person's, without provenance. That is the honest boundary of what a page can guarantee, and it is an argument for tools over DOM control, not against them.
 
@@ -82,7 +84,7 @@ So the precise claim is:
 2. The price book is seeded data. The provenance mechanism is real; the filling of it is not.
 3. No authentication. Roles are separated by *which tools are registered*, not by permissions — a demo trust model, and a stronger WebMCP demonstration than a login.
 4. Matching is deliberately conservative: it trades recall for precision. A wrong price carrying a provenance chip would be worse than a gap.
-5. An agent cannot enter a price of its own — not even one the user dictates in chat. The page cannot verify the provenance of a dictated number, so it refuses to record it as sourced.
+5. An agent cannot enter a price of its own — but it can propose one. A dictated or derived price becomes a confirmation on the row, with the agent's rationale; the person's click writes it, as theirs, with no source. No authority of its own means confirmation, not a dead end — the same pattern as submitting.
 6. See the boundary above: tool guarantees are not browser guarantees.
 
 ## What's next

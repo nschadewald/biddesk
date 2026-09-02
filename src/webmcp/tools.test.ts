@@ -13,6 +13,7 @@ const WS = "44444444-4444-4444-8444-444444444444";
 
 const listTenders = allTools.find((tool) => tool.name === "list_tenders")!;
 const getTender = allTools.find((tool) => tool.name === "get_tender")!;
+const setUnitPrice = allTools.find((tool) => tool.name === "set_unit_price")!;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -56,16 +57,39 @@ const detail = (id: string) => ({
 });
 
 let requests: string[] = [];
+let bodies: unknown[] = [];
 
 beforeEach(() => {
   requests = [];
+  bodies = [];
   localStorage.clear();
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: string) => {
+    vi.fn(async (input: string, init?: RequestInit) => {
       requests.push(input);
+      if (typeof init?.body === "string") bodies.push(JSON.parse(init.body));
       if (input === "/api/workspace") {
         return json({ ok: true, workspace_id: WS, created: true }, 201);
+      }
+      if (input.endsWith("/prices")) {
+        // The Worker's answer to a sourced row: written, with its source.
+        const sent = JSON.parse(String(init?.body)) as { prices: { oz: string; unit_price: number; price_book_id?: string }[] };
+        return json({
+          ok: true,
+          bidder_id: "B-A",
+          tender_id: "T-2026-014",
+          applied: sent.prices.map((row) => ({
+            oz: row.oz,
+            unit_price: row.unit_price,
+            line_total: row.unit_price,
+            note: null,
+            set_by: "agent",
+            price_book_id: row.price_book_id ?? null,
+            source: { price_book_id: row.price_book_id, source_project: "Luegallee 40", source_date: "2026-03-14", source_position_text: "x" }
+          })),
+          rejected: [],
+          totals: { net: 480, contingency: 0, positions_priced: 1, positions_open: 0 }
+        });
       }
       if (input.startsWith("/api/tenders/")) {
         const id = decodeURIComponent(input.slice("/api/tenders/".length));
@@ -78,7 +102,9 @@ beforeEach(() => {
   );
 });
 
-afterEach(() => {
+afterEach(async () => {
+  const { discardPendingPrice } = await import("../store");
+  discardPendingPrice("01.01");
   vi.unstubAllGlobals();
 });
 
@@ -254,4 +280,70 @@ it("passes the machine-readable error code on when a tender does not exist", asy
   const result = await getTender.execute({ tender_id: "T-2026-999" });
   expect(result.ok).toBe(false);
   expect(result.error).toBe("tender_not_found");
+});
+
+it("puts a price without a source on the row to be confirmed, and writes nothing", async () => {
+  await getTender.execute({ tender_id: "T-2026-014" });
+  const before = requests.length;
+
+  const result = await setUnitPrice.execute({
+    tender_id: "T-2026-014",
+    prices: [{ oz: "01.01", unit_price: 61, rationale: "derived with the person" }]
+  });
+
+  // Not written, not refused: waiting. The second half of the submit_bid pattern.
+  expect(result).toMatchObject({
+    ok: true,
+    status: "needs_confirmation",
+    applied: [],
+    rejected: [],
+    pending: [
+      { oz: "01.01", unit_price: 61, line_total: 61, current_unit_price: null, rationale: "derived with the person" }
+    ]
+  });
+  // Nothing went to the Worker -- no bid_prices row, no change_log block.
+  expect(requests.slice(before).filter((path) => path.endsWith("/prices"))).toEqual([]);
+  expect(getAppState().pendingPrices["01.01"]).toMatchObject({ unit_price: 61 });
+});
+
+it("sends sourced rows to the Worker and keeps the sourceless ones on the page, in one call", async () => {
+  await getTender.execute({ tender_id: "T-2026-014" });
+
+  const result = await setUnitPrice.execute({
+    tender_id: "T-2026-014",
+    prices: [
+      { oz: "01.01", unit_price: 480, price_book_id: "PB-A-001" },
+      { oz: "01.02", unit_price: 3.5, rationale: "own calculation" }
+    ]
+  });
+
+  const sent = bodies.find((body) => (body as { prices?: unknown }).prices) as {
+    prices: { oz: string }[];
+    set_by: string;
+  };
+  // Only the sourced row travelled, and it travelled as the agent's.
+  expect(sent.prices.map((row) => row.oz)).toEqual(["01.01"]);
+  expect(sent.set_by).toBe("agent");
+  expect((result.applied as { oz: string }[]).map((row) => row.oz)).toEqual(["01.01"]);
+  // 01.02 is not a position of this one-row tender: judged by the same rules
+  // as a write, so it comes back under rejected, not under pending -- and with
+  // nothing left pending, the call reads as applied.
+  expect(result.rejected).toEqual([
+    expect.objectContaining({ oz: "01.02", reason: "unknown_position" })
+  ]);
+  expect(result).toMatchObject({ status: "applied", pending: [] });
+});
+
+it("refuses a rationale longer than 240 characters before anything happens", async () => {
+  await getTender.execute({ tender_id: "T-2026-014" });
+  const before = requests.length;
+
+  const result = await setUnitPrice.execute({
+    tender_id: "T-2026-014",
+    prices: [{ oz: "01.01", unit_price: 61, rationale: "x".repeat(241) }]
+  });
+
+  expect(result).toMatchObject({ ok: false, error: "invalid_input" });
+  expect(requests.length).toBe(before);
+  expect(getAppState().pendingPrices["01.01"]).toBeUndefined();
 });

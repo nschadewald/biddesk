@@ -2,7 +2,14 @@ import { useEffect, useState } from "react";
 import { formatEuro, formatMonthYear, formatQuantity } from "./format";
 import { useCopy } from "./i18n";
 import { useAppState } from "./store";
-import type { Language, Position, PriceRejection, Suggestion, SuggestionSource } from "./types";
+import type {
+  Language,
+  PendingPrice,
+  Position,
+  PriceRejection,
+  Suggestion,
+  SuggestionSource
+} from "./types";
 
 /**
  * One line of the bill of quantities, with its proposal if there is one.
@@ -38,17 +45,24 @@ export default function PositionRow({
   position,
   suggestion,
   rejection,
+  pending,
   locked,
   onAccept,
-  onEnter
+  onEnter,
+  onConfirm,
+  onDiscard
 }: {
   position: Position;
   suggestion: Suggestion | undefined;
   rejection: PriceRejection | undefined;
+  /** A sourceless price an agent proposed, waiting for this person's click. */
+  pending?: PendingPrice;
   /** The bid has been handed in. Nothing here may change any more. */
   locked: boolean;
   onAccept: (suggestion: Suggestion) => void;
   onEnter: (oz: string, unitPrice: number) => void;
+  onConfirm?: (oz: string) => void;
+  onDiscard?: (oz: string) => void;
 }) {
   const copy = useCopy();
   const language = useAppState().language;
@@ -169,9 +183,72 @@ export default function PositionRow({
               </>
             )}
 
-            {noMatch && (
+            {noMatch && !pending && (
               // A gap waiting for a hand, not a warning. No icon, no colour.
               <span className="text-xs text-slate-500">{copy.row.noComparableEntry}</span>
+            )}
+
+            {entered && position.set_by === "human" && (
+              // The second of the three states: a value without a chip is a
+              // person's. Said in words, with the derivation they confirmed, if
+              // an agent offered one -- plain text, never a chip. A chip would
+              // claim a source this value does not have.
+              <span className="text-right text-xs text-slate-500">
+                {copy.row.setByYou}
+                {position.note ? ` · ${position.note}` : null}
+              </span>
+            )}
+
+            {pending && !locked && (
+              // The second half of the submit_bid pattern: an agent with no
+              // authority of its own proposes, a person confirms. Small, on the
+              // row, no modal -- the submit dialog stays the one moment that
+              // stops the screen. And it says where the value does NOT come
+              // from, as design rather than small print.
+              <div
+                data-testid={`confirm-${position.oz}`}
+                className="mt-1 w-full max-w-full rounded border border-slate-400 bg-slate-50 px-2 py-1.5 text-left text-xs text-slate-700"
+              >
+                <p className="font-medium text-slate-900">{copy.row.confirmTitle}</p>
+                <p className="mt-0.5 tabular-nums">
+                  {copy.row.confirmMath(
+                    formatEuro(pending.unit_price),
+                    formatQuantity(position.quantity),
+                    position.unit,
+                    formatEuro(pending.line_total)
+                  )}
+                </p>
+                {pending.current_unit_price !== null && (
+                  <p className="mt-0.5 text-slate-500">
+                    {pending.current_unit_price === pending.unit_price
+                      ? copy.row.remarkOnly
+                      : copy.row.replaces(formatEuro(pending.current_unit_price))}
+                  </p>
+                )}
+                <p className="mt-0.5 text-slate-500">{copy.row.notFromPriceBook}</p>
+                {pending.rationale && (
+                  <p className="mt-0.5">
+                    <span className="text-slate-500">{copy.row.rationaleLabel}: </span>
+                    {pending.rationale}
+                  </p>
+                )}
+                <div className="mt-1.5 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onDiscard?.(position.oz)}
+                    className="rounded border border-slate-300 px-1.5 py-0.5 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
+                  >
+                    {copy.row.discard}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onConfirm?.(position.oz)}
+                    className="rounded border border-slate-400 px-1.5 py-0.5 text-xs font-medium text-slate-900 hover:border-slate-900"
+                  >
+                    {copy.row.confirm}
+                  </button>
+                </div>
+              </div>
             )}
 
             {rejection && (

@@ -24,6 +24,7 @@ import {
   type PriceWrite,
   type TenderFilters
 } from "./api";
+import { planPriceWrites } from "./pricing";
 import type {
   AnswerResponse,
   AppliedPrice,
@@ -34,6 +35,7 @@ import type {
   Clarification,
   ClarificationList,
   Language,
+  PendingPrice,
   PriceBookResponse,
   PriceComparison,
   PriceRejection,
@@ -74,6 +76,13 @@ export type AppState = {
    * by itself is a message nobody read.
    */
   rejections: Record<string, PriceRejection>;
+  /**
+   * Prices an agent proposed without a source, waiting for a person's click.
+   * Keyed by item number. Nothing here has reached the Worker: the second half
+   * of the submit_bid pattern -- no authority of its own means confirmation,
+   * not a dead end.
+   */
+  pendingPrices: Record<string, PendingPrice>;
   /** The last check. The only place in the interface where red appears. */
   check: CheckResult | null;
   /** Questions and answers. Written by other parties; printed, never obeyed. */
@@ -99,6 +108,7 @@ let state: AppState = {
   detail: null,
   suggestions: {},
   rejections: {},
+  pendingPrices: {},
   check: null,
   clarifications: [],
   pendingSubmit: null,
@@ -168,6 +178,7 @@ export async function openTender(tenderId: string): Promise<TenderDetail> {
     // must not leave someone else's chips hanging on these rows.
     suggestions: detail.tender.id === state.tenderId ? state.suggestions : {},
     rejections: detail.tender.id === state.tenderId ? state.rejections : {},
+    pendingPrices: detail.tender.id === state.tenderId ? state.pendingPrices : {},
     // A check describes one bid at one moment. Another tender invalidates it.
     check: detail.tender.id === state.tenderId ? state.check : null,
     failure: null
@@ -238,9 +249,10 @@ function writeRow(tenderId: string, row: AppliedPrice) {
           my_unit_price: row.unit_price,
           line_total: row.line_total,
           // Provenance travels with the value. The chip must not vanish at the
-          // moment the number starts to count.
+          // moment the number starts to count -- and neither may the remark.
           set_by: row.set_by,
-          source: row.source
+          source: row.source,
+          note: row.note
         }
       : position
   );
@@ -312,6 +324,90 @@ export async function setUnitPrices(
   return data;
 }
 
+/** The totals bar's own arithmetic, for a tool answer when nothing was written. */
+export function currentTotals(): BidTotals {
+  const positions = state.detail?.positions ?? [];
+  const round2 = (value: number) => Math.round(value * 100) / 100;
+  const sum = (rows: typeof positions) =>
+    round2(rows.reduce((carry, row) => carry + (row.line_total ?? 0), 0));
+  const billable = positions.filter((row) => !row.contingency);
+  const priced = billable.filter((row) => row.my_unit_price !== null).length;
+  return {
+    net: sum(billable),
+    contingency: sum(positions.filter((row) => row.contingency)),
+    positions_priced: priced,
+    positions_open: billable.length - priced
+  };
+}
+
+/**
+ * Puts an agent's sourceless prices on their rows as proposals awaiting a
+ * click. Nothing is sent to the Worker. The rows are judged by the same rules
+ * as any write -- unknown position, no number, negative, locked bid -- so an
+ * agent gets the same reason codes it gets from set_unit_price, and only the
+ * rows that could be written are shown for confirmation.
+ */
+export async function proposePrices(
+  tenderId: string,
+  rows: PriceWrite[]
+): Promise<{ pending: PendingPrice[]; rejected: PriceRejection[] }> {
+  // The proposal appears on the row, so the tender has to be the one on screen.
+  if (state.detail === null || state.detail.tender.id !== tenderId) await openTender(tenderId);
+  const detail = state.detail!;
+
+  const plan = planPriceWrites(rows, {
+    positions: new Map(
+      detail.positions.map((row) => [row.oz, { quantity: row.quantity, contingency: row.contingency }])
+    ),
+    // No price book here: these rows carry no source by definition.
+    priceBook: new Map(),
+    // Judged as a person's write, because that is what a confirmation makes it.
+    setBy: "human",
+    bidSubmitted: detail.tender.my_bid_status === "submitted"
+  });
+
+  const byOz = new Map(detail.positions.map((row) => [row.oz, row]));
+  const pending = plan.applied.map<PendingPrice>((row) => ({
+    oz: row.oz,
+    unit_price: row.unit_price,
+    line_total: row.line_total,
+    current_unit_price: byOz.get(row.oz)?.my_unit_price ?? null,
+    rationale: row.note
+  }));
+
+  const merged = { ...state.pendingPrices };
+  for (const entry of pending) merged[entry.oz] = entry;
+  const rejections = { ...state.rejections };
+  for (const rejection of plan.rejected) rejections[rejection.oz] = rejection;
+  set({ pendingPrices: merged, rejections });
+
+  return { pending, rejected: plan.rejected };
+}
+
+/**
+ * The click. This is the one way a sourceless proposal becomes a price: it
+ * goes through the same write as a value typed into the table, as 'human',
+ * with the agent's derivation stored as the note -- so it lands in the change
+ * log like any entry and undo_last_change knows it.
+ */
+export async function confirmPendingPrice(oz: string): Promise<SetPricesResponse | null> {
+  const entry = state.pendingPrices[oz];
+  if (entry === undefined) return null;
+  const { [oz]: _dropped, ...rest } = state.pendingPrices;
+  set({ pendingPrices: rest });
+  return setUnitPrices(
+    state.tenderId,
+    [{ oz, unit_price: entry.unit_price, ...(entry.rationale ? { note: entry.rationale } : {}) }],
+    "human"
+  );
+}
+
+export function discardPendingPrice(oz: string): void {
+  if (state.pendingPrices[oz] === undefined) return;
+  const { [oz]: _dropped, ...rest } = state.pendingPrices;
+  set({ pendingPrices: rest });
+}
+
 /** Takes back whole blocks, never single rows out of one. */
 export async function undoLastChange(steps = 1): Promise<UndoResponse> {
   const workspaceId = await requireWorkspace();
@@ -343,7 +439,14 @@ export async function runCheck(tenderId: string): Promise<CheckResult> {
  */
 export async function selectBidder(id: string): Promise<void> {
   setBidder(id);
-  set({ bidderId: id, suggestions: {}, rejections: {}, check: null, comparison: null });
+  set({
+    bidderId: id,
+    suggestions: {},
+    rejections: {},
+    pendingPrices: {},
+    check: null,
+    comparison: null
+  });
   await openTender(state.tenderId);
 }
 
@@ -534,6 +637,7 @@ export async function resetDemo(): Promise<void> {
     tenderId: DEMO_TENDER,
     suggestions: {},
     rejections: {},
+    pendingPrices: {},
     check: null,
     pendingSubmit: null,
     comparison: null

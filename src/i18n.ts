@@ -84,6 +84,21 @@ const en = {
     chipWhere: (project: string, month: string) => `${project} · ${month}`,
     originalLine: "the line you priced back then",
     noComparableEntry: "no comparable entry",
+    // A price with no source is a person's price. Said on the row, so the three
+    // states of section 13.3 stay apart: chip, plain text, empty.
+    setByYou: "set by you",
+    // The confirmation an agent's sourceless proposal waits behind. Small, on
+    // the row, no modal: the submit dialog stays the one moment that stops the
+    // screen. The honesty line is design, not small print.
+    confirmTitle: "Confirm this price?",
+    confirmMath: (price: string, quantity: string, unit: string, total: string) =>
+      `${price} × ${quantity} ${unit} = ${total}`,
+    notFromPriceBook: "not from your price book — you are setting this price yourself",
+    replaces: (current: string) => `replaces ${current}`,
+    remarkOnly: "price unchanged — this adds a remark",
+    rationaleLabel: "Rationale",
+    confirm: "Confirm",
+    discard: "Discard",
     notWritten: "not written",
     matched: (terms: number, on: string) => `matched_terms ${terms} · matched_on ${on}`,
     // Why a row was refused, in words. The machine-readable code stays beside
@@ -291,6 +306,15 @@ const de: Copy = {
     chipWhere: (project, month) => `${project} · ${month}`,
     originalLine: "die Zeile, die Sie damals bepreist haben",
     noComparableEntry: "kein vergleichbarer Eintrag",
+    setByYou: "von Ihnen gesetzt",
+    confirmTitle: "Diesen Preis bestätigen?",
+    confirmMath: (price, quantity, unit, total) => `${price} × ${quantity} ${unit} = ${total}`,
+    notFromPriceBook: "nicht aus Ihrem Preisbuch — diesen Preis setzen Sie selbst",
+    replaces: (current) => `ersetzt ${current}`,
+    remarkOnly: "Preis unverändert — das fügt eine Bemerkung hinzu",
+    rationaleLabel: "Herleitung",
+    confirm: "Bestätigen",
+    discard: "Verwerfen",
     notWritten: "nicht übernommen",
     matched: (terms, on) => `matched_terms ${terms} · matched_on ${on}`,
     rejection: {

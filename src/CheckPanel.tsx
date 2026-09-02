@@ -23,6 +23,12 @@ export default function CheckPanel({ check, onClose }: { check: CheckResult; onC
   const language = useAppState().language;
   const findings =
     check.open_positions.length + check.outliers.length + check.missing_documents.length;
+  // One sentence per finding saying what to do next. Written by the Worker in
+  // the reader's language; an older answer without them still renders.
+  const actions = check.actions ?? [];
+  const actionFor = (finding: string, key: "oz" | "doc_type", value: string) =>
+    actions.find((entry) => entry.finding === finding && entry[key] === value)?.action;
+  const deadlineAction = actions.find((entry) => entry.finding === "deadline")?.action;
 
   return (
     <section className="border-b border-slate-200 py-3 text-sm">
@@ -51,7 +57,13 @@ export default function CheckPanel({ check, onClose }: { check: CheckResult; onC
 
       <ul className="mt-2 flex flex-col gap-1">
         {check.open_positions.length > 0 && (
-          <Finding label={copy.check.openPositions}>{check.open_positions.join(", ")}</Finding>
+          <Finding label={copy.check.openPositions}>
+            {check.open_positions.join(", ")}
+            {check.open_positions.map((oz) => {
+              const action = actionFor("open_position", "oz", oz);
+              return action ? <NextStep key={oz} prefix={oz}>{action}</NextStep> : null;
+            })}
+          </Finding>
         )}
 
         {check.outliers.map((outlier) => (
@@ -63,6 +75,9 @@ export default function CheckPanel({ check, onClose }: { check: CheckResult; onC
             <span className="font-mono text-[11px]">{outlier.price_book_id}</span>
             {copy.check.outlierDeviation(
               `${outlier.deviation_pct > 0 ? "+" : ""}${outlier.deviation_pct}`
+            )}
+            {actionFor("outlier", "oz", outlier.oz) && (
+              <NextStep>{actionFor("outlier", "oz", outlier.oz)}</NextStep>
             )}
           </Finding>
         ))}
@@ -80,12 +95,27 @@ export default function CheckPanel({ check, onClose }: { check: CheckResult; onC
             {document.valid_until
               ? copy.check.validUntil(formatDate(document.valid_until, language))
               : null}
+            {actionFor("document", "doc_type", document.doc_type) && (
+              <NextStep>{actionFor("document", "doc_type", document.doc_type)}</NextStep>
+            )}
           </Finding>
         ))}
       </ul>
 
+      {deadlineAction && <p className="mt-2 text-xs text-slate-700">{deadlineAction}</p>}
+
       <p className="mt-2 text-xs text-slate-500">{copy.check.footnote}</p>
     </section>
+  );
+}
+
+/** What to do about a finding. Not red: the finding is the fact, this is the way out. */
+function NextStep({ prefix, children }: { prefix?: string; children: React.ReactNode }) {
+  return (
+    <span className="mt-0.5 block text-slate-600">
+      {prefix ? <span className="font-mono text-[11px] text-slate-500">{prefix} </span> : null}
+      {children}
+    </span>
   );
 }
 

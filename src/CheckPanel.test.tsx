@@ -35,6 +35,7 @@ const check = (over: Partial<CheckResult> = {}): CheckResult => ({
   positions_open: 1,
   undo_available: true,
   warnings: [],
+  actions: [],
   ...over
 });
 
@@ -56,4 +57,32 @@ it("is the one place that uses red", () => {
 it("says the comparison is against the contractor's own history, not a market", () => {
   render(<CheckPanel check={check()} onClose={() => {}} />);
   expect(screen.getByText(/own price book, not against market rates/)).toBeInTheDocument();
+});
+
+it("says under each finding what to do next, in the page's words", () => {
+  render(
+    <CheckPanel
+      check={check({
+        actions: [
+          {
+            finding: "open_position",
+            oz: "03.04",
+            action:
+              "no entry for metal/pcs — set the price yourself, or ask your agent to derive one; you confirm it."
+          },
+          {
+            finding: "document",
+            doc_type: "tax_clearance",
+            action: "upload a current certificate, or set a new expiry date."
+          }
+        ]
+      })}
+      onClose={() => {}}
+    />
+  );
+
+  // A finding that only says what is wrong leaves the person in the chat with
+  // "then it cannot be done". These sentences are the way out, fixed by us.
+  expect(screen.getByText(/no entry for metal\/pcs — set the price yourself/)).toBeInTheDocument();
+  expect(screen.getByText(/upload a current certificate/)).toBeInTheDocument();
 });

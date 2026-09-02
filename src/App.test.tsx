@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
@@ -30,8 +30,28 @@ const positions = [
 }));
 
 const GERMAN_TITLE = "Malerarbeiten Treppenhaus – Rheinallee 12";
+const RATIONALE = "4 radiators at 25 min each at your rate of 58 EUR";
 
-function stubApi() {
+/** What the page sent to POST /prices, for the tests that click. */
+let priceWrites: { set_by: string; prices: Record<string, unknown>[] }[] = [];
+
+function stubApi(options: { priced?: boolean } = {}) {
+  priceWrites = [];
+  // With `priced`, the first row already carries the net of the demo run, so
+  // confirming 61 EUR on the four radiators lands on the figure the spec names.
+  const rows = options.priced
+    ? positions.map((row, index) =>
+        index === 0
+          ? {
+              ...row,
+              my_unit_price: 13213.5,
+              line_total: 13213.5,
+              set_by: "agent",
+              source: { price_book_id: "PB-A-001", source_project: "Luegallee 40", source_date: "2026-03-14", source_position_text: "x" }
+            }
+          : row
+      )
+    : positions;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string, init?: RequestInit) => {
@@ -40,6 +60,28 @@ function stubApi() {
       // arrive rather than trust that it was set.
       const german =
         (init?.headers as Record<string, string> | undefined)?.["X-Language"] === "de";
+      if (input.endsWith("/prices") && init?.method === "POST") {
+        const sent = JSON.parse(String(init.body)) as { set_by: string; prices: Record<string, unknown>[] };
+        priceWrites.push(sent);
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            bidder_id: "B-A",
+            tender_id: "T-2026-014",
+            applied: sent.prices.map((row) => ({
+              oz: row.oz,
+              unit_price: row.unit_price,
+              line_total: (row.unit_price as number) * 4,
+              note: row.note ?? null,
+              set_by: sent.set_by,
+              price_book_id: null,
+              source: null
+            })),
+            rejected: [],
+            totals: { net: 13457.5, contingency: 0, positions_priced: 2, positions_open: 10 }
+          })
+        );
+      }
       return input === "/api/tenders"
         ? new Response(JSON.stringify({ ok: true, bidder_id: "B-A", tenders: [] }))
         : input.endsWith("/comparison")
@@ -88,7 +130,7 @@ function stubApi() {
                 positions_count: 14,
                 my_bid_status: "none"
               },
-              positions,
+              positions: rows,
               required_documents: []
             })
           );
@@ -275,4 +317,42 @@ it("says where this plays on the client screen too", async () => {
   } finally {
     await selectRole("bidder");
   }
+});
+
+it("writes a proposed price only on the person's click, as theirs, and the total follows", async () => {
+  stubApi({ priced: true });
+  const { proposePrices } = await import("./store");
+  render(<App />);
+  // Twice on screen: the net total, and the line total of the row that makes it.
+  await screen.findAllByText("13.213,50 €");
+
+  // What the tool does for "set position 03.04 to 61 euros": no write, a
+  // confirmation on the row.
+  await act(async () => {
+    await proposePrices("T-2026-014", [
+      { oz: "03.04", unit_price: 61, price_book_id: null, note: RATIONALE }
+    ]);
+  });
+  await screen.findByText("Confirm this price?");
+  expect(screen.getByText("61,00 € × 4 pcs = 244,00 €")).toBeInTheDocument();
+  expect(
+    screen.getByText("not from your price book — you are setting this price yourself")
+  ).toBeInTheDocument();
+  expect(priceWrites).toEqual([]);
+  expect(screen.getAllByText("13.213,50 €").length).toBeGreaterThan(0);
+  expect(screen.queryByText("13.457,50 €")).not.toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+  // 13.213,50 + 4 x 61,00: the click wrote it, as a person's, with no source.
+  await screen.findByText("13.457,50 €");
+  expect(priceWrites).toHaveLength(1);
+  expect(priceWrites[0]!.set_by).toBe("human");
+  expect(priceWrites[0]!.prices).toEqual([{ oz: "03.04", unit_price: 61, note: RATIONALE }]);
+  expect(priceWrites[0]!.prices[0]).not.toHaveProperty("price_book_id");
+
+  const row = screen.getByText("03.04").closest("tr")!;
+  expect(within(row).getByText(`set by you · ${RATIONALE}`)).toBeInTheDocument();
+  expect(within(row).queryByText(/from your quote/)).not.toBeInTheDocument();
+  expect(screen.queryByText("Confirm this price?")).not.toBeInTheDocument();
 });

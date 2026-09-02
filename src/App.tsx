@@ -15,7 +15,9 @@ import {
   boot,
   cancelSubmit,
   closeCheck,
+  confirmPendingPrice,
   confirmSubmit,
+  discardPendingPrice,
   requestSubmit,
   resetDemo,
   runCheck,
@@ -96,8 +98,16 @@ export default function App() {
 }
 
 function BidScreen() {
-  const { detail, suggestions, rejections, tenderId, check, clarifications, language } =
-    useAppState();
+  const {
+    detail,
+    suggestions,
+    rejections,
+    pendingPrices,
+    tenderId,
+    check,
+    clarifications,
+    language
+  } = useAppState();
   const copy = useCopy();
   const [busy, setBusy] = useState(false);
   if (!detail) return null;
@@ -228,9 +238,12 @@ function BidScreen() {
               position={position}
               suggestion={suggestions[position.oz]}
               rejection={rejections[position.oz]}
+              pending={pendingPrices[position.oz]}
               locked={locked}
               onAccept={(proposal) => apply([proposal])}
               onEnter={enter}
+              onConfirm={(oz) => void confirmPendingPrice(oz)}
+              onDiscard={discardPendingPrice}
             />
           ))}
         </tbody>

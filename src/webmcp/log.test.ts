@@ -54,6 +54,16 @@ describe("summaries", () => {
     expect(summariseOutput({ ok: true, entries })).toBe("34 entries");
   });
 
+  it("says that a proposal is waiting, apart from applied and rejected", () => {
+    // Neither a failure nor a write: a price on its row, waiting for a click.
+    expect(
+      summariseOutput({ ok: true, status: "needs_confirmation", pending: [{ oz: "03.04" }], applied: [], rejected: [] })
+    ).toBe("waiting for a person · 1 to confirm");
+    expect(
+      summariseOutput({ ok: true, status: "needs_confirmation", pending: [{}], applied: [{}, {}], rejected: [{}] })
+    ).toBe("waiting for a person · 1 to confirm · 2 applied · 1 rejected");
+  });
+
   it("shows failures rather than hiding them", () => {
     expect(summariseOutput({ ok: false, error: "tender_not_found", hint: "no" })).toBe(
       "error: tender_not_found"

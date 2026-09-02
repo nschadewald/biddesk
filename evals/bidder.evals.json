@@ -99,7 +99,7 @@
     ]
   },
   {
-    "name": "E7 · A price the agent was told, with no source, is refused",
+    "name": "E6 · A price the agent was told, with no source, waits for the person",
     "messages": [
       {
         "role": "user",
@@ -112,9 +112,16 @@
         "functionName": "set_unit_price",
         "arguments": {
           "tender_id": "T-2026-014",
-          "prices": [{ "oz": "03.04", "unit_price": 61 }]
+          "prices": [
+            {
+              "oz": "03.04",
+              "unit_price": 61,
+              "rationale": "4 radiators at 25 min each at your rate of 58 EUR"
+            }
+          ]
         }
-      }
+      },
+      { "functionName": "check_bid", "arguments": { "tender_id": "T-2026-014" } }
     ]
   },
   {

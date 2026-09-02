@@ -2,7 +2,13 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import PositionRow, { parsePrice } from "./PositionRow";
-import type { Position, PriceRejection, Suggestion, SuggestionSource } from "./types";
+import type {
+  PendingPrice,
+  Position,
+  PriceRejection,
+  Suggestion,
+  SuggestionSource
+} from "./types";
 
 const SOURCE: SuggestionSource = {
   price_book_id: "PB-A-001",
@@ -23,6 +29,7 @@ const position = (over: Partial<Position> = {}): Position => ({
   line_total: null,
   set_by: null,
   source: null,
+  note: null,
   ...over
 });
 
@@ -40,9 +47,12 @@ function row(props: {
   position: Position;
   suggestion?: Suggestion;
   rejection?: PriceRejection;
+  pending?: PendingPrice;
   locked?: boolean;
   onAccept?: (suggestion: Suggestion) => void;
   onEnter?: (oz: string, unitPrice: number) => void;
+  onConfirm?: (oz: string) => void;
+  onDiscard?: (oz: string) => void;
 }) {
   return render(
     <table>
@@ -51,9 +61,12 @@ function row(props: {
           position={props.position}
           suggestion={props.suggestion}
           rejection={props.rejection}
+          pending={props.pending}
           locked={props.locked ?? false}
           onAccept={props.onAccept ?? (() => {})}
           onEnter={props.onEnter ?? (() => {})}
+          onConfirm={props.onConfirm}
+          onDiscard={props.onDiscard}
         />
       </tbody>
     </table>
@@ -252,4 +265,70 @@ it("keeps the wording off the chip when a person typed the price", () => {
   // one. That distinction is the point of the three states.
   expect(screen.queryByText(/from your quote/)).not.toBeInTheDocument();
   expect(screen.queryByRole("button")).not.toBeInTheDocument();
+});
+
+const RATIONALE = "4 radiators at 25 min each at your rate of 58 EUR";
+
+it("asks the person to confirm a sourceless price, on the row, with the arithmetic", async () => {
+  const onConfirm = vi.fn();
+  const onDiscard = vi.fn();
+  row({
+    position: position({ oz: "03.04", text: "Radiators", quantity: 4, unit: "pcs" }),
+    pending: { oz: "03.04", unit_price: 61, line_total: 244, current_unit_price: null, rationale: RATIONALE },
+    onConfirm,
+    onDiscard
+  });
+
+  expect(screen.getByText("Confirm this price?")).toBeInTheDocument();
+  expect(screen.getByText("61,00 € × 4 pcs = 244,00 €")).toBeInTheDocument();
+  // Honesty as design, not small print: where the value does NOT come from.
+  expect(
+    screen.getByText("not from your price book — you are setting this price yourself")
+  ).toBeInTheDocument();
+  expect(screen.getByText(RATIONALE)).toBeInTheDocument();
+  // No chip: a chip would claim a source this value does not have.
+  expect(screen.queryByText(/from your quote/)).not.toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("button", { name: "Confirm" }));
+  expect(onConfirm).toHaveBeenCalledExactlyOnceWith("03.04");
+  await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+  expect(onDiscard).toHaveBeenCalledExactlyOnceWith("03.04");
+});
+
+it("says when a proposal only adds a remark to a price the person already set", () => {
+  row({
+    position: position({ oz: "03.04", quantity: 4, my_unit_price: 61, line_total: 244, set_by: "human" }),
+    pending: { oz: "03.04", unit_price: 61, line_total: 244, current_unit_price: 61, rationale: "own calculation" }
+  });
+
+  expect(screen.getByText("price unchanged — this adds a remark")).toBeInTheDocument();
+  expect(screen.queryByText(/replaces/)).not.toBeInTheDocument();
+});
+
+it("labels a person's price as theirs, with the remark they confirmed, and still no chip", () => {
+  row({
+    position: position({
+      quantity: 4,
+      unit: "pcs",
+      my_unit_price: 61,
+      line_total: 244,
+      set_by: "human",
+      source: null,
+      note: RATIONALE
+    })
+  });
+
+  // The second of the three states, said in words. Plain text, not a chip.
+  expect(screen.getByText(`set by you · ${RATIONALE}`)).toBeInTheDocument();
+  expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  expect(screen.queryByText(/from your quote/)).not.toBeInTheDocument();
+});
+
+it("shows no confirmation once the bid is handed in", () => {
+  row({
+    position: position({ oz: "03.04", quantity: 4 }),
+    pending: { oz: "03.04", unit_price: 61, line_total: 244, current_unit_price: null, rationale: null },
+    locked: true
+  });
+  expect(screen.queryByText("Confirm this price?")).not.toBeInTheDocument();
 });
