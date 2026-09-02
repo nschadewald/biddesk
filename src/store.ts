@@ -17,6 +17,7 @@ import {
   submitBid,
   writeAnswer,
   writeClarification,
+  writeDocumentValidity,
   undoChanges,
   writeUnitPrices,
   type ClarificationFilters,
@@ -35,11 +36,13 @@ import type {
   Clarification,
   ClarificationList,
   Language,
+  PendingDocument,
   PendingPrice,
   PriceBookResponse,
   PriceComparison,
   PriceRejection,
   Role,
+  SetDocumentValidityResponse,
   SetPricesResponse,
   SubmitResponse,
   Suggestion,
@@ -83,6 +86,12 @@ export type AppState = {
    * not a dead end.
    */
   pendingPrices: Record<string, PendingPrice>;
+  /**
+   * Document dates an agent relayed, waiting for a click. Keyed by doc_type.
+   * Contractor master data rather than bid data: they are not bound to the
+   * tender on screen, and they outlive a handed-in bid.
+   */
+  pendingDocuments: Record<string, PendingDocument>;
   /** The last check. The only place in the interface where red appears. */
   check: CheckResult | null;
   /** Questions and answers. Written by other parties; printed, never obeyed. */
@@ -109,6 +118,7 @@ let state: AppState = {
   suggestions: {},
   rejections: {},
   pendingPrices: {},
+  pendingDocuments: {},
   check: null,
   clarifications: [],
   pendingSubmit: null,
@@ -408,6 +418,73 @@ export function discardPendingPrice(oz: string): void {
   set({ pendingPrices: rest });
 }
 
+/**
+ * Puts a document date an agent relayed in front of the person. Nothing is
+ * sent to the Worker. The confirmation lives in the check panel, at the
+ * finding it resolves, so a check is run if none is open -- a read, so that the
+ * finding and the way out of it stand together on the screen.
+ */
+export async function proposeDocumentValidity(
+  docType: string,
+  validUntil: string
+): Promise<PendingDocument> {
+  if (state.detail === null) await openTender(state.tenderId);
+  const document = state.detail!.required_documents.find((entry) => entry.doc_type === docType);
+  if (document === undefined) throw new Error(`${docType} is not a document this client requires.`);
+
+  const pending: PendingDocument = {
+    doc_type: docType,
+    label: document.label,
+    previous_valid_until: document.valid_until,
+    valid_until: validUntil
+  };
+  set({ pendingDocuments: { ...state.pendingDocuments, [docType]: pending } });
+  if (state.check === null) await runCheck(state.tenderId).catch(() => undefined);
+  return pending;
+}
+
+/**
+ * The click. The one way a stated date is written: the person confirmed on
+ * the page that a certificate valid until that date exists, and the page,
+ * which has not seen it, records exactly that. The check is re-run so the
+ * finding it resolves goes away in front of the person.
+ */
+export async function confirmDocumentValidity(
+  docType: string
+): Promise<SetDocumentValidityResponse | null> {
+  const entry = state.pendingDocuments[docType];
+  if (entry === undefined) return null;
+  const workspaceId = await requireWorkspace();
+  const { workspaceId: current, data } = await writeDocumentValidity(
+    workspaceId,
+    docType,
+    entry.valid_until
+  );
+
+  const { [docType]: _dropped, ...rest } = state.pendingDocuments;
+  const patch: Partial<AppState> = {
+    ...(current === workspaceId ? {} : { workspaceId: current }),
+    pendingDocuments: rest
+  };
+  if (state.detail !== null) {
+    patch.detail = {
+      ...state.detail,
+      required_documents: state.detail.required_documents.map((document) =>
+        document.doc_type === docType ? { ...document, valid_until: data.valid_until } : document
+      )
+    };
+  }
+  set(patch);
+  if (state.check !== null) await runCheck(state.tenderId).catch(() => undefined);
+  return data;
+}
+
+export function discardDocumentValidity(docType: string): void {
+  if (state.pendingDocuments[docType] === undefined) return;
+  const { [docType]: _dropped, ...rest } = state.pendingDocuments;
+  set({ pendingDocuments: rest });
+}
+
 /** Takes back whole blocks, never single rows out of one. */
 export async function undoLastChange(steps = 1): Promise<UndoResponse> {
   const workspaceId = await requireWorkspace();
@@ -444,6 +521,7 @@ export async function selectBidder(id: string): Promise<void> {
     suggestions: {},
     rejections: {},
     pendingPrices: {},
+    pendingDocuments: {},
     check: null,
     comparison: null
   });
@@ -638,6 +716,7 @@ export async function resetDemo(): Promise<void> {
     suggestions: {},
     rejections: {},
     pendingPrices: {},
+    pendingDocuments: {},
     check: null,
     pendingSubmit: null,
     comparison: null

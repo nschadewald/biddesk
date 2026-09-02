@@ -125,6 +125,23 @@
     ]
   },
   {
+    "name": "E7 · A renewed certificate, stated in the chat, waits for the person",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "My new tax clearance certificate is valid until 15 August 2027."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "set_document_validity",
+        "arguments": { "doc_type": "tax_clearance", "valid_until": "2027-08-15" }
+      },
+      { "functionName": "check_bid", "arguments": { "tender_id": "T-2026-014" } }
+    ]
+  },
+  {
     "name": "E8 · A price that contradicts the source it names is refused",
     "messages": [
       {

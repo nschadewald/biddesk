@@ -14,6 +14,7 @@ const WS = "44444444-4444-4444-8444-444444444444";
 const listTenders = allTools.find((tool) => tool.name === "list_tenders")!;
 const getTender = allTools.find((tool) => tool.name === "get_tender")!;
 const setUnitPrice = allTools.find((tool) => tool.name === "set_unit_price")!;
+const setDocumentValidity = allTools.find((tool) => tool.name === "set_document_validity")!;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -52,7 +53,8 @@ const detail = (id: string) => ({
     }
   ],
   required_documents: [
-    { doc_type: "tax_clearance", label: "Tax clearance certificate", label_de: "U", valid_until: "2026-08-11" }
+    { doc_type: "tax_clearance", label: "Tax clearance certificate", label_de: "U", valid_until: "2026-08-11" },
+    { doc_type: "liability_insurance", label: "Liability insurance", valid_until: "2027-03-20" }
   ]
 });
 
@@ -103,8 +105,10 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  const { discardPendingPrice } = await import("../store");
+  const { closeCheck, discardDocumentValidity, discardPendingPrice } = await import("../store");
   discardPendingPrice("01.01");
+  discardDocumentValidity("tax_clearance");
+  closeCheck();
   vi.unstubAllGlobals();
 });
 
@@ -118,18 +122,21 @@ it("declares titles, closed schemas and a description for every field", () => {
   }
 });
 
-it("cuts twelve distinct tools into the blocks each role registers", () => {
+it("cuts thirteen distinct tools into the blocks each role registers", () => {
   const names = (tools: typeof allTools) => tools.map((tool) => tool.name);
 
-  expect(names(allTools)).toHaveLength(12);
-  expect(new Set(names(allTools)).size).toBe(12);
+  expect(names(allTools)).toHaveLength(13);
+  expect(new Set(names(allTools)).size).toBe(13);
 
-  // Bidder: three shared, five of its own, ask_clarification (declared by the
+  // Bidder: three shared, six of its own, ask_clarification (declared by the
   // form; this list holds its fallback twin) and submit_bid on its own
-  // controller. Ten.
+  // controller. Eleven -- and ten once the bid is handed in, because only
+  // submit_bid goes: set_document_validity is master data and stays.
   expect(
     names([...sharedTools, ...bidderOnlyTools, ...askClarificationFallback, ...submitTools])
-  ).toHaveLength(10);
+  ).toHaveLength(11);
+  expect(names([...sharedTools, ...bidderOnlyTools, ...askClarificationFallback])).toHaveLength(10);
+  expect(names(bidderOnlyTools)).toContain("set_document_validity");
 
   // Client: three shared plus two of its own. Five.
   expect(names([...sharedTools, ...clientTools])).toEqual([
@@ -195,6 +202,7 @@ it("marks the reading tools read-only and the writing tools not", () => {
   expect([...writing].sort()).toEqual([
     "answer_clarification",
     "ask_clarification",
+    "set_document_validity",
     "set_unit_price",
     "submit_bid",
     "undo_last_change"
@@ -346,4 +354,88 @@ it("refuses a rationale longer than 240 characters before anything happens", asy
   expect(result).toMatchObject({ ok: false, error: "invalid_input" });
   expect(requests.length).toBe(before);
   expect(getAppState().pendingPrices["01.01"]).toBeUndefined();
+});
+
+it("relays a document date for the person to confirm, and writes nothing", async () => {
+  await getTender.execute({ tender_id: "T-2026-014" });
+  const before = requests.length;
+
+  const result = await setDocumentValidity.execute({
+    doc_type: "tax_clearance",
+    valid_until: "2027-08-15"
+  });
+
+  // The third way: neither written nor refused. The page has not seen the
+  // certificate, so all it can do is put the date in front of the person.
+  expect(result).toEqual({
+    ok: true,
+    status: "needs_confirmation",
+    pending: [
+      {
+        doc_type: "tax_clearance",
+        label: "Tax clearance certificate",
+        previous_valid_until: "2026-08-11",
+        valid_until: "2027-08-15"
+      }
+    ]
+  });
+  expect(requests.slice(before).filter((path) => path.includes("/api/documents"))).toEqual([]);
+  expect(getAppState().pendingDocuments.tax_clearance).toMatchObject({ valid_until: "2027-08-15" });
+});
+
+it("refuses a date in the past, with a hint, and puts nothing in front of the person", async () => {
+  await getTender.execute({ tender_id: "T-2026-014" });
+  const before = requests.length;
+
+  const result = await setDocumentValidity.execute({
+    doc_type: "tax_clearance",
+    valid_until: "2020-01-01"
+  });
+
+  expect(result).toMatchObject({ ok: false, error: "date_in_the_past" });
+  expect(String((result as { hint: string }).hint)).toContain("in the past");
+  expect(requests.length).toBe(before);
+  expect(getAppState().pendingDocuments.tax_clearance).toBeUndefined();
+});
+
+it("does nothing when the date is already on file: no error, no confirmation", async () => {
+  await getTender.execute({ tender_id: "T-2026-014" });
+  const before = requests.length;
+
+  // A document that is still valid, restated with the date already on file.
+  // (Restating an EXPIRED document's own date is a date in the past, and says so.)
+  const result = await setDocumentValidity.execute({
+    doc_type: "liability_insurance",
+    valid_until: "2027-03-20"
+  });
+
+  expect(result).toMatchObject({ ok: true, status: "unchanged", valid_until: "2027-03-20" });
+  expect(String((result as { note: string }).note)).toContain("already valid until 2027-03-20");
+  expect(requests.length).toBe(before);
+  expect(getAppState().pendingDocuments.liability_insurance).toBeUndefined();
+});
+
+it("refuses a document type it does not know, naming the ones it does", async () => {
+  const result = await setDocumentValidity.execute({
+    doc_type: "iso_9001",
+    valid_until: "2027-08-15"
+  });
+  expect(result).toMatchObject({ ok: false, error: "invalid_input" });
+  expect(String((result as { hint: string }).hint)).toContain("tax_clearance");
+  // And the schema says the same, so an agent never has to guess a spelling.
+  const property = setDocumentValidity.inputSchema.properties.doc_type as { enum: string[] };
+  expect(property.enum).toEqual([
+    "trade_registration",
+    "liability_insurance",
+    "reference_project",
+    "tax_clearance"
+  ]);
+});
+
+it("says in its description what it does not do", () => {
+  const description = setDocumentValidity.description.toLowerCase();
+  expect(description).toContain("nothing is uploaded");
+  expect(description).toContain("nothing is verified");
+  expect(description).toContain("undo_last_change does not cover it");
+  expect(description).toContain("after the bid is handed in");
 });

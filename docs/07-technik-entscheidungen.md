@@ -1386,4 +1386,107 @@ Kopien), docs/08, `llms.txt` und CLAUDE.md tragen den präzisierten Satz.
 
 - Devpost-Text und Video.
 - Eine der beiden Spec-Kopien.
-- CC-06: der Nachweis über den Chat (Entscheidung Mi 12:00).
+- ~~CC-06: der Nachweis über den Chat (Entscheidung Mi 12:00).~~ Gebaut als CC-05, Schritt 17.
+
+## Schritt 17 – Der dritte Weg: der Nachweis über den Chat (Mi 02.09.2026)
+
+### Der Befund
+
+Der Durchlauf fand drei Sackgassen. CC-04 hat zwei davon zu Wegen gemacht; die dritte endete
+noch mit „upload a current certificate, or set a new expiry date" – also: auf die Seite
+wechseln. Der Tester wollte genau das nicht: „Meine neue Unbedenklichkeitsbescheinigung ist
+vom 15.08.2026" im Chat sagen und fertig sein. Dasselbe Muster, ein zweites Objekt.
+
+### Das dreizehnte Werkzeug – und warum es sagt, was es nicht tut
+
+`set_document_validity` ist das einzige Werkzeug, das nach der Zählung in spec §12.2 noch
+dazukam. Es nimmt `doc_type` (Enum der vier Pflichtnachweise, damit der Agent keine
+Schreibweise rät) und `valid_until` (ISO-Datum) und antwortet `{ ok:true,
+status:"needs_confirmation", pending:[{ doc_type, label, previous_valid_until, valid_until }] }`
+– genau wie `set_unit_price` ohne Quelle. **Es schreibt nichts.** Die Bestätigung erscheint im
+Prüfpanel an dem Befund, den sie erledigt; ist kein Prüfergebnis offen, wird eines geholt (ein
+Lesevorgang), damit Befund und Ausweg zusammen auf dem Bildschirm stehen. Erst der Klick
+schreibt `bidder_documents.valid_until` – per Upsert, damit auch ein noch nicht hinterlegter
+Nachweis angelegt werden kann, wenn ein Mensch ihn nennt und bestätigt.
+
+Der Satz in der Bestätigung ist die Entscheidung: **„You confirm that a certificate valid until
+15 Aug 2027 exists. Nothing is uploaded or checked here."** Die Seite hat den Nachweis nicht
+gesehen. Sie darf deshalb nicht so tun, als hätte sie ihn geprüft – und sie sagt es an der
+Stelle, an der der Mensch klickt, nicht im Kleingedruckten. Dasselbe steht in der
+Werkzeugbeschreibung, weil ein Agent sonst „ich habe den Nachweis hinterlegt" sagen würde, wo
+er nur ein Datum weitergereicht hat: *nothing is uploaded, nothing is verified; the page
+records the date a person states and the person confirms it.*
+
+Drei Ränder, bewusst gesetzt:
+
+- **Ein Datum in der Vergangenheit ist ein Fehler** (`date_in_the_past`, mit hint), keine
+  Bestätigung – ein abgelaufener Nachweis lässt sich nicht als gültig verbuchen. Das gilt auch,
+  wenn das Datum dem hinterlegten gleicht: Das Seed-Datum der Unbedenklichkeitsbescheinigung
+  liegt in der Vergangenheit, und „schon gültig bis" wäre dort eine Lüge. Der Test für den
+  Gleichheitsfall braucht deshalb einen **gültigen** Nachweis – der erste Entwurf der Tests hatte
+  das übersehen, und der Fehler war im Test, nicht im Produkt.
+- **Gleiches Datum wie hinterlegt** (bei gültigem Nachweis): `status:"unchanged"`, „already
+  valid until …; nothing to do." Kein Fehler, keine Bestätigung, kein Schreibvorgang – auf der
+  Seite wie im Worker.
+- **Kein `undo_last_change`**, und das Werkzeug **bleibt nach der Abgabe registriert**:
+  Nachweise sind Stammdaten des Bieters. Das Angebot ist gesperrt, nicht der Betrieb. Deshalb
+  liegt es im Rollenblock, nicht im `submit_bid`-Block.
+
+Der Handlungssatz aus CC-04 für Nachweise heißt jetzt „tell your agent the new expiry date —
+you confirm it on the page — or upload a current certificate." Der Weg steht im Befund.
+
+### Zählung
+
+Dreizehn verschiedene Werkzeuge; Bieterrolle 11, nach der Abgabe 10, Auftraggeber 5. Die
+Selbstdiagnose brauchte **keine Änderung** – sie zählt seit Schritt 14, was der Browser
+bestätigt, und hätte sie eine gebraucht, wäre das der Fehler gewesen. Chrome 152 live:
+„WebMCP detected · 11 tools registered"; Client-Eval „Chrome sees 11 tools in the contractor
+role". Die Abnahme in ChatGPT (11, 5 mit Schreibzugriff, dieselbe Zahl im Panel) steht aus.
+
+### Die Sabotage-Probe
+
+Test: `set_document_validity` ohne Bestätigung schreibt nichts (kein Aufruf von
+`/api/documents/…`, der Eintrag steht unter `pendingDocuments`). Sabotage: im Werkzeug direkt
+nach dem Vorschlag `confirmDocumentValidity` aufgerufen – der Schreibpfad ohne Bestätigung.
+
+| Test | |
+|---|---|
+| `tools.test.ts` · relays a document date for the person to confirm, and writes nothing | **rot** |
+
+Zurückgesetzt, `git diff` zeigt nur die CC-05-Änderungen, 24/24 wieder grün. Der Worker prüft
+Datum und Typ noch einmal selbst (`server.test.ts`: Vergangenheit, unbekannter Typ und
+unlesbares Datum → kein `run`; gleiches Datum → `changed:false`, kein `run`; neues Datum →
+genau ein `INSERT … ON CONFLICT`, mit beiden Bezeichnungen gebunden).
+
+### Gemessen, nicht vermutet
+
+Eval **E7** („My new tax clearance certificate is valid until 15 August 2027."):
+`needs_confirmation`, `pending` mit `tax_clearance`, altem Datum 2026-08-13 und 2027-08-15,
+danach `check_bid` mit der Bescheinigung **weiterhin als abgelaufen** und dem neuen
+Handlungssatz. 14/14 Schritte über 8 Fälle; E1 weiterhin 12/0/13.213,50; E6 unverändert.
+
+Der Klick als UI-Test (`App.test.tsx`): Bestätigung mit „12 Aug 2026 → 15 Aug 2027" und dem
+Satz, dass nichts hochgeladen oder geprüft wird; nach dem Klick ein `POST
+/api/documents/tax_clearance` mit `{ valid_until: "2027-08-15" }`, und der Befund „Expired
+document" ist weg. Live in Chrome 152 nachgefahren: Log-Zeile `set_document_validity AWAITING
+CONFIRMATION WRITE 165 ms … waiting for a person · 1 to confirm`, `check_bid` vor dem Klick
+`[tax_clearance, expired]`, danach `[]`; dasselbe Datum noch einmal → `unchanged`;
+`2020-01-01` → `date_in_the_past` mit hint.
+
+### Was nicht gebaut wurde
+
+Kein Upload, keine Prüfung, kein Dateispeicher – Nachweise sind Metadaten, jetzt als Known
+Limitation 7 in README und spec. Keine Änderung an Nachweisen anderer Bieter, keine
+Auftraggeberrolle. Keine neue Garantie gegen Browsersteuerung; Known Limitation 6 steht
+wörtlich.
+
+### Stand
+
+170 Unit-Tests in 16 Dateien, Bieter-Evals 14/14 (P1–P5 + E6 + E7 + E8, englisch nach dem
+Deploy), Client-Evals grün (11 Werkzeuge), GAEB bestanden, `verify_seed.py` grün.
+
+### Offen
+
+- ChatGPT-Abnahme der Zählung 11 / 5 / 11 (Nils).
+- Devpost-Text und Video.
+- Eine der beiden Spec-Kopien.

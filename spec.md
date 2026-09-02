@@ -255,7 +255,7 @@ Voller Scope aus §1–§3 gilt: 13 Tools, beide Rollen. Zusätzlich, in dieser 
 
 Kopfzeile: Rollenwahl (Bieter Farbwerk Meier / Auftraggeber Rheinpark) und ein Link „How to test in 60 seconds". Rechts das Agent Panel, **standardmäßig offen**, mit vier Elementen:
 
-1. **Selbstdiagnose als erste Zeile** – live geprüft: „WebMCP detected · 10 tools registered" (grün) oder „WebMCP not available in this browser" mit beiden Wegen (ChatGPT-Desktop-Browser, Chrome mit Origin Trial bzw. Flag). Das ist die wichtigste Zeile der ganzen Anwendung: Der wahrscheinlichste Ausfall ist ein Juror, der die Seite in einem normalen Browser öffnet und daraus „funktioniert nicht" schließt. Die Seite muss sich selbst diagnostizieren.
+1. **Selbstdiagnose als erste Zeile** – live geprüft: „WebMCP detected · 11 tools registered" (grün; 10 bis zum 02.09.) oder „WebMCP not available in this browser" mit beiden Wegen (ChatGPT-Desktop-Browser, Chrome mit Origin Trial bzw. Flag). Das ist die wichtigste Zeile der ganzen Anwendung: Der wahrscheinlichste Ausfall ist ein Juror, der die Seite in einem normalen Browser öffnet und daraus „funktioniert nicht" schließt. Die Seite muss sich selbst diagnostizieren.
 2. Die vier bis fünf **Beispiel-Prompts** zum Kopieren.
 3. Das **Live-Log**, leer, mit Platzhalter „tool calls appear here".
 4. **Reset demo**.
@@ -355,16 +355,16 @@ Sichtbar: Der Agent gibt **nicht** ab, sondern liefert `needs_confirmation` mit 
 
 Der Widerspruch war echt: Die frühere „13" zählte `list_clarifications` doppelt (beide Rollen) und enthielt `get_bid_state`, das nun in `check_bid` aufgegangen ist.
 
-**Zwölf verschiedene Werkzeuge.** Registriert sind nie alle gleichzeitig:
+**Dreizehn verschiedene Werkzeuge** (zwölf bis zum 02.09.; das dreizehnte, `set_document_validity`, kam mit CC-05 und ist das einzige, das nach dieser Zählung noch dazukam). Registriert sind nie alle gleichzeitig:
 
-- **Bieterrolle, Ausgangszustand: 10** – `list_tenders`, `get_tender`, `get_price_book`, `suggest_prices`, `set_unit_price`, `check_bid`, `ask_clarification`, `list_clarifications`, `undo_last_change`, `submit_bid`.
-- **Bieterrolle nach Abgabe des geöffneten Tenders: 9** – `submit_bid` ist abgemeldet. Öffnet der Nutzer einen anderen Tender mit Entwurfsangebot, wird es wieder registriert. Das ist die sichtbarste `toolchange`-Demonstration.
+- **Bieterrolle, Ausgangszustand: 11** – `list_tenders`, `get_tender`, `get_price_book`, `suggest_prices`, `set_unit_price`, `check_bid`, `ask_clarification`, `list_clarifications`, `undo_last_change`, `set_document_validity`, `submit_bid`.
+- **Bieterrolle nach Abgabe des geöffneten Tenders: 10** – `submit_bid` ist abgemeldet; `set_document_validity` bleibt, weil Nachweise Stammdaten des Bieters sind – das Angebot ist gesperrt, nicht der Betrieb. Öffnet der Nutzer einen anderen Tender mit Entwurfsangebot, wird es wieder registriert. Das ist die sichtbarste `toolchange`-Demonstration.
 - **Auftraggeberrolle: 5** – `list_tenders`, `get_tender`, `get_price_comparison`, `list_clarifications`, `answer_clarification`.
 - Gemeinsam in beiden Rollen: `list_tenders`, `get_tender`, `list_clarifications`.
 
 **Die Selbstdiagnose zählt zur Laufzeit über `getTools()`**, sie enthält keine fest verdrahtete Zahl. Damit kann sie nie wieder der Wirklichkeit widersprechen.
 
-**Wie die 10 zustande kommt (01.09., aus dem ChatGPT-Befund):** neun imperativ registrierte Werkzeuge plus `ask_clarification` – als Formular dort, wo der Browser das Formular-Werkzeug in `getTools()` **listet**, sonst als imperativer Zwilling. Die Feature-Erkennung an `SubmitEvent` entscheidet das nicht mehr: Sie beweist die DOM-API, nicht, dass ein Agent das Werkzeug sieht. ChatGPTs Browser trägt die Erweiterung, listet aber keine Formulare – die Seite zählte zehn, der Agent sah neun, und Prompt 4 endete als getippter, nie gesendeter Text im Formularfeld. Gezählt wird deshalb nur, was der Browser bestätigt; ein deklariertes, aber nicht gelistetes Formular erscheint als „declared by form · not confirmed by this browser" und nicht in der Zahl. Solange der Browser noch entscheidet, wird unter dem Namen nichts angemeldet – Chrome 152 weist einen Doppelnamen mit `InvalidStateError` ab.
+**Wie die 11 zustande kommt (01.09., aus dem ChatGPT-Befund; seit 02.09. mit `set_document_validity`):** zehn imperativ registrierte Werkzeuge plus `ask_clarification` – als Formular dort, wo der Browser das Formular-Werkzeug in `getTools()` **listet**, sonst als imperativer Zwilling. Die Feature-Erkennung an `SubmitEvent` entscheidet das nicht mehr: Sie beweist die DOM-API, nicht, dass ein Agent das Werkzeug sieht. ChatGPTs Browser trägt die Erweiterung, listet aber keine Formulare – die Seite zählte zehn, der Agent sah neun, und Prompt 4 endete als getippter, nie gesendeter Text im Formularfeld. Gezählt wird deshalb nur, was der Browser bestätigt; ein deklariertes, aber nicht gelistetes Formular erscheint als „declared by form · not confirmed by this browser" und nicht in der Zahl. Solange der Browser noch entscheidet, wird unter dem Namen nichts angemeldet – Chrome 152 weist einen Doppelnamen mit `InvalidStateError` ab.
 
 ### 12.3 Known Limitations – bewusst dokumentiert statt gebaut
 
@@ -374,6 +374,7 @@ Der Widerspruch war echt: Die frühere „13" zählte `list_clarifications` dopp
 4. **Das Matching ist bewusst konservativ.** Es opfert Trefferquote für Präzision: abweichende Formulierungen und Synonyme führen zu „no comparable entry" statt zu einem unsicheren Preis. Ein falscher Preis mit Herkunfts-Chip wäre schädlicher als eine Lücke.
 5. **Der Agent kann keinen frei genannten Preis eintragen – aber vorschlagen und herleiten.** (Umgeschrieben am 02.09., CC-04.) Ein Preis ohne Preisbuchzeile wird nicht geschrieben und nicht mehr abgewiesen: Er erscheint als kleine Bestätigung an der Zeile, mit Rechnung, mit der Herleitung des Agenten („4 Heizkörper à 25 Min bei Ihrem Stundensatz von 58 €") und mit dem Satz, woher der Wert *nicht* kommt. Erst der Klick des Menschen schreibt ihn – als `set_by='human'` ohne Herkunft, wahrheitsgemäß, weil eine Hand genau diesen Wert freigegeben hat, mit `change_log`-Block für `undo_last_change`. Keine eigene Autorität heißt Bestätigung, nicht Sackgasse – dasselbe Muster wie `submit_bid`.
 6. **Ein Bieter je Workspace, Desktop-first.** Gleichzeitiges Arbeiten mehrerer Bieter im selben Zustand ist nicht getestet; die Oberfläche ist für Desktop ausgelegt, weil der ChatGPT-Browser dort läuft.
+7. **Nachweise sind Metadaten** (02.09., CC-05). Ein Nachweis ist hier Bezeichnung plus Gültigkeitsdatum. Nichts wird hochgeladen, gespeichert oder geprüft: `set_document_validity` reicht ein Datum weiter, das ein Mensch nennt, der Mensch bestätigt es auf der Seite, und die Bestätigung sagt ausdrücklich, dass hier nichts hochgeladen oder geprüft wurde.
 
 ### 12.4 GAEB – binärer Go/No-Go
 

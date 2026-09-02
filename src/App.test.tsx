@@ -34,9 +34,21 @@ const RATIONALE = "4 radiators at 25 min each at your rate of 58 EUR";
 
 /** What the page sent to POST /prices, for the tests that click. */
 let priceWrites: { set_by: string; prices: Record<string, unknown>[] }[] = [];
+/** What the page sent to POST /api/documents/..., and whether the stub still reports the expiry. */
+let documentWrites: Record<string, unknown>[] = [];
+let taxClearanceExpired = true;
+
+const REQUIRED_DOCUMENTS = [
+  { doc_type: "trade_registration", label: "Trade registration", valid_until: "2027-09-01" },
+  { doc_type: "liability_insurance", label: "Liability insurance", valid_until: "2027-03-20" },
+  { doc_type: "reference_project", label: "Reference project", valid_until: "2027-10-06" },
+  { doc_type: "tax_clearance", label: "Tax clearance certificate", valid_until: "2026-08-12" }
+];
 
 function stubApi(options: { priced?: boolean } = {}) {
   priceWrites = [];
+  documentWrites = [];
+  taxClearanceExpired = true;
   // With `priced`, the first row already carries the net of the demo run, so
   // confirming 61 EUR on the four radiators lands on the figure the spec names.
   const rows = options.priced
@@ -60,6 +72,47 @@ function stubApi(options: { priced?: boolean } = {}) {
       // arrive rather than trust that it was set.
       const german =
         (init?.headers as Record<string, string> | undefined)?.["X-Language"] === "de";
+      if (input.includes("/api/documents/") && init?.method === "POST") {
+        const sent = JSON.parse(String(init.body)) as Record<string, unknown>;
+        documentWrites.push(sent);
+        taxClearanceExpired = false;
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            changed: true,
+            doc_type: "tax_clearance",
+            label: "Tax clearance certificate",
+            previous_valid_until: "2026-08-12",
+            valid_until: sent.valid_until
+          })
+        );
+      }
+      if (input.endsWith("/check")) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            bidder_id: "B-A",
+            tender_id: "T-2026-014",
+            status: "none",
+            complete: false,
+            open_positions: ["03.04", "04.02"],
+            outliers: [],
+            missing_documents: taxClearanceExpired
+              ? [{ doc_type: "tax_clearance", label: "Tax clearance certificate", valid_until: "2026-08-12", reason: "expired" }]
+              : [],
+            due_date: "2026-09-10",
+            due_in_days: 9,
+            totals: { net: 0, contingency: 0, positions_priced: 0, positions_open: 12 },
+            positions_priced: 0,
+            positions_open: 12,
+            undo_available: false,
+            warnings: [],
+            actions: taxClearanceExpired
+              ? [{ finding: "document", doc_type: "tax_clearance", action: "tell your agent the new expiry date — you confirm it on the page — or upload a current certificate." }]
+              : []
+          })
+        );
+      }
       if (input.endsWith("/prices") && init?.method === "POST") {
         const sent = JSON.parse(String(init.body)) as { set_by: string; prices: Record<string, unknown>[] };
         priceWrites.push(sent);
@@ -131,7 +184,7 @@ function stubApi(options: { priced?: boolean } = {}) {
                 my_bid_status: "none"
               },
               positions: rows,
-              required_documents: []
+              required_documents: REQUIRED_DOCUMENTS
             })
           );
     }) as unknown as typeof fetch
@@ -206,10 +259,10 @@ it("counts the registered tools from the registry when WebMCP is present", async
   render(<App />);
 
   // Counted from the block, not written down: the panel does the same.
-  // Nine imperative tools plus ask_clarification, which the form declares.
-  // Ten either way: nine imperative plus the form where a browser declares it,
-  // ten imperative where it does not. jsdom is the second case.
-  await screen.findByText("WebMCP detected · 10 tools registered");
+  // Ten imperative tools plus ask_clarification, which the form declares.
+  // Eleven either way: ten imperative plus the form where a browser declares
+  // it, eleven imperative where it does not. jsdom is the second case.
+  await screen.findByText("WebMCP detected · 11 tools registered");
   for (const name of [
     "list_tenders",
     "get_tender",
@@ -220,6 +273,7 @@ it("counts the registered tools from the registry when WebMCP is present", async
     "check_bid",
     "undo_last_change",
     "submit_bid",
+    "set_document_validity",
     "ask_clarification"
   ]) {
     expect(screen.getByText(name)).toBeInTheDocument();
@@ -271,7 +325,7 @@ it("switches the language without touching a single tool registration", async ()
 
   try {
     render(<App />);
-    await screen.findByText("WebMCP detected · 10 tools registered");
+    await screen.findByText("WebMCP detected · 11 tools registered");
     const registrationsBefore = registerTool.mock.calls.length;
     expect(registrationsBefore).toBeGreaterThan(0);
 
@@ -290,7 +344,7 @@ it("switches the language without touching a single tool registration", async ()
 
     // The self-diagnosis says the same number, in German, and no tool was
     // registered a second time.
-    expect(screen.getByText("WebMCP erkannt · 10 Werkzeuge angemeldet")).toBeInTheDocument();
+    expect(screen.getByText("WebMCP erkannt · 11 Werkzeuge angemeldet")).toBeInTheDocument();
     expect(registerTool.mock.calls.length).toBe(registrationsBefore);
 
     // Money does not move with the language; only the words and the dates do.
@@ -355,4 +409,33 @@ it("writes a proposed price only on the person's click, as theirs, and the total
   expect(within(row).getByText(`set by you · ${RATIONALE}`)).toBeInTheDocument();
   expect(within(row).queryByText(/from your quote/)).not.toBeInTheDocument();
   expect(screen.queryByText("Confirm this price?")).not.toBeInTheDocument();
+});
+
+it("records a relayed document date only on the person's click, and the finding goes away", async () => {
+  stubApi();
+  const { proposeDocumentValidity } = await import("./store");
+  render(<App />);
+  await waitFor(() => expect(screen.getAllByRole("row").length).toBeGreaterThan(1));
+
+  // What the tool does for "my new tax clearance certificate is valid until
+  // 15 August 2027": no write, a confirmation at the finding it resolves.
+  await act(async () => {
+    await proposeDocumentValidity("tax_clearance", "2027-08-15");
+  });
+  await screen.findByText("Confirm this document?");
+  expect(
+    screen.getByText(
+      "You confirm that a certificate valid until 15 Aug 2027 exists. Nothing is uploaded or checked here."
+    )
+  ).toBeInTheDocument();
+  expect(screen.getByText("12 Aug 2026 → 15 Aug 2027")).toBeInTheDocument();
+  expect(screen.getByText("Expired document")).toBeInTheDocument();
+  expect(documentWrites).toEqual([]);
+
+  await userEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+  // The click wrote the date, and the check no longer lists the document.
+  await waitFor(() => expect(documentWrites).toEqual([{ valid_until: "2027-08-15" }]));
+  await waitFor(() => expect(screen.queryByText("Expired document")).not.toBeInTheDocument());
+  expect(screen.queryByText("Confirm this document?")).not.toBeInTheDocument();
 });

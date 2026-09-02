@@ -1,7 +1,7 @@
 import { formatDate, formatEuro } from "./format";
-import { useCopy } from "./i18n";
-import { useAppState } from "./store";
-import type { CheckResult } from "./types";
+import { useCopy, type Copy } from "./i18n";
+import { confirmDocumentValidity, discardDocumentValidity, useAppState } from "./store";
+import type { CheckResult, Language, PendingDocument } from "./types";
 
 /**
  * The check result. This is the ONE place in the interface where red appears.
@@ -20,7 +20,7 @@ import type { CheckResult } from "./types";
  */
 export default function CheckPanel({ check, onClose }: { check: CheckResult; onClose: () => void }) {
   const copy = useCopy();
-  const language = useAppState().language;
+  const { language, pendingDocuments } = useAppState();
   const findings =
     check.open_positions.length + check.outliers.length + check.missing_documents.length;
   // One sentence per finding saying what to do next. Written by the Worker in
@@ -98,14 +98,84 @@ export default function CheckPanel({ check, onClose }: { check: CheckResult; onC
             {actionFor("document", "doc_type", document.doc_type) && (
               <NextStep>{actionFor("document", "doc_type", document.doc_type)}</NextStep>
             )}
+            {pendingDocuments[document.doc_type] && (
+              // The way out, at the finding it resolves.
+              <DocumentConfirmation
+                pending={pendingDocuments[document.doc_type]!}
+                language={language}
+                copy={copy}
+              />
+            )}
           </Finding>
         ))}
       </ul>
+
+      {/* A date relayed for a document that is not a finding right now -- valid,
+          and being extended -- still needs its confirmation somewhere. */}
+      {Object.values(pendingDocuments)
+        .filter((pending) => !check.missing_documents.some((d) => d.doc_type === pending.doc_type))
+        .map((pending) => (
+          <div key={pending.doc_type} className="mt-2 text-xs">
+            <span className="font-medium text-slate-700">{pending.label}</span>
+            <DocumentConfirmation pending={pending} language={language} copy={copy} />
+          </div>
+        ))}
 
       {deadlineAction && <p className="mt-2 text-xs text-slate-700">{deadlineAction}</p>}
 
       <p className="mt-2 text-xs text-slate-500">{copy.check.footnote}</p>
     </section>
+  );
+}
+
+/**
+ * The confirmation a relayed document date waits behind. Same build as the
+ * price confirmation on a row: small, in place, no modal. The body line is the
+ * honest part -- the page has not seen the certificate, and says so.
+ */
+function DocumentConfirmation({
+  pending,
+  language,
+  copy
+}: {
+  pending: PendingDocument;
+  language: Language;
+  copy: Copy;
+}) {
+  return (
+    <div
+      data-testid={`confirm-document-${pending.doc_type}`}
+      className="mt-1 rounded border border-slate-400 bg-slate-50 px-2 py-1.5 text-left text-xs text-slate-700"
+    >
+      <p className="font-medium text-slate-900">{copy.check.confirmDocumentTitle}</p>
+      <p className="mt-0.5 tabular-nums">
+        {copy.check.documentDates(
+          pending.previous_valid_until === null
+            ? null
+            : formatDate(pending.previous_valid_until, language),
+          formatDate(pending.valid_until, language)
+        )}
+      </p>
+      <p className="mt-0.5 text-slate-500">
+        {copy.check.confirmDocumentBody(formatDate(pending.valid_until, language))}
+      </p>
+      <div className="mt-1.5 flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => discardDocumentValidity(pending.doc_type)}
+          className="rounded border border-slate-300 px-1.5 py-0.5 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
+        >
+          {copy.row.discard}
+        </button>
+        <button
+          type="button"
+          onClick={() => void confirmDocumentValidity(pending.doc_type)}
+          className="rounded border border-slate-400 px-1.5 py-0.5 text-xs font-medium text-slate-900 hover:border-slate-900"
+        >
+          {copy.row.confirm}
+        </button>
+      </div>
+    </div>
   );
 }
 

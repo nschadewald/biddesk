@@ -9,6 +9,7 @@ import {
   loadClarifications,
   loadComparison,
   openTender,
+  proposeDocumentValidity,
   proposePrices,
   readTenders,
   requestSubmit,
@@ -919,12 +920,126 @@ export const sharedTools: ToolDefinition[] = [
 ];
 
 /** The bidder's own work. `ask_clarification` is the form, not this list. */
+/**
+ * The document types the client requires (spec section 1). Stated here as the
+ * enum of the tool's schema, so an agent picks from a list instead of guessing
+ * a spelling. The Worker holds the same four, with their labels.
+ */
+const DOCUMENT_TYPES = [
+  "trade_registration",
+  "liability_insurance",
+  "reference_project",
+  "tax_clearance"
+] as const;
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const isRealDate = (value: string) =>
+  ISO_DATE.test(value) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+
+/**
+ * The third way, and the thirteenth tool -- the only one added after the count
+ * in spec section 12.2. "My new tax clearance certificate is valid until
+ * 15 August 2027", said in the chat, used to end with "upload a current
+ * certificate": switch to the page. Same pattern as a sourceless price: the
+ * agent relays, the page asks the person to confirm, only the click writes.
+ * And the confirmation says what did not happen -- nothing uploaded, nothing
+ * checked -- because the page has not seen the certificate and must not
+ * pretend it has.
+ */
+const setDocumentValidityTool: ToolDefinition = {
+  name: "set_document_validity",
+  title: "Relay a document's new expiry date for the person to confirm",
+  description:
+    "Relays the expiry date of one of this contractor's required documents -- trade " +
+    "registration, liability insurance, reference project, tax clearance certificate -- as " +
+    "the person states it, for example after a certificate has been renewed. THIS TOOL WRITES " +
+    "NOTHING: it puts the date in front of the person as a confirmation in the check panel, " +
+    "at the finding it resolves, and only their click on the page records it. Nothing is " +
+    "uploaded and nothing is verified: the page records the date a person names and the " +
+    "person confirms it, and the confirmation says so. Use it when the person tells you a " +
+    "document's new date; do not invent or infer one. The answer has status " +
+    "\"needs_confirmation\" and names the document, the date on file and the new date; tell " +
+    "the person to confirm on the page. A date in the past is refused. A date equal to the " +
+    "one on file is neither an error nor a confirmation: nothing to do. This is contractor " +
+    "master data, not part of the bid: it stays available after the bid is handed in, and " +
+    "undo_last_change does not cover it. Visible effect: a small confirmation appears in the " +
+    "check panel; after the click, check_bid no longer lists the document.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      doc_type: {
+        type: "string",
+        enum: [...DOCUMENT_TYPES],
+        description:
+          "Which document: one of the doc_type values from get_tender's required_documents or check_bid's missing_documents."
+      },
+      valid_until: {
+        type: "string",
+        description: 'The new expiry date the person stated, as a calendar date YYYY-MM-DD, for example "2027-08-15".'
+      }
+    },
+    required: ["doc_type", "valid_until"],
+    additionalProperties: false
+  },
+  annotations: { readOnlyHint: false },
+  async execute(input): Promise<ToolResult> {
+    const parsed = readObject(input, ["doc_type", "valid_until"]);
+    if (isFailure(parsed)) return parsed;
+
+    const docType = parsed.doc_type;
+    if (typeof docType !== "string" || !(DOCUMENT_TYPES as readonly string[]).includes(docType)) {
+      return invalid(`doc_type must be one of ${DOCUMENT_TYPES.join(", ")}.`);
+    }
+    const validUntil = typeof parsed.valid_until === "string" ? parsed.valid_until.trim() : "";
+    if (!isRealDate(validUntil)) {
+      return invalid("valid_until must be a calendar date written as YYYY-MM-DD.");
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    if (validUntil < today) {
+      return {
+        ok: false,
+        error: "date_in_the_past",
+        hint: `${validUntil} is in the past. A certificate that has already expired cannot be recorded as valid; ask the person for the date on the current one.`
+      };
+    }
+
+    try {
+      if (getAppState().detail === null) await openTender(getAppState().tenderId);
+      const onFile = getAppState().detail?.required_documents.find(
+        (document) => document.doc_type === docType
+      );
+      if (onFile === undefined) {
+        return invalid(`${docType} is not a document this client requires.`);
+      }
+      // Already on file: nothing to write, nothing to confirm. Not an error.
+      if (onFile.valid_until === validUntil) {
+        return {
+          ok: true,
+          status: "unchanged",
+          doc_type: docType,
+          label: onFile.label,
+          valid_until: validUntil,
+          note: `already valid until ${validUntil}; nothing to do.`
+        };
+      }
+
+      const pending = await proposeDocumentValidity(docType, validUntil);
+      return { ok: true, status: "needs_confirmation", pending: [pending] };
+    } catch (caught) {
+      return asFailure(caught);
+    }
+  }
+};
+
 export const bidderOnlyTools: ToolDefinition[] = [
   getPriceBookTool,
   suggestPricesTool,
   setUnitPriceTool,
   checkBidTool,
-  undoLastChangeTool
+  undoLastChangeTool,
+  // Master data, not bid data: registered with the role and kept after the bid
+  // is handed in. The bid is locked, the business is not.
+  setDocumentValidityTool
 ];
 
 /**

@@ -73,7 +73,8 @@ it("says under each finding what to do next, in the page's words", () => {
           {
             finding: "document",
             doc_type: "tax_clearance",
-            action: "upload a current certificate, or set a new expiry date."
+            action:
+              "tell your agent the new expiry date — you confirm it on the page — or upload a current certificate."
           }
         ]
       })}
@@ -84,5 +85,5 @@ it("says under each finding what to do next, in the page's words", () => {
   // A finding that only says what is wrong leaves the person in the chat with
   // "then it cannot be done". These sentences are the way out, fixed by us.
   expect(screen.getByText(/no entry for metal\/pcs — set the price yourself/)).toBeInTheDocument();
-  expect(screen.getByText(/upload a current certificate/)).toBeInTheDocument();
+  expect(screen.getByText(/tell your agent the new expiry date/)).toBeInTheDocument();
 });

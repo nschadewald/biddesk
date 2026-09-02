@@ -8,6 +8,7 @@ import type {
   ClarificationList,
   PriceBookResponse,
   PriceComparison,
+  SetDocumentValidityResponse,
   SetPricesResponse,
   SubmitResponse,
   SuggestionsResponse,
@@ -270,6 +271,19 @@ export async function submitBid(workspaceId: string, tenderId: string) {
     `/api/tenders/${encodeURIComponent(tenderId)}/submit`,
     workspaceId,
     {}
+  );
+}
+
+/** The click on a document confirmation. The only way a stated date is written. */
+export async function writeDocumentValidity(
+  workspaceId: string,
+  docType: string,
+  validUntil: string
+) {
+  return post<SetDocumentValidityResponse>(
+    `/api/documents/${encodeURIComponent(docType)}`,
+    workspaceId,
+    { valid_until: validUntil }
   );
 }
 

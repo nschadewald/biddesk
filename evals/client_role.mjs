@@ -62,7 +62,7 @@ try {
 
   const bidderTools = await toolNames();
   console.log(`Chrome sees ${bidderTools.length} tools in the contractor role`);
-  check("contractor role registers ten tools", bidderTools.length === 10, bidderTools.length);
+  check("contractor role registers eleven tools", bidderTools.length === 11, bidderTools.length);
   check(
     "the client's tools do not exist here at all",
     !bidderTools.includes("get_price_comparison") && !bidderTools.includes("answer_clarification"),

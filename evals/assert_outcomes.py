@@ -163,6 +163,28 @@ check("E6 · the check names a way out for the open position, in the page's word
                   and "you confirm it" in a["action"] for a in e6c.get("actions", [])),
       e6c and [a["action"] for a in e6c.get("actions", []) if a.get("oz") == "03.04"])
 
+# The third way. A renewed certificate stated in the chat is relayed, not
+# recorded: the page has not seen it, so it asks the person to confirm -- and
+# says so. The click is a UI test (App.test.tsx), not an eval case.
+e7 = out("E7", "set_document_validity")
+check("E7 · a stated expiry date waits for the person",
+      e7 and e7["ok"] is True and e7["status"] == "needs_confirmation",
+      e7 and (e7.get("ok"), e7.get("status")))
+check("E7 · the pending row names the document, the date on file and the new one",
+      e7 and len(e7["pending"]) == 1 and e7["pending"][0]["doc_type"] == "tax_clearance"
+      and e7["pending"][0]["valid_until"] == "2027-08-15"
+      and e7["pending"][0]["previous_valid_until"] is not None
+      and e7["pending"][0]["previous_valid_until"] < "2027-08-15",
+      e7 and e7["pending"])
+e7c = out("E7", "check_bid")
+check("E7 · nothing written: the check still reports the certificate as expired",
+      e7c and [(d["doc_type"], d["reason"]) for d in e7c["missing_documents"]] == [("tax_clearance", "expired")],
+      e7c and [(d["doc_type"], d["reason"]) for d in e7c["missing_documents"]])
+check("E7 · and its way out says to tell the agent the date and confirm on the page",
+      e7c and any(a["finding"] == "document" and a.get("doc_type") == "tax_clearance"
+                  and "tell your agent the new expiry date" in a["action"] for a in e7c.get("actions", [])),
+      e7c and [a["action"] for a in e7c.get("actions", []) if a.get("doc_type") == "tax_clearance"])
+
 e8 = out("E8", "set_unit_price")
 check("E8 · a price that contradicts its source is refused",
       e8 and e8["applied"] == [] and e8["rejected"][0]["reason"] == "price_does_not_match_source",

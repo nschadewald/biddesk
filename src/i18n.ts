@@ -135,6 +135,14 @@ const en = {
     documentExpired: "Expired document",
     documentMissing: "Missing document",
     validUntil: (date: string) => ` · valid until ${date}`,
+    // The document confirmation. It says what the page did NOT do -- upload,
+    // check -- because the page has not seen the certificate. That sentence is
+    // the design, not the small print.
+    confirmDocumentTitle: "Confirm this document?",
+    confirmDocumentBody: (date: string) =>
+      `You confirm that a certificate valid until ${date} exists. Nothing is uploaded or checked here.`,
+    documentDates: (previous: string | null, next: string) =>
+      `${previous ?? "not on file"} → ${next}`,
     footnote: "Compared against this contractor's own price book, not against market rates."
   },
 
@@ -348,6 +356,10 @@ const de: Copy = {
     documentExpired: "Abgelaufener Nachweis",
     documentMissing: "Fehlender Nachweis",
     validUntil: (date) => ` · gültig bis ${date}`,
+    confirmDocumentTitle: "Diesen Nachweis bestätigen?",
+    confirmDocumentBody: (date) =>
+      `Sie bestätigen, dass ein bis ${date} gültiger Nachweis vorliegt. Hochgeladen oder geprüft wird hier nichts.`,
+    documentDates: (previous, next) => `${previous ?? "nicht hinterlegt"} → ${next}`,
     footnote:
       "Verglichen wird mit dem eigenen Preisbuch dieses Betriebs, nicht mit Marktpreisen."
   },

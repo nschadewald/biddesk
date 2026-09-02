@@ -124,12 +124,12 @@ const CHECK_ACTIONS = {
       `${Math.abs(deviation)} % ${deviation > 0 ? "über" : "unter"} Ihrem eigenen früheren Preis ${id} — behalten Sie ihn, wenn das so gewollt ist, sonst übernehmen Sie die Preisbuchzeile.`
   },
   document_expired: {
-    en: "upload a current certificate, or set a new expiry date.",
-    de: "laden Sie einen aktuellen Nachweis hoch, oder setzen Sie ein neues Ablaufdatum."
+    en: "tell your agent the new expiry date — you confirm it on the page — or upload a current certificate.",
+    de: "nennen Sie Ihrem Agenten das neue Ablaufdatum — Sie bestätigen es auf der Seite — oder laden Sie einen aktuellen Nachweis hoch."
   },
   document_not_held: {
-    en: "obtain the document and file it before the deadline.",
-    de: "beschaffen Sie den Nachweis und reichen Sie ihn vor der Frist ein."
+    en: "tell your agent the expiry date of the certificate you hold — you confirm it on the page — or obtain one before the deadline.",
+    de: "nennen Sie Ihrem Agenten das Ablaufdatum des Nachweises, den Sie haben — Sie bestätigen es auf der Seite — oder beschaffen Sie einen vor der Frist."
   },
   deadline_passed: {
     en: "the deadline has passed — ask the client whether a late bid is still accepted.",
@@ -1203,6 +1203,95 @@ app.post("/api/tenders/:id/submit", async (c) => {
 });
 
 app.use("/api/bidders", requireWorkspace);
+
+app.use("/api/documents/*", requireWorkspace);
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const isRealDate = (value: string) =>
+  ISO_DATE.test(value) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+
+/**
+ * Records the expiry date of one of this contractor's required documents, as
+ * a person stated it and confirmed it on the page.
+ *
+ * Nothing is uploaded and nothing is verified here. A document in this demo is
+ * metadata -- a label and a date -- and this route writes the date a person
+ * put their hand on. Only the page's confirmation calls it; the tool that
+ * relays the date writes nothing. A date already on file is not an error and
+ * not a write. Contractor master data, not part of the bid: it works after the
+ * bid is handed in, and undo does not cover it.
+ */
+app.post("/api/documents/:doc_type", async (c) => {
+  const workspaceId = c.get("workspaceId");
+  const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
+  const language = readLanguage(c);
+  const docType = c.req.param("doc_type");
+
+  const required = REQUIRED_DOCUMENTS.find((document) => document.doc_type === docType);
+  if (required === undefined) {
+    return c.json(
+      fail(
+        "unknown_document",
+        `${docType} is not a document this client requires. Known: ${REQUIRED_DOCUMENTS.map((document) => document.doc_type).join(", ")}.`
+      ),
+      400
+    );
+  }
+
+  const body = await c.req
+    .json<{ valid_until?: unknown }>()
+    .catch(() => ({}) as { valid_until?: unknown });
+  const validUntil = typeof body.valid_until === "string" ? body.valid_until.trim() : "";
+  if (!isRealDate(validUntil)) {
+    return c.json(fail("invalid_date", "valid_until must be a calendar date written as YYYY-MM-DD."), 400);
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  if (validUntil < today) {
+    return c.json(
+      fail(
+        "date_in_the_past",
+        `${validUntil} is in the past. A certificate that has already expired cannot be recorded as valid; state the date on the current one.`
+      ),
+      400
+    );
+  }
+
+  const current = await c.env.DB.prepare(
+    "SELECT valid_until FROM bidder_documents WHERE workspace_id = ?1 AND bidder_id = ?2 AND doc_type = ?3"
+  )
+    .bind(workspaceId, bidderId, docType)
+    .first<{ valid_until: string }>();
+  const previous = current?.valid_until ?? null;
+  const label = pick(language, required.label_en, required.label_de);
+
+  if (previous === validUntil) {
+    return c.json({
+      ok: true,
+      changed: false,
+      doc_type: docType,
+      label,
+      previous_valid_until: previous,
+      valid_until: validUntil
+    });
+  }
+
+  await c.env.DB.prepare(
+    `INSERT INTO bidder_documents (workspace_id, bidder_id, doc_type, label_en, label_de, valid_until)
+          VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+     ON CONFLICT (workspace_id, bidder_id, doc_type) DO UPDATE SET valid_until = excluded.valid_until`
+  )
+    .bind(workspaceId, bidderId, docType, required.label_en, required.label_de, validUntil)
+    .run();
+
+  return c.json({
+    ok: true,
+    changed: true,
+    doc_type: docType,
+    label,
+    previous_valid_until: previous,
+    valid_until: validUntil
+  });
+});
 
 app.get("/api/bidders", async (c) => {
   const { results } = await c.env.DB.prepare(

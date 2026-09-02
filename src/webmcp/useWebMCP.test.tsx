@@ -109,7 +109,7 @@ it("leaves the form as the tool where the browser lists it, and registers no twi
   expect(browser.registered.has("ask_clarification")).toBe(false);
 
   const tools = hook.result.current.tools;
-  expect(tools.filter((tool) => tool.confirmed)).toHaveLength(10);
+  expect(tools.filter((tool) => tool.confirmed)).toHaveLength(11);
   expect(tools.find((tool) => tool.name === "ask_clarification")).toMatchObject({
     kind: "declarative",
     confirmed: true
@@ -135,8 +135,8 @@ it("registers the twin where the browser lists tools but never the form", async 
   expect(browser.registered.has("ask_clarification")).toBe(true);
 
   const tools = hook.result.current.tools;
-  // Ten confirmed: nine plus the twin, which the browser now lists.
-  expect(tools.filter((tool) => tool.confirmed)).toHaveLength(10);
+  // Eleven confirmed: ten plus the twin, which the browser now lists.
+  expect(tools.filter((tool) => tool.confirmed)).toHaveLength(11);
   expect(tools.filter((tool) => tool.name === "ask_clarification")).toEqual([
     expect.objectContaining({ kind: "imperative", confirmed: true }),
     // The form is still on the page and still shown -- as what it is: declared
@@ -161,7 +161,7 @@ it("registers the twin at once where the browser cannot list its tools at all", 
   expect(tools.filter((tool) => tool.confirmed).map((tool) => tool.name)).toContain(
     "ask_clarification"
   );
-  expect(tools.filter((tool) => tool.confirmed)).toHaveLength(10);
+  expect(tools.filter((tool) => tool.confirmed)).toHaveLength(11);
   expect(tools.find((tool) => tool.kind === "declarative")).toMatchObject({ confirmed: false });
   hook.unmount();
 });

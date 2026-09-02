@@ -87,7 +87,7 @@ stay empty and say **no comparable entry** — that is the point of the whole th
 
 ## The tools
 
-Twelve of them. Never all at once: roles are separated by what is registered, not by rights, so
+Thirteen of them. Never all at once: roles are separated by what is registered, not by rights, so
 in the contractor role the client's tools do not exist at all.
 
 | Tool | Role | Read-only | What it does |
@@ -101,11 +101,12 @@ in the contractor role the client's tools do not exist at all.
 | `check_bid` | contractor | yes | Open positions, outliers against the firm's own history, expired documents, days left. |
 | `ask_clarification` | contractor | no | Asks the client a question. **Declared by a form in the page**, not registered in code. |
 | `undo_last_change` | contractor | no | Takes back whole write blocks, never single rows out of one. |
+| `set_document_validity` | contractor | no | Relays a document's new expiry date for the person to confirm on the page. Writes nothing itself; nothing is uploaded or verified, and the confirmation says so. Master data: stays after the bid is handed in. |
 | `submit_bid` | contractor | no | Destructive. Cannot complete on its own; withdrawn after the bid is handed in. |
 | `get_price_comparison` | client | yes | Compares bids. Returns no prices at all while a tender is still open. |
 | `answer_clarification` | client | no | Publishes an answer to every bidder, not only to the one who asked. |
 
-Ten are registered in the contractor role, nine after a bid is handed in, five in the client
+Eleven are registered in the contractor role, ten after a bid is handed in, five in the client
 role. The self-diagnosis in the agent panel counts what the **browser** reports, not what the
 page registered: a tool the page offers but the browser does not vouch for is shown as such and
 left out of the number. That distinction is one this project got wrong until 2 September —
@@ -114,7 +115,7 @@ silently falling back to the page's own bookkeeping since the first build. The n
 by luck, not by measurement; the fix, and the ChatGPT case that exposed it, are in
 `docs/07-technik-entscheidungen.md`, step 14.
 
-**Both WebMCP styles are in use.** Eleven tools are registered imperatively through a central
+**Both WebMCP styles are in use.** Twelve tools are registered imperatively through a central
 wrapper. `ask_clarification` is declared by a `<form toolname="ask_clarification">` in the
 page, with `toolparamdescription` on each field — one submit handler serves a person and an
 agent alike. Exactly one of the two is ever registered for that name, and the browser decides
@@ -221,7 +222,7 @@ node evals/client_role.mjs          # client role, switches roles like a person
 | E9 | Show me the bids on the open tender | `get_price_comparison(T-2026-014)` | sealed: a count and arrival times; no positions, no bidders, and neither `unit_price` nor `total_net` anywhere in the answer | pass |
 | E10 | Answer the open bidder question | `list_clarifications` → `answer_clarification` | published to all bidders; the question turns to answered and carries the answer | pass |
 
-Plus the property that makes the roles real: **ten tools in the contractor role, five in the
+Plus the property that makes the roles real: **eleven tools in the contractor role, five in the
 client role**, and `get_price_comparison` / `answer_clarification` simply do not exist on the
 contractor side — checked in the browser, not asserted in a unit test.
 
@@ -261,7 +262,7 @@ had read the audit**: everything about the tools already passed, and the missing
 file that did not exist. `/llms.txt` was then written *because* the audit asked for it, and the
 second run is what it scores now. Reporting only the 1.00 would suggest we had thought of it;
 reporting only the 0.75 would be false today. The file itself is worth having either way — it
-tells an agent in twenty lines what this page is and what its twelve tools do.
+tells an agent in twenty lines what this page is and what its thirteen tools do.
 
 ## Known limitations
 
@@ -290,6 +291,10 @@ Named on purpose, not overlooked.
    with `set_by = 'human'` and no provenance. Observed in our own run, not theorised. No page
    can prevent it, and the fact that it takes DOM control to get around a tool is the argument
    for tools.
+7. **Documents are metadata.** A required document here is a label and an expiry date. Nothing
+   is uploaded, stored or verified: `set_document_validity` relays a date a person states, the
+   person confirms it on the page, and the confirmation says in so many words that nothing was
+   uploaded or checked.
 
 ## Running it yourself
 

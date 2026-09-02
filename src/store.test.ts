@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  confirmDocumentValidity,
   confirmPendingPrice,
   discardPendingPrice,
+  proposeDocumentValidity,
   getAppState,
   openTender,
   proposePrices,
@@ -51,7 +53,9 @@ const detail = {
     my_bid_status: "none"
   },
   positions: [position("01.01", 10), position("02.01", 100), position("04.01", 20, true)],
-  required_documents: []
+  required_documents: [
+    { doc_type: "tax_clearance", label: "Tax clearance certificate", valid_until: "2026-08-11" }
+  ]
 };
 
 const applied = (oz: string, unitPrice: number, lineTotal: number): AppliedPrice => ({
@@ -99,6 +103,18 @@ function stubApi() {
       }
       if (input.endsWith("/check")) {
         return new Response(JSON.stringify(checkResponse));
+      }
+      if (input.includes("/api/documents/")) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            changed: true,
+            doc_type: "tax_clearance",
+            label: "Tax clearance certificate",
+            previous_valid_until: "2026-08-11",
+            valid_until: "2027-08-15"
+          })
+        );
       }
       return new Response(JSON.stringify(detail));
     }) as unknown as typeof fetch
@@ -349,5 +365,45 @@ describe("a price with no source", () => {
     expect(row.my_unit_price).toBe(61);
     expect(row.note).toBe("own calculation");
     expect(row.set_by).toBe("human");
+  });
+});
+
+describe("a document date stated in the chat", () => {
+  const documentWrites = (calls: unknown[][]) =>
+    calls
+      .filter((call) => String(call[0]).includes("/api/documents/"))
+      .map((call) => [String(call[0]), JSON.parse(String((call[1] as RequestInit).body))]);
+
+  it("waits for the person and writes nothing, with a check open so the finding and the way out stand together", async () => {
+    const fetchMock = globalThis.fetch as unknown as { mock: { calls: unknown[][] } };
+    const before = documentWrites(fetchMock.mock.calls).length;
+
+    const pending = await proposeDocumentValidity("tax_clearance", "2027-08-15");
+
+    expect(pending).toEqual({
+      doc_type: "tax_clearance",
+      label: "Tax clearance certificate",
+      previous_valid_until: "2026-08-11",
+      valid_until: "2027-08-15"
+    });
+    expect(getAppState().pendingDocuments.tax_clearance).toBeDefined();
+    expect(getAppState().check).not.toBeNull();
+    expect(documentWrites(fetchMock.mock.calls).length).toBe(before);
+    expect(getAppState().detail!.required_documents[0]!.valid_until).toBe("2026-08-11");
+  });
+
+  it("is written by the click, and the document on file follows at once", async () => {
+    await proposeDocumentValidity("tax_clearance", "2027-08-15");
+    const fetchMock = globalThis.fetch as unknown as { mock: { calls: unknown[][] } };
+
+    const result = await confirmDocumentValidity("tax_clearance");
+
+    expect(result).toMatchObject({ changed: true, valid_until: "2027-08-15" });
+    expect(documentWrites(fetchMock.mock.calls).at(-1)).toEqual([
+      "/api/documents/tax_clearance",
+      { valid_until: "2027-08-15" }
+    ]);
+    expect(getAppState().detail!.required_documents[0]!.valid_until).toBe("2027-08-15");
+    expect(getAppState().pendingDocuments.tax_clearance).toBeUndefined();
   });
 });

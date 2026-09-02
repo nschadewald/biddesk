@@ -184,6 +184,32 @@ export type AppliedPrice = {
 
 export type PriceRejection = { oz: string; reason: string; hint: string };
 
+/**
+ * A document expiry date an agent relayed, waiting for the person's click.
+ *
+ * The third way, same pattern as a sourceless price: the person names the date
+ * in the chat, the agent passes it on, the page asks the person to confirm it
+ * -- and says, in the confirmation, that nothing was uploaded or checked. Only
+ * the click writes bidder_documents.valid_until.
+ */
+export type PendingDocument = {
+  doc_type: string;
+  label: string;
+  /** What is on file now. Null when this bidder holds no such document yet. */
+  previous_valid_until: string | null;
+  valid_until: string;
+};
+
+export type SetDocumentValidityResponse = {
+  ok: true;
+  /** False when the date equalled what was on file: nothing was written. */
+  changed: boolean;
+  doc_type: string;
+  label: string;
+  previous_valid_until: string | null;
+  valid_until: string;
+};
+
 /** What a check finding asks the person to do next. Fixed wording, never the agent's. */
 export type CheckAction = {
   finding: "open_position" | "outlier" | "document" | "deadline";

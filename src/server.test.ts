@@ -154,9 +154,14 @@ function project<T extends Record<string, unknown>>(sql: string, rows: T[]) {
 
 /** Every batch the Worker sent, with the SQL and the bound values of each statement. */
 let batches: { sql: string; args: unknown[] }[][] = [];
+/** Every single statement the Worker ran outside a batch. */
+let runs: { sql: string; args: unknown[] }[] = [];
+/** The one document on file for this stub bidder. Expired, as in the seed. */
+let documentOnFile = "2026-08-11";
 
 function stubDb() {
   batches = [];
+  runs = [];
   return {
     async batch(statements: { sql: string; args: unknown[] }[]) {
       batches.push(statements.map((statement) => ({ sql: statement.sql, args: statement.args })));
@@ -170,9 +175,14 @@ function stubDb() {
           statement.args = args;
           return statement;
         },
+        async run() {
+          runs.push({ sql, args: statement.args });
+          return { success: true };
+        },
         async first() {
           if (/from workspaces/i.test(sql)) return { present: 1 };
-          if (/from bidders/i.test(sql)) return { id: "B-A" };
+          if (/from bidders\b/i.test(sql)) return { id: "B-A" };
+          if (/from bidder_documents/i.test(sql)) return { valid_until: documentOnFile };
           // Not projected: the tender query carries subselects, and the mapping
           // under test reads title_en / title_de by name anyway.
           if (/from tenders/i.test(sql)) return TENDER;
@@ -322,7 +332,7 @@ it("tells the person what to do about each finding, in their language", async ()
     actions(body).filter((entry) => entry.finding === "open_position");
   expect(actions(english).filter((entry) => entry.finding === "document")).toHaveLength(4);
   expect(actions(english).find((entry) => entry.finding === "document")?.action).toBe(
-    "obtain the document and file it before the deadline."
+    "tell your agent the expiry date of the certificate you hold — you confirm it on the page — or obtain one before the deadline."
   );
   expect(open(english)).toEqual([
     {
@@ -373,4 +383,49 @@ it("writes a person's confirmed price as theirs, in a block undo will find", asy
   expect(priceRow.args).toContain("4 radiators at 25 min each at your rate of 58 EUR");
   expect(priceRow.args.at(-1)).toBeNull();
   expect(batch!.some((statement) => /INSERT INTO change_log/i.test(statement.sql))).toBe(true);
+});
+
+it("records a stated document date, with the label in the reader's language", async () => {
+  const body = await post("/api/documents/tax_clearance", { valid_until: "2027-08-15" });
+
+  expect(body).toEqual({
+    ok: true,
+    changed: true,
+    doc_type: "tax_clearance",
+    label: "Tax clearance certificate",
+    previous_valid_until: "2026-08-11",
+    valid_until: "2027-08-15"
+  });
+  expect(runs).toHaveLength(1);
+  expect(runs[0]!.sql).toMatch(/INSERT INTO bidder_documents/i);
+  expect(runs[0]!.args).toContain("2027-08-15");
+  expect(runs[0]!.args).toContain("Unbedenklichkeitsbescheinigung");
+});
+
+it("refuses a date in the past and an unknown document, and writes nothing for either", async () => {
+  const past = await post("/api/documents/tax_clearance", { valid_until: "2020-01-01" });
+  expect(past).toMatchObject({ ok: false, error: "date_in_the_past" });
+  expect(String(past.hint)).toContain("in the past");
+
+  const unknown = await post("/api/documents/iso_9001", { valid_until: "2027-08-15" });
+  expect(unknown).toMatchObject({ ok: false, error: "unknown_document" });
+  expect(String(unknown.hint)).toContain("tax_clearance");
+
+  const garbage = await post("/api/documents/tax_clearance", { valid_until: "15.08.2027" });
+  expect(garbage).toMatchObject({ ok: false, error: "invalid_date" });
+
+  expect(runs).toEqual([]);
+});
+
+it("treats a date already on file as nothing to do, not as an error", async () => {
+  // A document still valid, restated with its own date. (Restating an expired
+  // document's own date is a date in the past, and is answered as one.)
+  documentOnFile = "2027-08-15";
+  try {
+    const body = await post("/api/documents/tax_clearance", { valid_until: "2027-08-15" });
+    expect(body).toMatchObject({ ok: true, changed: false, valid_until: "2027-08-15" });
+    expect(runs).toEqual([]);
+  } finally {
+    documentOnFile = "2026-08-11";
+  }
 });
