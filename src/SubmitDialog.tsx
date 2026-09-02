@@ -3,6 +3,9 @@ import { formatEuro } from "./format";
 import { useCopy } from "./i18n";
 import type { BidTotals } from "./types";
 
+/** Enough of a position to count the contingency rows apart. */
+type PositionShape = { oz: string; contingency: boolean; my_unit_price: number | null };
+
 /**
  * The one irreversible action, and the one that a tool cannot complete.
  *
@@ -10,20 +13,32 @@ import type { BidTotals } from "./types";
  * waits. The bid goes out when a person presses the button here, and not
  * before -- the authority sits with the hand on the mouse, never in a tool
  * argument. If nobody presses anything, the bid stays a draft.
+ *
+ * Contingency positions are counted apart, in words. "Positions priced
+ * 12 of 12" above a table with an empty row read as a bug in the run-through;
+ * it was the rule -- contingency rows are quoted apart and never block --
+ * and the dialog now says so.
  */
 export default function SubmitDialog({
   tenderId,
   totals,
+  positions = [],
   onConfirm,
   onCancel
 }: {
   tenderId: string;
   totals: BidTotals;
+  /** The positions of the tender, so the contingency rows can be counted apart. */
+  positions?: PositionShape[];
   onConfirm: () => void;
   onCancel: () => void;
 }) {
   const copy = useCopy();
   const confirmRef = useRef<HTMLButtonElement>(null);
+
+  const contingency = positions.filter((row) => row.contingency);
+  const contingencyPriced = contingency.filter((row) => row.my_unit_price !== null).length;
+  const contingencyOpen = contingency.filter((row) => row.my_unit_price === null);
 
   useEffect(() => {
     confirmRef.current?.focus();
@@ -57,10 +72,28 @@ export default function SubmitDialog({
               totals.positions_priced + totals.positions_open
             )}
           />
+          {contingency.length > 0 && (
+            <Line
+              label={copy.submit.contingencyPriced}
+              value={copy.submit.positionsPricedValue(contingencyPriced, contingency.length)}
+            />
+          )}
         </dl>
 
-        {totals.positions_open > 0 && (
+        {contingencyOpen.length > 0 && (
           // Stated, not coloured: red is reserved for the check result.
+          <ul className="mt-2 flex flex-col gap-0.5 text-xs text-slate-700">
+            {contingencyOpen.map((row) => (
+              <li key={row.oz}>{copy.submit.contingencyOpenLine(row.oz)}</li>
+            ))}
+          </ul>
+        )}
+
+        {totals.positions_open > 0 && (
+          // An unpriced billable position is a blocker since CC-09, and a
+          // blocker never reaches this dialog -- neither through the button nor
+          // through submit_bid. Kept for a totals object that arrives another
+          // way; it should not be seen.
           <p className="mt-2 text-xs text-slate-700">
             {copy.submit.stillOpen(totals.positions_open)}
           </p>

@@ -53,6 +53,10 @@ const en = {
     contingencyTotal: "Contingency positions",
     priced: "Priced",
     pricedValue: (done: number, total: number) => `${done} of ${total}`,
+    // Contingency positions are quoted apart and never count into the total,
+    // so they are counted apart too -- or "12 of 12" above a table with an
+    // empty row reads as a bug, which is exactly how it read in the run-through.
+    contingencyPricedValue: (done: number, total: number) => `· contingency ${done} of ${total}`,
     applyAll: (n: number) => `Apply all suggestions (${n})`,
     checkBid: "Check bid",
     undo: "Undo",
@@ -126,7 +130,18 @@ const en = {
     close: "Close",
     nothingToFlag: "Nothing to flag.",
     findings: (n: number) => `${n} finding${n === 1 ? "" : "s"}.`,
-    allPriced: "Every position is priced.",
+    // Names the number and the frame. "Every position is priced" beside
+    // "Positions without a price · 04.02" was true and looked like a lie.
+    allPriced: (n: number) => `All ${n} positions in the total are priced.`,
+    contingencyOpen: (n: number) =>
+      n === 1
+        ? "1 contingency position is open; it does not block the hand-in."
+        : `${n} contingency positions are open; they do not block the hand-in.`,
+    // A finding, not a blocker: the same shape as the others, in slate.
+    contingencyWithoutPrice: (n: number): string =>
+      n === 1
+        ? "Contingency position without a price · does not block the hand-in"
+        : "Contingency positions without a price · do not block the hand-in",
     deadline: (date: string) => `Deadline ${date}`,
     daysLeft: (n: number) => `${n} days left`,
     daysAgo: (n: number) => `${n} days ago`,
@@ -157,6 +172,11 @@ const en = {
     contingencyTotal: "Contingency positions",
     positionsPriced: "Positions priced",
     positionsPricedValue: (done: number, total: number) => `${done} of ${total}`,
+    contingencyPriced: "Contingency positions priced",
+    // Said on the dialog, in words: an empty contingency row is not a gap in
+    // the bid. Slate, not red -- red stays with the blockers.
+    contingencyOpenLine: (oz: string) =>
+      `${oz} is without a price — a contingency position, quoted apart; it does not block the hand-in.`,
     stillOpen: (n: number) => `${n} position${n === 1 ? " is" : "s are"} still without a price.`,
     cancel: "Cancel",
     confirm: "Submit bid",
@@ -206,7 +226,7 @@ const en = {
     prompts: [
       "Open tender T-2026-014 and price every position from my price book. Leave anything without a match empty and tell me which ones.",
       "Why is there no price for the radiators?",
-      "Set 03.04 to 61 euros — four radiators, twenty-five minutes each, at my rate.",
+      "Set 03.04 to 61 euros — four radiators, twenty-five minutes each, at my rate — and 04.02 to 48 euros, my hourly rate.",
       "Run a check on my bid — anything that looks off?",
       "My new tax clearance certificate is valid until 15 August 2027.",
       "Ask the client whether the scaffolding from the roofing works will still be in place.",
@@ -356,6 +376,7 @@ const de: Copy = {
     contingencyTotal: "Bedarfspositionen",
     priced: "Bepreist",
     pricedValue: (done, total) => `${done} von ${total}`,
+    contingencyPricedValue: (done, total) => `· Bedarf ${done} von ${total}`,
     applyAll: (n) => `Alle Vorschläge übernehmen (${n})`,
     checkBid: "Angebot prüfen",
     undo: "Rückgängig",
@@ -408,7 +429,15 @@ const de: Copy = {
     close: "Schließen",
     nothingToFlag: "Nichts zu beanstanden.",
     findings: (n) => (n === 1 ? "1 Befund." : `${n} Befunde.`),
-    allPriced: "Alle Positionen sind bepreist.",
+    allPriced: (n) => `Alle ${n} Positionen der Angebotssumme sind bepreist.`,
+    contingencyOpen: (n) =>
+      n === 1
+        ? "1 Bedarfsposition ist offen; sie blockiert die Abgabe nicht."
+        : `${n} Bedarfspositionen sind offen; sie blockieren die Abgabe nicht.`,
+    contingencyWithoutPrice: (n) =>
+      n === 1
+        ? "Bedarfsposition ohne Preis · blockiert die Abgabe nicht"
+        : "Bedarfspositionen ohne Preis · blockieren die Abgabe nicht",
     deadline: (date) => `Frist ${date}`,
     daysLeft: (n) => (n === 1 ? "noch 1 Tag" : `noch ${n} Tage`),
     daysAgo: (n) => (n === 1 ? "vor 1 Tag" : `vor ${n} Tagen`),
@@ -435,6 +464,9 @@ const de: Copy = {
     contingencyTotal: "Bedarfspositionen",
     positionsPriced: "Bepreiste Positionen",
     positionsPricedValue: (done, total) => `${done} von ${total}`,
+    contingencyPriced: "Bepreiste Bedarfspositionen",
+    contingencyOpenLine: (oz) =>
+      `${oz} ist ohne Preis — eine Bedarfsposition, gesondert angeboten; sie blockiert die Abgabe nicht.`,
     stillOpen: (n) =>
       n === 1 ? "1 Position ist noch ohne Preis." : `${n} Positionen sind noch ohne Preis.`,
     cancel: "Abbrechen",
@@ -477,7 +509,7 @@ const de: Copy = {
     prompts: [
       "Öffne die Ausschreibung T-2026-014 und bepreise jede Position aus meinem Preisbuch. Lass alles ohne Treffer leer und sag mir, welche das sind.",
       "Warum steht bei den Heizkörpern kein Preis?",
-      "Setz 03.04 auf 61 Euro — vier Heizkörper, je 25 Minuten, zu meinem Stundensatz.",
+      "Setz 03.04 auf 61 Euro — vier Heizkörper, je 25 Minuten, zu meinem Stundensatz — und 04.02 auf 48 Euro, mein Stundensatz.",
       "Prüfe mein Angebot – gibt es etwas Auffälliges?",
       "Meine neue Unbedenklichkeitsbescheinigung gilt bis 15. August 2027.",
       "Frag den Auftraggeber, ob das Gerüst der Dachdeckerarbeiten stehen bleibt.",

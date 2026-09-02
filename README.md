@@ -103,7 +103,7 @@ the side that holds it — the client's `get_tender` says it returns no prices, 
 | `get_price_book` | contractor | yes | The contractor's own past positions. Without a filter: a summary per category and unit with counts. With `category`, `unit` or `query`: the lines, with project and date. |
 | `suggest_prices` | contractor | yes | Proposes prices from that price book. Proposes only — `set_unit_price` applies them. |
 | `set_unit_price` | contractor | no | Writes 1–50 rows. Each must name the price book line it came from and match its price. |
-| `check_bid` | contractor | yes | Open positions, outliers against the firm's own history, expired documents, days left. |
+| `check_bid` | contractor | yes | Open positions, outliers against the firm's own history, expired documents, days left, and the blockers. Contingency positions are quoted apart and never block the hand-in; the check names them, the dialog counts them separately. |
 | `ask_clarification` | contractor | no | Asks the client a question. **Declared by a form in the page**, not registered in code. |
 | `undo_last_change` | contractor | no | Takes back whole write blocks, never single rows out of one. |
 | `set_document_validity` | contractor | no | Relays a document's new expiry date for the person to confirm on the page. Writes nothing itself; nothing is uploaded or verified, and the confirmation says so. Master data: stays after the bid is handed in. |

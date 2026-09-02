@@ -49,6 +49,74 @@ it("names the three findings of the demo run", () => {
   expect(screen.getByText(/PB-A-005/)).toBeInTheDocument();
 });
 
+it("names an open contingency position as one, in slate, and says it does not block", () => {
+  // After the demo run: 03.04 confirmed, 04.02 still empty. The check is
+  // complete -- all twelve billable positions are priced -- and one
+  // contingency row is open. Both are true; the panel has to say both.
+  const { container } = render(
+    <CheckPanel
+      check={check({
+        complete: true,
+        open_positions: ["04.02"],
+        outliers: [],
+        missing_documents: [],
+        totals: { net: 13457.5, contingency: 370, positions_priced: 12, positions_open: 0 },
+        positions_priced: 12,
+        positions_open: 0,
+        actions: [
+          {
+            finding: "open_position",
+            oz: "04.02",
+            action:
+              "no entry for labour/h — set the price yourself, or ask your agent to derive one; you confirm it."
+          }
+        ]
+      })}
+      positions={[
+        { oz: "03.04", contingency: false },
+        { oz: "04.01", contingency: true },
+        { oz: "04.02", contingency: true }
+      ]}
+      onClose={() => {}}
+    />
+  );
+
+  // The number and the frame, then the contingency sentence, in one summary line.
+  expect(screen.getByText(/All 12 positions in the total are priced\./)).toBeInTheDocument();
+  expect(
+    screen.getByText(/1 contingency position is open; it does not block the hand-in\./)
+  ).toBeInTheDocument();
+  expect(screen.getByText(/1 finding\./)).toBeInTheDocument();
+
+  // Its own finding, with the server's own way out under it -- and not red.
+  const finding = screen.getByTestId("finding-contingency");
+  expect(finding).toHaveTextContent("Contingency position without a price · does not block the hand-in");
+  expect(finding).toHaveTextContent("04.02");
+  expect(finding).toHaveTextContent(/no entry for labour\/h/);
+  expect(finding.className).not.toMatch(/red/);
+  expect(finding.innerHTML).not.toMatch(/text-red|border-red/);
+  expect(screen.queryByText("Positions without a price")).not.toBeInTheDocument();
+  // Nothing red is left on the panel at all: no blocker, no red.
+  expect(container.innerHTML).not.toMatch(/text-red-700|border-red-600/);
+});
+
+it("keeps a billable position red and a contingency one slate, side by side", () => {
+  render(
+    <CheckPanel
+      check={check({ open_positions: ["03.04", "04.02"], outliers: [], missing_documents: [] })}
+      positions={[
+        { oz: "03.04", contingency: false },
+        { oz: "04.02", contingency: true }
+      ]}
+      onClose={() => {}}
+    />
+  );
+  expect(screen.getByText("Positions without a price")).toBeInTheDocument();
+  expect(screen.getByText("03.04")).toBeInTheDocument();
+  expect(screen.getByTestId("finding-contingency")).toHaveTextContent("04.02");
+  expect(screen.getByText(/2 findings\./)).toBeInTheDocument();
+});
+
 it("is the one place that uses red", () => {
   const { container } = render(<CheckPanel check={check()} onClose={() => {}} />);
   // Red carries meaning here only because it appears nowhere else in the app.

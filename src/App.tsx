@@ -96,6 +96,7 @@ export default function App() {
         <SubmitDialog
           tenderId={state.pendingSubmit.tenderId}
           totals={state.pendingSubmit.totals}
+          positions={state.detail?.role === "bidder" ? state.detail.positions : []}
           onConfirm={() => void confirmSubmit()}
           onCancel={cancelSubmit}
         />
@@ -132,6 +133,10 @@ function BidScreen() {
   const contingency = sum(positions.filter((position) => position.contingency));
   const billable = positions.filter((position) => !position.contingency);
   const priced = billable.filter((position) => position.my_unit_price !== null).length;
+  // Counted apart, shown apart: an empty contingency row is not a gap in the
+  // total, and the bar says so in the same line.
+  const contingencyRows = positions.filter((position) => position.contingency);
+  const contingencyPriced = contingencyRows.filter((position) => position.my_unit_price !== null).length;
 
   const openProposals = positions
     .map((position) => suggestions[position.oz])
@@ -199,6 +204,11 @@ function BidScreen() {
         <Total label={copy.bid.netTotal} value={formatEuro(net)} strong />
         <Total label={copy.bid.contingencyTotal} value={formatEuro(contingency)} />
         <Total label={copy.bid.priced} value={copy.bid.pricedValue(priced, billable.length)} />
+        {contingencyRows.length > 0 && (
+          <span className="-ml-6 whitespace-nowrap text-slate-500">
+            {copy.bid.contingencyPricedValue(contingencyPriced, contingencyRows.length)}
+          </span>
+        )}
 
         <span className="ml-auto flex items-center gap-2">
           {!locked && openProposals.length > 0 && (
@@ -265,7 +275,7 @@ function BidScreen() {
         </section>
       )}
 
-      {check && <CheckPanel check={check} onClose={closeCheck} />}
+      {check && <CheckPanel check={check} positions={positions} onClose={closeCheck} />}
 
       {!locked && <ImportDropZone />}
 

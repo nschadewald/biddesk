@@ -1936,4 +1936,67 @@ Deploy läuft nur noch über das Skript.
 
 218 Unit-Tests in 20 Dateien (neu: `src/webmcp/budget.test.ts`, 9 Tests), Typecheck sauber,
 `verify_seed.py` grün, Bieter-Evals 14/14 (E1–E8 unverändert), Client-Evals C1–C4, GAEB
-bestanden. Deploy **`6fe011de`** = **Videostand**. Commit `debac0b` plus Nachzug.
+bestanden. Deploy **`6fe011de`**. Commit `debac0b` plus Nachzug `21c50e1`. Als Videostand
+gemeldet – und von Nils' Durchlauf überholt, siehe Schritt 24.
+
+## Schritt 24 – Bedarfspositionen sagen, was sie sind (Mi 02.09.2026, CC-11)
+
+### Der Befund
+
+Nils' Videodurchlauf nach Skript, auf `bf452d58` (die Anzeige war seitdem unverändert): 03.04 auf
+61 € bestätigt, Nachweis erneuert, „Submit the bid" – und drei Dinge, die zusammen wie ein Fehler
+aussehen. Das Prüfpanel sagt **„1 finding. Every position is priced."** und direkt darunter
+**„Positions without a price · 04.02"**. Der Abgabedialog sagt **„Positions priced 12 of 12"**
+über einer Tabelle mit vierzehn Zeilen, von denen dreizehn einen Preis haben. Und die Abgabe geht
+durch, obwohl 04.02 leer ist.
+
+Die Logik war richtig und bleibt: 04.02 ist eine Bedarfsposition (`contingency: true`), Bedarf
+zählt nie in die Angebotssumme, `submissionBlockers()` lässt Bedarfspositionen nie blockieren,
+`positions_priced` zählt die abrechenbaren Positionen. **Die Oberfläche hat das nicht gesagt.**
+Sie hat „every position" gesagt und „12 of 12" und daneben eine leere Zeile gezeigt. Wer die
+Regel nicht kennt – und ein Juror kennt sie nicht –, sieht drei Widersprüche.
+
+### Die Entscheidung: Anzeige statt Regel
+
+Kein Werkzeug ändert sich, keine Regel, kein Endpunkt; `check_bid` und `submit_bid` antworten,
+was sie antworteten, E1–E8 unverändert. Die Bedarfszählung rechnet die Oberfläche aus den
+Positionen (`contingency && my_unit_price !== null`), kein neues Feld in `BidTotals`. Nur
+`src/i18n.ts` und drei Komponenten:
+
+- **Prüfpanel, Summenzeile:** „All 12 positions in the total are priced." nennt Zahl und Rahmen.
+  Steht eine Bedarfsposition offen: „1 contingency position is open; it does not block the
+  hand-in." im selben Satzbereich.
+- **Prüfpanel, Befund:** offene Bedarfspositionen sind ein eigener Befund, getrennt von den
+  abrechenbaren, mit dem Handlungssatz vom Server darunter – dieselbe Form, aber **Slate, nicht
+  Rot**. Rot bleibt den Blockern (offene abrechenbare Position, Nachweis abgelaufen oder
+  fehlend, Ausreißer). Der Befund zählt in `findings(n)` mit; er ist ein Befund, nur kein Blocker.
+  Das Panel bekommt die Positionen als Prop, damit es eine Bedarfszeile erkennt; ohne Prop gilt
+  jede offene Zeile als abrechenbar – die konservative Seite.
+- **Abgabedialog:** unter „Positions priced 12 of 12" eine zweite Zeile „Contingency positions
+  priced 1 of 2", darunter je offener Bedarfsposition der Satz „04.02 is without a price — a
+  contingency position, quoted apart; it does not block the hand-in." in Slate. `stillOpen`
+  bleibt mit Kommentar stehen: eine offene abrechenbare Position ist seit CC-09 ein Blocker und
+  erreicht den Dialog nicht mehr.
+- **Summenleiste:** „Priced 12 of 12 · contingency 1 of 2", eine Zeile.
+- **Beispielsatz 3** bestätigt beide Lücken in einem Satz, wie das Skript: „… — and 04.02 to 48
+  euros, my hourly rate." / „… — und 04.02 auf 48 Euro, mein Stundensatz."
+- **`check_bid`-Beschreibung:** „(contingency positions never block submit_bid)" statt „(only
+  billable ones count against complete)", 488 Zeichen, Budget hält.
+
+### Tests
+
+`CheckPanel.test.tsx`: offene Bedarfsposition → eigenes Label, `data-testid="finding-contingency"`
+ohne `red` in Klasse und Inhalt, Summenzeile „All 12 …" plus Bedarfs-Satz, „1 finding."; abrechenbar
+und Bedarf nebeneinander: Rot und Slate. `SubmitDialog.test.tsx` (neu): „12 of 12", „1 of 2", der
+Satz, kein Rot; nach dem Bepreisen „2 of 2", kein Satz, 850,00 €. `App.test.tsx`: „· contingency
+0 of 2" in der Summenleiste. `i18n.test.ts`: Satz 3 in beiden Sprachen, Sie-Test grün.
+
+Ein Fund beim Testen: Der Store ist Modulzustand, und ein Prüfergebnis, das ein Test offen ließ,
+rendert im nächsten das Prüfpanel – dessen Befund nennt jetzt „03.04" allein, und
+`getByText("03.04")` fand zwei Elemente. `afterEach` schließt seitdem die Prüfung; die
+Zeilenabfrage sucht in der Tabelle.
+
+### Stand
+
+222 Unit-Tests in 21 Dateien (neu: `src/SubmitDialog.test.tsx`), Typecheck sauber. Deploy über
+den Wächter: siehe unten.

@@ -89,7 +89,11 @@ it("lists the seven prompts of the contractor's demo in the order of the script,
   });
 
   // The person speaks to the agent: imperatives, no "Sie" formula in the German.
-  expect(german[2]).toBe("Setz 03.04 auf 61 Euro — vier Heizkörper, je 25 Minuten, zu meinem Stundensatz.");
+  // Both gaps in one sentence, as the script confirms them.
+  expect(german[2]).toBe(
+    "Setz 03.04 auf 61 Euro — vier Heizkörper, je 25 Minuten, zu meinem Stundensatz — und 04.02 auf 48 Euro, mein Stundensatz."
+  );
+  expect(english[2]).toContain("04.02 to 48 euros");
   expect(german[4]).toBe("Meine neue Unbedenklichkeitsbescheinigung gilt bis 15. August 2027.");
 
   expect(copyFor("en").panel.promptsClient).toHaveLength(3);

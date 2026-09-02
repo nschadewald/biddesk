@@ -657,8 +657,8 @@ const checkBidTool: ToolDefinition = {
   name: "check_bid",
   title: "Check the bid before it goes out",
   description:
-    "Reads this contractor's bid and reports what is off: unpriced positions (only billable " +
-    "ones count against complete), prices more than 30 % off this firm's own past price, " +
+    "Reads this contractor's bid and reports what is off: unpriced positions (contingency " +
+    "positions never block submit_bid), prices more than 30 % off this firm's own past price, " +
     "required documents missing or expired, days to the deadline, totals, and the blockers " +
     "to handing in. Each finding carries an action sentence under actions, written by the " +
     "page in the person's language: relay it, do not rephrase it. Use it for what is open, " +

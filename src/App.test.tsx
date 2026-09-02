@@ -301,7 +301,12 @@ function stubApi(options: { priced?: boolean } = {}) {
   );
 }
 
-afterEach(() => {
+afterEach(async () => {
+  // The store is module state. A check left open by one test would render the
+  // check panel in the next, and its findings name the same item numbers as
+  // the table.
+  const { closeCheck } = await import("./store");
+  closeCheck();
   vi.unstubAllGlobals();
 });
 
@@ -338,6 +343,8 @@ it("shows the 14 positions with quantity and unit, no prices and a zero total", 
   // Net total and contingency total, both zero.
   expect(screen.getAllByText("0,00 €")).toHaveLength(2);
   expect(screen.getByText("0 of 12")).toBeInTheDocument();
+  // The two contingency rows are counted apart, in the same line.
+  expect(screen.getByText("· contingency 0 of 2")).toBeInTheDocument();
 });
 
 it("marks the two contingency positions", async () => {
@@ -576,7 +583,7 @@ it("writes a proposed price only on the person's click, as theirs, and the total
   expect(priceWrites[0]!.prices).toEqual([{ oz: "03.04", unit_price: 61, note: RATIONALE }]);
   expect(priceWrites[0]!.prices[0]).not.toHaveProperty("price_book_id");
 
-  const row = screen.getByText("03.04").closest("tr")!;
+  const row = within(screen.getByRole("table")).getByText("03.04").closest("tr")!;
   expect(within(row).getByText(`set by you · ${RATIONALE}`)).toBeInTheDocument();
   expect(within(row).queryByText(/from your quote/)).not.toBeInTheDocument();
   expect(screen.queryByText("Confirm this price?")).not.toBeInTheDocument();
