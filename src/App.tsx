@@ -83,6 +83,14 @@ export default function App() {
     void boot();
   }, []);
 
+  // The frame: html, body and the root take the full height and never scroll
+  // as a document. Set here rather than in the stylesheet so the how-to-test
+  // page, which is a document, keeps scrolling like one.
+  useEffect(() => {
+    document.documentElement.classList.add("frame");
+    return () => document.documentElement.classList.remove("frame");
+  }, []);
+
   async function onReset() {
     setResetting(true);
     try {
@@ -93,7 +101,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden text-ink">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden text-ink">
       <Header
         role={state.role}
         bidders={state.bidders}
@@ -108,7 +116,7 @@ export default function App() {
       />
 
       <div className="flex min-h-0 flex-1 flex-col wide:flex-row">
-        <main className="min-w-0 flex-1 overflow-y-auto px-6 py-6">
+        <main className="scroll-thin min-h-0 min-w-0 flex-1 overflow-y-auto px-6 py-6">
           <div className="mx-auto flex max-w-[1180px] flex-col gap-5">
             {state.status === "failed" ? (
               <p className="text-sm text-ink-muted">

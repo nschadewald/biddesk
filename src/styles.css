@@ -69,6 +69,36 @@ html {
   color-scheme: light;
 }
 
+/*
+ * The application is a frame, not a document: header, working area, status
+ * bar, and only the two columns inside scroll. Percent heights chained from
+ * html down, and overflow hidden on the way -- 100vh is not the visible
+ * height in ChatGPT's browser, and the document then scrolled a third time,
+ * pushing the whole frame and its status bar up over a blank page. The class
+ * is set by the App; the how-to-test page stays an ordinary document.
+ */
+html.frame,
+html.frame body,
+html.frame #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+/*
+ * Measured in Chrome 152: a table inside the scrolling column still added its
+ * height to the document's scrollable area, and the document could then be
+ * scrolled by script -- html.scrollHeight 1447 in a 900 px viewport, with
+ * every box in place. Paint containment on the two scroll containers, and
+ * positioned tables, keep the overflow where it belongs. Verified: 900/900.
+ */
+html.frame main,
+html.frame aside > .overflow-y-auto {
+  contain: paint;
+}
+html.frame table {
+  position: relative;
+}
+
 body {
   margin: 0;
   background-color: #ffffff;
@@ -81,6 +111,12 @@ body {
 ::selection {
   background: var(--color-orange);
   color: #ffffff;
+}
+
+/* Two thin bars instead of three heavy ones: the table column and the panel. */
+@utility scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
 }
 
 @layer components {

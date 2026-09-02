@@ -48,62 +48,67 @@ export default function AgentPanel({ webmcp, wide, onHide, onReset, resetting }:
     <aside
       className={
         wide
-          ? "flex w-[352px] shrink-0 flex-col gap-5 overflow-y-auto border-l border-line px-5 py-5 text-sm"
-          : "flex max-h-[50vh] shrink-0 flex-col gap-5 overflow-y-auto border-t border-line px-5 py-5 text-sm"
+          ? "flex min-h-0 w-[352px] shrink-0 flex-col border-l border-line text-sm"
+          : "flex max-h-[50%] min-h-0 shrink-0 flex-col border-t border-line text-sm"
       }
     >
-      <div className="flex items-baseline justify-between">
+      {/* Three zones: a head that stays, a body that scrolls, a foot that
+          stays. The reset button used to follow a log section that had been
+          told to shrink -- and sat on top of the log lines it was meant to
+          follow. */}
+      <div className="flex shrink-0 items-baseline justify-between px-5 pt-5 pb-3">
         <h2 className="text-[15px] font-medium text-navy">{copy.panel.title}</h2>
         <button type="button" onClick={onHide} className="text-xs text-ink-muted hover:text-ink">
           {copy.panel.hide}
         </button>
       </div>
 
-      <SelfDiagnosis webmcp={webmcp} copy={copy} />
+      <div className="scroll-thin flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pb-5">
+        <SelfDiagnosis webmcp={webmcp} copy={copy} />
 
-      <section>
-        <h3 className="eyebrow">{copy.panel.tryThese}</h3>
-        <ul className="mt-2 flex flex-col gap-1.5">
-          {prompts.map((prompt) => (
-            <PromptRow key={prompt} prompt={prompt} copiedLabel={copy.panel.copied} />
-          ))}
-        </ul>
-        <p className="mt-2 text-xs text-ink-subtle">{roleNote}</p>
-      </section>
+        {/* The log first: the line AWAITING CONFIRMATION is the one line of
+            the product that has to be in the picture without scrolling. */}
+        <section className="flex flex-col">
+          <div className="flex items-baseline justify-between">
+            <h3 className="eyebrow">{copy.panel.liveLog}</h3>
+            {entries.length > 0 && (
+              <button
+                type="button"
+                onClick={() => logStore.clear()}
+                className="text-xs text-ink-muted hover:text-ink"
+              >
+                {copy.panel.clear}
+              </button>
+            )}
+          </div>
 
-      <section className="flex min-h-0 flex-col">
-        <div className="flex items-baseline justify-between">
-          <h3 className="eyebrow">{copy.panel.liveLog}</h3>
-          {entries.length > 0 && (
-            <button
-              type="button"
-              onClick={() => logStore.clear()}
-              className="text-xs text-ink-muted hover:text-ink"
-            >
-              {copy.panel.clear}
-            </button>
-          )}
-        </div>
+          <ol className="mt-1 flex flex-col">
+            {entries.length === 0 ? (
+              <li className="py-2 text-xs text-ink-subtle">{copy.panel.logEmpty}</li>
+            ) : (
+              entries.map((entry) => <LogRow key={entry.id} entry={entry} />)
+            )}
+          </ol>
 
-        <ol className="mt-1 flex flex-col">
-          {entries.length === 0 ? (
-            <li className="py-2 text-xs text-ink-subtle">{copy.panel.logEmpty}</li>
-          ) : (
-            entries.map((entry) => <LogRow key={entry.id} entry={entry} />)
-          )}
-        </ol>
+          <p className="mt-3 text-xs text-ink-subtle">{copy.panel.logStaysHere}</p>
+        </section>
 
-        <p className="mt-3 text-xs text-ink-subtle">{copy.panel.logStaysHere}</p>
-      </section>
+        <section>
+          <h3 className="eyebrow">{copy.panel.tryThese}</h3>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {prompts.map((prompt) => (
+              <PromptRow key={prompt} prompt={prompt} copiedLabel={copy.panel.copied} />
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-ink-subtle">{roleNote}</p>
+        </section>
+      </div>
 
-      <button
-        type="button"
-        onClick={onReset}
-        disabled={resetting}
-        className="btn-ghost btn-sm self-start"
-      >
-        {resetting ? copy.panel.resetting : copy.panel.reset}
-      </button>
+      <div className="flex shrink-0 justify-end border-t border-line px-5 py-3">
+        <button type="button" onClick={onReset} disabled={resetting} className="btn-ghost btn-sm">
+          {resetting ? copy.panel.resetting : copy.panel.reset}
+        </button>
+      </div>
     </aside>
   );
 }
@@ -155,14 +160,16 @@ function SelfDiagnosis({ webmcp, copy }: { webmcp: WebMCPStatus; copy: Copy }) {
   const count = confirmedCount(webmcp);
 
   if (webmcp.supported && webmcp.error === null) {
+    // The sentence is the summary; the eleven chips wait behind it, folded.
+    // The count stays in the picture, the list does not take the picture.
     return (
-      <section>
-        <p className="flex items-center gap-2 text-sm text-ink">
+      <details>
+        <summary className="flex cursor-pointer items-center gap-2 text-sm text-ink">
           <span aria-hidden="true" className="h-2 w-2 rounded-full bg-success" />
           {copy.panel.detected(count)}
-        </p>
+        </summary>
         <ToolNames tools={webmcp.tools} copy={copy} />
-      </section>
+      </details>
     );
   }
 
