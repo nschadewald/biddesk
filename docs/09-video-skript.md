@@ -6,8 +6,8 @@ versiegelt — sonst trägt „zwei, jetzt drei" am Ende nicht), **beide** leere
 Preis des Menschen (der Abgabedialog liest sich sonst wie ein Fehler), kein Ausreißer in der
 Prüfszene (den gäbe es nur nach einem absichtlichen Zahlendreher — gestrichen), Beweiskarte
 gestrichen (zu technisch, gehört in den Devpost-Text), Abbinder ohne Diagramm. Aufnahme im
-ChatGPT-Desktop-Browser auf dem **Freeze-Stand `cfdb3e2`, live `58e076a3`** (Mi 02.09., 22:33 —
-CC-10 Teil 3, CC-12 und der Skin aus CC-13 sind drin, danach nur noch Befunde), Oberfläche **Englisch**, frischer
+ChatGPT-Desktop-Browser auf dem **Freeze-Stand `e73eada`, live `ef9fd1a2`** (Mi 02.09., nach CC-14 —
+CC-10 Teil 3, CC-12, der Skin aus CC-13 und der Rahmen aus CC-14 sind drin, danach nur noch Befunde), Oberfläche **Englisch**, frischer
 Workspace, Fenster ≥ 1240 px, Cursor sichtbar.
 
 ---
@@ -134,7 +134,7 @@ Chip · die Bestätigung im Check-Panel und der verschwindende rote Befund · Ab
 **Nicht wegschneiden:** das gestaffelte Einlaufen bei Prompt 1 und die Sekunde zwischen
 AWAITING CONFIRMATION und dem Klick.
 
-**Freeze-Regel:** Aufnahme auf `cfdb3e2` / `58e076a3`. Ändert sich der Code danach (nur noch
+**Freeze-Regel:** Aufnahme auf `e73eada` / `ef9fd1a2`. Ändert sich der Code danach (nur noch
 Befunde, Freeze Do 12:00), wird nur das nachgedreht, was sich sichtbar geändert hat.
 
 ## Produktionshinweise

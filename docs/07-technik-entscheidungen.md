@@ -2220,4 +2220,65 @@ der Knopfleiste und im Dialog; ein Klick auf den ersten Treffer traf die Leiste,
 
 227 Unit-Tests in 22 Dateien, Typecheck sauber, `verify_seed.py` grün, drei Eval-Sätze live.
 Commits A `6dd6b70`, B1 `d19ad7c`, B2 `4230a86`, B3 `413594d`, Kopfzeile `cfdb3e2`. Deploy
-**`58e076a3` auf `cfdb3e2` = Video- und Freeze-Stand für Do 12:00.** Danach nur noch Befunde.
+**`58e076a3` auf `cfdb3e2`.** Überholt durch Schritt 28 nach Nils' Abnahme im ChatGPT-Browser.
+
+## Schritt 28 – Ein Rahmen, der nicht scrollt; ein Panel, in dem der Log oben steht (Mi 02.09.2026, CC-14)
+
+### Drei Befunde aus dem ChatGPT-Desktop-Browser
+
+1. **Drei Scrollbalken.** Neben Tabelle und Panel scrollte das Dokument selbst; der äußere Balken
+   schob den Rahmen samt Statuszeile nach oben, darunter eine weiße Fläche von Fensterhöhe.
+   `h-screen` (100vh) ist dort nicht die sichtbare Höhe.
+2. **„Reset demo" schwebte im Live-Log.** Die Log-`section` hatte `min-h-0` in einer Flex-Spalte
+   mit `overflow-y-auto`: sie schrumpfte, ihr Inhalt lief über, der Knopf danach lag auf den
+   Log-Zeilen.
+3. **Der Log war bei 1080p nicht im Bild.** Titel → elf Werkzeug-Chips → sieben Sätze →
+   Rollenhinweis → Log: der Log begann gut 1.000 px unter dem Panelkopf. AWAITING CONFIRMATION
+   ist die eine Zeile, die im Video nicht geschnitten wird.
+
+### Was sich geändert hat (App, Panel, Stylesheet; keine Strings)
+
+- **Rahmen in Prozent, Dokument scrollt nie.** `html.frame, html.frame body, html.frame #root {
+  height:100%; overflow:hidden }` – die Klasse setzt die App per Effekt, damit `/how-to-test`
+  ein gewöhnliches Dokument bleibt. Shell `h-full`, Mittelteil `min-h-0 flex-1`, beide Spalten
+  `min-h-0 overflow-y-auto`; das schmale Panel `max-h-[50%]` statt `50vh`.
+- **Der Fund dahinter, in Chrome 152 gemessen:** auch mit allem an seinem Platz (html, body,
+  root, App je 900 px, `main` 800 px mit eigenem Scroll) meldete `html.scrollHeight` 1447 in
+  einem 900-px-Viewport – und `html.scrollTop = 200` bewegte das Dokument. Bisektion: die
+  **Tabelle** im scrollenden `main` gibt ihre Höhe an den Scrollbereich des Dokuments weiter;
+  `position: relative` auf der Tabelle oder `contain: paint` auf dem Container macht es weg.
+  Beides gesetzt: `contain: paint` auf `main` und dem Panel-Körper, positionierte Tabellen.
+  Danach in allen Zuständen `scrollHeight === clientHeight`: 1240×900 und 1920×1080, Bieter
+  frisch, Prüfpanel offen, Dialog offen, Auftraggeber – 900/900 und 1080/1080, und
+  `scrollTop = 200` bleibt bei 0. Der ChatGPT-Browser selbst konnte hier nicht gefahren werden;
+  das Verhalten in Chrome ist der Beleg, Nils' Abnahme der zweite.
+- **Zwei dünne Balken:** `@utility scroll-thin { scrollbar-width: thin; scrollbar-color:
+  var(--color-line) transparent }` auf Tabellenspalte und Panelkörper, sonst nirgends. Kein
+  `scrollbar-gutter`.
+- **Panel in drei Zonen:** Kopf (`shrink-0`) · Körper (`min-h-0 flex-1 overflow-y-auto`) · Fuß
+  (`shrink-0`, obere Linie, „Reset demo" rechts als `btn-ghost btn-sm`). Die Log-`section` ist
+  Inhalt, kein Scrollcontainer mehr.
+- **Reihenfolge im Körper:** Statuszeile mit grünem Punkt → Live log → Try these → Rollenhinweis.
+  Die elf Chips samt „declared by form · not confirmed"-Badge liegen in einem `<details>`, dessen
+  `<summary>` die Statuszeile selbst ist, zugeklappt als Standard; der Text bleibt wörtlich, die
+  Badge-Logik unverändert. Bei leerem Log steht „tool calls appear here" direkt unter dem Status.
+
+Gemessen bei 1920×1080 mit zwei Log-Einträgen (lokal ohne WebMCP, deshalb mit der grauen
+Karte statt der einzeiligen Statuszeile, also mit Reserve): Log-Überschrift bei 312 px, erste
+Log-Zeile bei 332 px, erster Satz bei 590 px, Reset bei 996–1024 px im Fuß; nach Satz 3 steht
+AWAITING CONFIRMATION als oberste Log-Zeile bei 332 px, ohne Scrollen.
+
+### Stand
+
+Code `e73eada`. 227 Unit-Tests in 22 Dateien, Typecheck sauber, `verify_seed.py` grün. Deploy über
+den Wächter: **`ef9fd1a2` auf `e73eada`**, 15 s, Bieter E1–E9, Auftraggeber C1–C4, GAEB – alle drei
+angenommen. Danach live in Chrome 152 headless bei 1920×1080: Selbstdiagnose „WebMCP detected · 11
+tools registered", `document.scrollingElement` 1080/1080 frisch, mit zwei wartenden Preisen, mit
+offenem Prüfpanel und nach der geblockten Abgabe; Log einmal über die Werkzeuge gefüllt
+(`get_tender`, `suggest_prices`, `set_unit_price` mit 12 Vorschlägen, `set_unit_price` frei für
+03.04 und 04.02, `check_bid`, `submit_bid` → `blocked` wegen der abgelaufenen
+Unbedenklichkeitsbescheinigung). Mit der einzeiligen Statuszeile steht die Log-Überschrift bei
+150 px, AWAITING CONFIRMATION als erste Zeile bei 170 px, der erste Satz nach fünf Einträgen bei
+714 px, Reset bei 996–1024 px. **`ef9fd1a2` auf `e73eada` = Videostand.** Der Abgabedialog wurde
+live nicht geöffnet (die Abgabe ist vor der Nachweis-Erneuerung geblockt, wie vorgesehen); der
+Zustand „Dialog offen" ist lokal in Chrome gemessen, 900/900 und 1080/1080.
