@@ -61,9 +61,39 @@ it("actually translated the words a contractor reads first", () => {
 it("addresses the reader as Sie, never as du", () => {
   // House rule. The chip once said "aus deinem Angebot" beside four strings
   // that said "Ihr", and a German reader notices that in the first minute.
+  //
+  // The example prompts are left out on purpose: there the PERSON speaks to
+  // their agent ("Öffne", "Setz", "Gib ab"), so they are imperatives by
+  // design, not the page addressing its reader.
   const informal = /\b(du|dir|dich|dein\w*)\b/i;
-  const offenders = Object.entries(de).filter(([, value]) => informal.test(value));
+  const offenders = Object.entries(de)
+    .filter(([key]) => !key.startsWith("panel.prompts"))
+    .filter(([, value]) => informal.test(value));
   expect(offenders).toEqual([]);
+});
+
+it("lists the seven prompts of the contractor's demo in the order of the script, in both languages", () => {
+  // docs/09: price from the book, explain the gap, dictate a price, check,
+  // state a renewed certificate, ask the client, submit. The panel is the
+  // script's cue card, so the order is the script's, and the client keeps its
+  // own three.
+  const english = copyFor("en").panel.prompts;
+  const german = copyFor("de").panel.prompts;
+  expect(english).toHaveLength(7);
+  expect(german).toHaveLength(7);
+
+  const order = [/T-2026-014/, /radiators|Heizkörper/, /03\.04.*61/, /check|Prüfe/, /2027/, /scaffolding|Gerüst/, /^(Submit the bid\.|Gib das Angebot ab\.)$/];
+  order.forEach((pattern, index) => {
+    expect(english[index], `en ${index + 1}`).toMatch(pattern);
+    expect(german[index], `de ${index + 1}`).toMatch(pattern);
+  });
+
+  // The person speaks to the agent: imperatives, no "Sie" formula in the German.
+  expect(german[2]).toBe("Setz 03.04 auf 61 Euro — vier Heizkörper, je 25 Minuten, zu meinem Stundensatz.");
+  expect(german[4]).toBe("Meine neue Unbedenklichkeitsbescheinigung gilt bis 15. August 2027.");
+
+  expect(copyFor("en").panel.promptsClient).toHaveLength(3);
+  expect(copyFor("de").panel.promptsClient).toHaveLength(3);
 });
 
 it("keeps the tool names out of the dictionary", () => {

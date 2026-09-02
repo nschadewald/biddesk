@@ -1759,3 +1759,21 @@ sauber, `verify_seed.py` grün, Bieter-Evals 14/14, Client-Evals C1–C4, GAEB b
 - ChatGPT-Abnahme der Zählung 11 / 5 / 11 (Nils).
 - Video, Devpost-Einreichung.
 - Eine der beiden Spec-Kopien – nach der Einreichung.
+
+## Schritt 21 – Das Panel als Stichwortkarte des Skripts (Mi 02.09.2026, CC-10 Teil 0b)
+
+Das Video (`docs/09`) führt sieben Sätze vor, das Panel zeigte fünf. Wer mitliest, tippt, was
+dort steht – also stehen dort jetzt die sieben in Skriptreihenfolge: bepreisen, Lücke erklären,
+Preis diktieren (wartet auf den Klick), prüfen, neue Bescheinigung nennen (wartet auf den Klick),
+Auftraggeber fragen, abgeben. Nur `src/i18n.ts`, Auftraggeberrolle unverändert.
+
+Eine Entscheidung zum Ton: Die Beispielsätze sind keine Oberflächentexte, sondern das, was die
+Person ihrem Agenten sagt. Deshalb Imperativ („Öffne", „Setz", „Gib ab") und „mein
+Stundensatz", nicht die Sie-Form. Der Sie-Test aus CC-03 nimmt `panel.prompts*` seitdem
+ausdrücklich aus, mit Kommentar – nicht weil ein Satz rot wurde (keiner enthält du/dir/dich/dein),
+sondern damit die Ausnahme dokumentiert ist, bevor jemand einen Satz mit „dein" braucht. Ein
+Test hält Anzahl (7 / 3) und Reihenfolge in beiden Sprachen.
+
+### Stand
+
+203 Unit-Tests in 18 Dateien, Typecheck sauber. Deploy und Evals: siehe Schritt 22.

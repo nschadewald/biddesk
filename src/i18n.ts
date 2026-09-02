@@ -198,13 +198,17 @@ const en = {
     // counted: a self-diagnosis that claims more than the browser is advertising.
     badgeUnconfirmedForm: "declared by form · not confirmed by this browser",
     badgeUnconfirmed: "not confirmed by this browser",
-    // The five prompts of the demo run (spec section 12.1). They are the smoke
-    // test, the eval cases and the video script at once, so they stand here in
-    // the wording the jury is meant to type.
+    // The seven prompts of the demo run, in the order of the video script
+    // (docs/09). They are the smoke test, the eval cases and the script at
+    // once, so they stand here in the wording the jury is meant to type: price
+    // from the book, explain the gap, dictate a price (waits for a click), check,
+    // state a renewed certificate (waits for a click), ask the client, submit.
     prompts: [
       "Open tender T-2026-014 and price every position from my price book. Leave anything without a match empty and tell me which ones.",
       "Why is there no price for the radiators?",
+      "Set 03.04 to 61 euros — four radiators, twenty-five minutes each, at my rate.",
       "Run a check on my bid — anything that looks off?",
+      "My new tax clearance certificate is valid until 15 August 2027.",
       "Ask the client whether the scaffolding from the roofing works will still be in place.",
       "Submit the bid."
     ],
@@ -468,10 +472,14 @@ const de: Copy = {
     badgeForm: "Formular",
     badgeUnconfirmedForm: "per Formular deklariert · von diesem Browser nicht bestätigt",
     badgeUnconfirmed: "von diesem Browser nicht bestätigt",
+    // The person speaks to their agent here, so these are imperatives, not
+    // interface text: the Sie rule is about how the page addresses the reader.
     prompts: [
       "Öffne die Ausschreibung T-2026-014 und bepreise jede Position aus meinem Preisbuch. Lass alles ohne Treffer leer und sag mir, welche das sind.",
       "Warum steht bei den Heizkörpern kein Preis?",
+      "Setz 03.04 auf 61 Euro — vier Heizkörper, je 25 Minuten, zu meinem Stundensatz.",
       "Prüfe mein Angebot – gibt es etwas Auffälliges?",
+      "Meine neue Unbedenklichkeitsbescheinigung gilt bis 15. August 2027.",
       "Frag den Auftraggeber, ob das Gerüst der Dachdeckerarbeiten stehen bleibt.",
       "Gib das Angebot ab."
     ],
