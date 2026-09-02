@@ -55,18 +55,18 @@ export default function ImportDropZone() {
       }}
       className={
         over
-          ? "rounded border border-dashed border-slate-500 bg-slate-50 px-3 py-2 text-xs"
-          : "rounded border border-dashed border-slate-300 px-3 py-2 text-xs"
+          ? "rounded-lg border border-dashed border-navy-500 bg-elev px-3 py-2 text-xs"
+          : "rounded-lg border border-dashed border-line-strong px-3 py-2 text-xs"
       }
     >
-      <span className="text-slate-600">
+      <span className="text-ink-muted">
         {busy ? copy.importZone.reading : copy.importZone.prompt}
       </span>{" "}
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
         disabled={busy}
-        className="underline hover:text-slate-900 disabled:opacity-50"
+        className="text-ink-muted underline underline-offset-2 hover:text-ink disabled:opacity-50"
       >
         {copy.importZone.orChoose}
       </button>
@@ -80,7 +80,7 @@ export default function ImportDropZone() {
           event.target.value = "";
         }}
       />
-      {message && <p className="mt-1 text-slate-700">{message}</p>}
+      {message && <p className="mt-1 text-ink">{message}</p>}
     </section>
   );
 }

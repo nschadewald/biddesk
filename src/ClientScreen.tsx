@@ -40,24 +40,37 @@ export default function ClientScreen() {
 
   return (
     <>
-      <section className="border-b border-slate-200 pb-4">
+      <section className="flex flex-col gap-1.5">
         {/* The client is a fact of the tender, not a string in the interface. */}
-        <h2 className="text-lg font-medium">{tender?.client ?? copy.header.roleClient}</h2>
-        <p className="mt-1 text-xs text-slate-500">{copy.client.subtitle}</p>
+        <h2 className="text-[28px] leading-[1.1] font-medium tracking-[-0.03em] text-navy">
+          {tender?.client ?? copy.header.roleClient}
+        </h2>
+        <p className="text-sm text-ink-muted">{copy.client.subtitle}</p>
         {/* Same line as on the bid screen, same place: where this plays, and
             that none of it is real. A juror in the client role sees the same
             German names beside English words. */}
-        <p className="mt-1 text-[11px] text-slate-400">{copy.bid.scene}</p>
+        <p className="text-xs text-ink-subtle">{copy.bid.scene}</p>
+      </section>
 
-        <div className="-mx-1 mt-3 overflow-x-auto px-1">
+      <div className="-mx-1 overflow-x-auto border-t border-line px-1">
         <table className="w-full min-w-[40rem] border-collapse text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-left text-xs font-medium text-slate-500">
-              <th className="w-28 py-2 pr-3 font-medium">{copy.client.columnTender}</th>
-              <th className="py-2 pr-3 font-medium">{copy.client.columnTitle}</th>
-              <th className="w-24 py-2 pr-3 font-medium">{copy.client.columnStatus}</th>
-              <th className="w-32 py-2 pr-3 font-medium">{copy.client.columnDeadline}</th>
-              <th className="w-20 py-2 font-medium">{copy.client.columnItems}</th>
+            <tr className="border-b border-line">
+              <th scope="col" className="eyebrow w-32 py-2.5 pr-3 text-left">
+                {copy.client.columnTender}
+              </th>
+              <th scope="col" className="eyebrow py-2.5 pr-3 text-left">
+                {copy.client.columnTitle}
+              </th>
+              <th scope="col" className="eyebrow w-24 py-2.5 pr-3 text-left">
+                {copy.client.columnStatus}
+              </th>
+              <th scope="col" className="eyebrow w-32 py-2.5 pr-3 text-left">
+                {copy.client.columnDeadline}
+              </th>
+              <th scope="col" className="eyebrow w-16 py-2.5 text-right">
+                {copy.client.columnItems}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -66,31 +79,36 @@ export default function ClientScreen() {
                 key={entry.id}
                 className={
                   entry.id === tenderId
-                    ? "cursor-pointer border-b border-slate-100 bg-slate-50"
-                    : "cursor-pointer border-b border-slate-100 hover:bg-slate-50"
+                    ? "cursor-pointer border-b border-line bg-elev"
+                    : "cursor-pointer border-b border-line hover:bg-elev"
                 }
                 onClick={() => void openTender(entry.id)}
               >
-                <td className="py-2 pr-3 font-mono text-xs text-slate-500">{entry.id}</td>
-                <td className="py-2 pr-3">{entry.title}</td>
-                <td className="py-2 pr-3 text-slate-600">
-                  {copy.client.status[entry.status] ?? entry.status}
+                <td className="py-2.5 pr-3 font-mono text-xs text-ink-subtle">{entry.id}</td>
+                <td
+                  className={
+                    entry.id === tenderId ? "py-2.5 pr-3 font-medium text-ink" : "py-2.5 pr-3 text-ink"
+                  }
+                >
+                  {entry.title}
                 </td>
-                <td className="py-2 pr-3 text-slate-600">
-                  {formatDate(entry.due_date, language)}
+                <td className="py-2.5 pr-3">
+                  <span className="badge">{copy.client.status[entry.status] ?? entry.status}</span>
                 </td>
-                <td className="py-2 tabular-nums text-slate-600">{entry.positions_count}</td>
+                <td className="py-2.5 pr-3 text-ink-muted">{formatDate(entry.due_date, language)}</td>
+                <td className="py-2.5 text-right text-ink-muted tabular-nums">
+                  {entry.positions_count}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-        </div>
-      </section>
+      </div>
 
       {comparison ? (
         <PriceComparison comparison={comparison} ownDraftPending={ownDraftPending} />
       ) : (
-        <p className="py-4 text-sm text-slate-500">{copy.client.loadingBids}</p>
+        <p className="py-2 text-sm text-ink-muted">{copy.client.loadingBids}</p>
       )}
 
       <Clarifications

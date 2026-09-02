@@ -104,15 +104,15 @@ export default function Clarifications({
   }
 
   return (
-    <section className="flex flex-col gap-3 border-t border-slate-200 pt-4">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <section className="flex flex-col gap-3 border-t border-line pt-5">
+      <h3 className="text-base font-medium text-navy">
         {copy.clarifications.title}
       </h3>
 
       {role === "bidder" && (
       <form
         ref={formRef}
-        className="flex flex-wrap items-end gap-2"
+        className="card flex flex-wrap items-end gap-3 px-4 py-3"
         toolname="ask_clarification"
         tooldescription="Ask the client a question about the tender currently open, optionally about one position. The question is published to the client and, once answered, to every bidder, so never include prices or anything confidential."
         // Without toolautosubmit the browser fills the fields and then waits for
@@ -124,7 +124,7 @@ export default function Clarifications({
         onSubmit={submit}
       >
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-500" htmlFor="clarification-oz">
+          <label className="text-xs text-ink-muted" htmlFor="clarification-oz">
             {copy.clarifications.itemLabel}
           </label>
           <input
@@ -132,11 +132,11 @@ export default function Clarifications({
             name="oz"
             placeholder={copy.clarifications.itemPlaceholder}
             toolparamdescription='The item number the question is about, for example "02.04". Leave empty for a question about the tender as a whole.'
-            className="w-24 rounded border border-slate-300 px-1.5 py-1 text-sm focus:border-slate-400 focus:outline-none"
+            className="field h-9 w-28"
           />
         </div>
         <div className="flex min-w-64 flex-1 flex-col gap-1">
-          <label className="text-xs text-slate-500" htmlFor="clarification-question">
+          <label className="text-xs text-ink-muted" htmlFor="clarification-question">
             {copy.clarifications.questionLabel}
           </label>
           <textarea
@@ -147,37 +147,36 @@ export default function Clarifications({
             maxLength={500}
             placeholder={copy.clarifications.questionPlaceholder}
             toolparamdescription="The question itself, at most 500 characters. Write it as a professional question to the client."
-            className="w-full rounded border border-slate-300 px-1.5 py-1 text-sm focus:border-slate-400 focus:outline-none"
+            className="field h-auto w-full py-2"
           />
         </div>
-        <button
-          type="submit"
-          className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
-        >
+        <button type="submit" className="btn-secondary">
           {copy.clarifications.ask}
         </button>
       </form>
       )}
 
-      {failure && <p className="text-xs text-slate-600">{failure}</p>}
+      {failure && <p className="text-xs text-ink-muted">{failure}</p>}
 
       {questions.length === 0 ? (
-        <p className="text-xs text-slate-400">{copy.clarifications.none}</p>
+        <p className="text-xs text-ink-subtle">{copy.clarifications.none}</p>
       ) : (
         <>
           <ul className="flex flex-col gap-2">
             {questions.map((entry) => (
-              <li key={entry.id} className="border-l-2 border-slate-200 pl-2 text-xs">
-                <p className="text-slate-400">
+              <li key={entry.id} className="card px-4 py-3 text-[13px]">
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-subtle">
                   <span className="font-mono">{entry.id}</span>
-                  {entry.oz ? ` · ${entry.oz}` : ""} ·{" "}
-                  {entry.bidder ?? copy.clarifications.unknownBidder} ·{" "}
-                  {copy.clarifications.status[entry.status] ?? entry.status}
+                  {entry.oz ? <span>· {entry.oz}</span> : null}
+                  <span>· {entry.bidder ?? copy.clarifications.unknownBidder}</span>
+                  <span className="badge ml-auto">
+                    {copy.clarifications.status[entry.status] ?? entry.status}
+                  </span>
                 </p>
-                <p className="mt-0.5 text-slate-900">{entry.question}</p>
+                <p className="mt-1.5 text-ink">{entry.question}</p>
                 {entry.answer && (
-                  <p className="mt-0.5 text-slate-600">
-                    <span className="text-slate-400">{copy.clarifications.clientAnswered}</span>
+                  <p className="mt-1.5 border-l-2 border-line-strong pl-2 text-ink-muted">
+                    <span className="text-ink-subtle">{copy.clarifications.clientAnswered}</span>
                     {entry.answer}
                   </p>
                 )}
@@ -187,7 +186,7 @@ export default function Clarifications({
               </li>
             ))}
           </ul>
-          <p className="text-xs text-slate-400">{copy.clarifications.fromOtherParties}</p>
+          <p className="text-xs text-ink-subtle">{copy.clarifications.fromOtherParties}</p>
         </>
       )}
     </section>
@@ -209,7 +208,7 @@ function AnswerBox({
 
   return (
     <form
-      className="mt-1 flex items-end gap-2"
+      className="mt-2 flex items-end gap-2"
       onSubmit={async (event) => {
         event.preventDefault();
         if (answer.trim().length === 0) return;
@@ -231,12 +230,12 @@ function AnswerBox({
         maxLength={500}
         onChange={(event) => setAnswer(event.target.value)}
         placeholder={copy.clarifications.answerPlaceholder}
-        className="min-w-64 flex-1 rounded border border-slate-300 px-1.5 py-1 text-xs focus:border-slate-400 focus:outline-none"
+        className="field h-8 min-w-64 flex-1 text-xs"
       />
       <button
         type="submit"
         disabled={busy}
-        className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900 disabled:opacity-50"
+        className="btn-secondary btn-sm"
       >
         {copy.clarifications.answer}
       </button>
