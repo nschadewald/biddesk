@@ -220,3 +220,23 @@ describe("persistence", () => {
     vi.unstubAllGlobals();
   });
 });
+
+it("says what is in the way of a blocked bid, and does not call it an error", () => {
+  const summary = summariseOutput({
+    ok: true,
+    status: "blocked",
+    blockers: [
+      { kind: "open_position", oz: "03.04", text: "Radiators" },
+      { kind: "document_expired", doc_type: "tax_clearance", label: "Tax clearance certificate", valid_until: "2026-08-12" }
+    ],
+    summary: { total_net: 13213.5 }
+  });
+  expect(summary).toBe("blocked · 2 in the way · open_position, document_expired");
+  expect(summary).not.toContain("error");
+});
+
+it("reads submit_bid's own request for confirmation as waiting, with the total", () => {
+  expect(
+    summariseOutput({ ok: true, status: "needs_confirmation", summary: { total_net: 13213.5 } })
+  ).toBe("waiting for a person · 13213.5 EUR net");
+});

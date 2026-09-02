@@ -159,7 +159,15 @@ const en = {
     positionsPricedValue: (done: number, total: number) => `${done} of ${total}`,
     stillOpen: (n: number) => `${n} position${n === 1 ? " is" : "s are"} still without a price.`,
     cancel: "Cancel",
-    confirm: "Submit bid"
+    confirm: "Submit bid",
+    // What keeps the bid from going out. Listed beside the button, with the
+    // check's own sentence under each item: the three ways out of a blocker
+    // are exactly the three ways this page offers.
+    blocked: (n: number) =>
+      `Cannot be handed in yet: ${n} thing${n === 1 ? "" : "s"} in the way.`,
+    blockerOpen: (oz: string, text: string) => `${oz} ${text} — no price`,
+    blockerExpired: (label: string, date: string) => `${label} — expired ${date}`,
+    blockerMissing: (label: string) => `${label} — not on file`
   },
 
   panel: {
@@ -199,7 +207,20 @@ const en = {
       "Run a check on my bid — anything that looks off?",
       "Ask the client whether the scaffolding from the roofing works will still be in place.",
       "Submit the bid."
-    ]
+    ],
+    // The client's three. Sealed bids, a comparison after the deadline, an
+    // answer that reaches every bidder -- nothing here prices anything.
+    promptsClient: [
+      "Show me the bids on the open stairwell tender.",
+      "Compare all bids for the facade tender and tell me who is cheapest but complete.",
+      "Answer the open question about the scaffolding: it will be removed on 15 September."
+    ],
+    // One line saying what this side's agent can reach. The role boundary is
+    // on the server; this is where a person reads it.
+    roleNoteBidder:
+      "Contractor: prices come from this firm's own price book or from a person's click, never from the agent alone.",
+    roleNoteClient:
+      "Client: bids stay sealed until the deadline. Prices reach this side only through get_price_comparison; every other endpoint refuses the client role on the server."
   },
 
   clarifications: {
@@ -413,7 +434,12 @@ const de: Copy = {
     stillOpen: (n) =>
       n === 1 ? "1 Position ist noch ohne Preis." : `${n} Positionen sind noch ohne Preis.`,
     cancel: "Abbrechen",
-    confirm: "Angebot abgeben"
+    confirm: "Angebot abgeben",
+    blocked: (n) =>
+      n === 1 ? "Noch nicht abgabefähig: 1 Hindernis." : `Noch nicht abgabefähig: ${n} Hindernisse.`,
+    blockerOpen: (oz, text) => `${oz} ${text} — kein Preis`,
+    blockerExpired: (label, date) => `${label} — abgelaufen am ${date}`,
+    blockerMissing: (label) => `${label} — nicht hinterlegt`
   },
 
   panel: {
@@ -448,7 +474,16 @@ const de: Copy = {
       "Prüfe mein Angebot – gibt es etwas Auffälliges?",
       "Frag den Auftraggeber, ob das Gerüst der Dachdeckerarbeiten stehen bleibt.",
       "Gib das Angebot ab."
-    ]
+    ],
+    promptsClient: [
+      "Zeig mir die Angebote zur offenen Ausschreibung Treppenhaus.",
+      "Vergleiche alle Angebote zur Fassaden-Ausschreibung und sag mir, wer am günstigsten, aber vollständig ist.",
+      "Beantworte die offene Frage zum Gerüst: Es wird am 15. September abgebaut."
+    ],
+    roleNoteBidder:
+      "Handwerksbetrieb: Preise kommen aus dem eigenen Preisbuch dieses Betriebs oder von einem Klick einer Person, nie vom Agenten allein.",
+    roleNoteClient:
+      "Auftraggeber: Angebote bleiben bis zum Fristende versiegelt. Preise erreichen diese Seite nur über get_price_comparison; jeden anderen Endpunkt weist der Server für die Auftraggeberrolle ab."
   },
 
   clarifications: {

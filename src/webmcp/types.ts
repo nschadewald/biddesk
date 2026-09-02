@@ -69,8 +69,10 @@ export type LogEntry = {
    * `needs_confirmation` is neither: submit_bid with confirm:false did exactly
    * what it should and is waiting for a person. Logging that as a failure
    * would make the safest path through the application look broken.
+   * `blocked` is neither as well: the bid cannot go out yet, the tool said
+   * why, and nothing was written -- not a failure, not a write, not a wait.
    */
-  outcome: "ok" | "error" | "needs_confirmation";
+  outcome: "ok" | "error" | "needs_confirmation" | "blocked";
   /** The tool returns text written by other parties. Capped and labelled. */
   untrusted: boolean;
   inputSummary: string;

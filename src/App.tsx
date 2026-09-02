@@ -31,7 +31,7 @@ import {
   undoLastChange,
   useAppState
 } from "./store";
-import type { Position, Suggestion } from "./types";
+import type { Position, SubmissionBlocker, Suggestion } from "./types";
 import { useWebMCP } from "./webmcp/useWebMCP";
 
 export default function App() {
@@ -117,10 +117,17 @@ function BidScreen() {
   } = useAppState();
   const copy = useCopy();
   const [busy, setBusy] = useState(false);
-  if (!detail) return null;
+  // The Worker projects a tender by role; only the contractor's view has prices.
+  if (!detail || detail.role !== "bidder") return null;
 
   const { tender, positions } = detail;
   const locked = tender.my_bid_status === "submitted";
+  // What stands between this draft and the dialog, as the last check saw it.
+  // The button and the tool read the same list: a blocker is not a
+  // confirmation, so while one exists nothing asks for a click.
+  const blockers: SubmissionBlocker[] = check?.tender_id === tender.id ? (check.blockers ?? []) : [];
+  const actionFor = (finding: string, key: "oz" | "doc_type", value: string) =>
+    check?.actions?.find((entry) => entry.finding === finding && entry[key] === value)?.action;
   const net = sum(positions.filter((position) => !position.contingency));
   const contingency = sum(positions.filter((position) => position.contingency));
   const billable = positions.filter((position) => !position.contingency);
@@ -206,11 +213,14 @@ function BidScreen() {
             <>
               <Action onClick={() => void undoLastChange(1)}>{copy.bid.undo}</Action>
               <Action
-                disabled={busy}
+                disabled={busy || blockers.length > 0}
                 onClick={() =>
                   void withBusy(async () => {
                     const result = await runCheck(tenderId);
                     if (result.status === "none") return;
+                    // The check panel now shows what is in the way; the
+                    // dialog waits until the list is empty.
+                    if ((result.blockers ?? []).length > 0) return;
                     await requestSubmit(tenderId, result.totals);
                   })
                 }
@@ -221,6 +231,39 @@ function BidScreen() {
           )}
         </span>
       </section>
+
+      {!locked && blockers.length > 0 && (
+        // The ways out are the check's own sentences: set the price yourself
+        // or let your agent derive one, state the document's date. Not red --
+        // red stays with the findings; this is the way through them.
+        <section
+          data-testid="submit-blockers"
+          className="border-b border-slate-200 py-3 text-xs text-slate-700"
+        >
+          <p className="font-medium text-slate-900">{copy.submit.blocked(blockers.length)}</p>
+          <ul className="mt-1 flex flex-col gap-1">
+            {blockers.map((blocker) => {
+              const key = blocker.kind === "open_position" ? blocker.oz : blocker.doc_type;
+              const label =
+                blocker.kind === "open_position"
+                  ? copy.submit.blockerOpen(blocker.oz, blocker.text)
+                  : blocker.kind === "document_expired"
+                    ? copy.submit.blockerExpired(blocker.label, formatDate(blocker.valid_until, language))
+                    : copy.submit.blockerMissing(blocker.label);
+              const action =
+                blocker.kind === "open_position"
+                  ? actionFor("open_position", "oz", blocker.oz)
+                  : actionFor("document", "doc_type", blocker.doc_type);
+              return (
+                <li key={`${blocker.kind}:${key}`}>
+                  <span className="text-slate-900">{label}</span>
+                  {action && <span className="block text-slate-600">{action}</span>}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {check && <CheckPanel check={check} onClose={closeCheck} />}
 

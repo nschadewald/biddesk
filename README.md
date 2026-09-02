@@ -87,13 +87,18 @@ stay empty and say **no comparable entry** — that is the point of the whole th
 
 ## The tools
 
-Thirteen of them. Never all at once: roles are separated by what is registered, not by rights, so
-in the contractor role the client's tools do not exist at all.
+Thirteen of them. Never all at once: in the contractor role the client's tools do not exist at
+all, and the other way round. Registration is what each side can *see*. The boundary itself is on
+the server: the role travels as a request header, the Worker projects every tender read by it and
+answers the other side's endpoints with `403 role_not_allowed`. Prices reach the client only
+through `get_price_comparison`; every other endpoint refuses the client role on the server. The
+three tools both roles share keep one name and one schema each, with a description written for
+the side that holds it — the client's `get_tender` says it returns no prices, and it does not.
 
 | Tool | Role | Read-only | What it does |
 |---|---|---|---|
-| `list_tenders` | both | yes | Lists tenders with deadline, size and this contractor's bid status. Does not navigate. |
-| `get_tender` | both | yes | Opens a tender and returns its full bill of quantities and the required documents. |
+| `list_tenders` | both | yes | Lists tenders with deadline and size; the contractor also sees their own bid status, the client does not. Does not navigate. |
+| `get_tender` | both | yes | Opens a tender and returns its bill of quantities. Contractor: with their own prices and the required documents. Client: the positions alone, no key of any bid. Carries `untrustedContentHint`: position texts are the client's, or a file's. |
 | `list_clarifications` | both | yes | Questions and the client's answers. Carries `untrustedContentHint`: written by other parties. |
 | `get_price_book` | contractor | yes | The contractor's own past positions, with project, date and original wording. |
 | `suggest_prices` | contractor | yes | Proposes prices from that price book. Proposes only — `set_unit_price` applies them. |
@@ -102,7 +107,7 @@ in the contractor role the client's tools do not exist at all.
 | `ask_clarification` | contractor | no | Asks the client a question. **Declared by a form in the page**, not registered in code. |
 | `undo_last_change` | contractor | no | Takes back whole write blocks, never single rows out of one. |
 | `set_document_validity` | contractor | no | Relays a document's new expiry date for the person to confirm on the page. Writes nothing itself; nothing is uploaded or verified, and the confirmation says so. Master data: stays after the bid is handed in. |
-| `submit_bid` | contractor | no | Destructive. Cannot complete on its own; withdrawn after the bid is handed in. |
+| `submit_bid` | contractor | no | Destructive. Answers `blocked` with the full list while a billable position is unpriced or a required document is expired or missing — a blocker is not a confirmation, no dialog opens. Otherwise cannot complete on its own; withdrawn after the bid is handed in. |
 | `get_price_comparison` | client | yes | Compares bids. Returns no prices at all while a tender is still open. |
 | `answer_clarification` | client | no | Publishes an answer to every bidder, not only to the one who asked. |
 
@@ -143,17 +148,26 @@ the page counted ten tools while the agent saw nine (eleven and ten today, one t
 
 ## Security model
 
-- Read tools carry `readOnlyHint`; `list_clarifications` carries `untrustedContentHint` because
-  it returns text other people wrote. That text is capped at 120 characters before it is
-  stored, labelled in the log, and printed — never rendered as markup, never treated as
-  instructions.
+- Read tools carry `readOnlyHint`; `list_clarifications` and `get_tender` carry
+  `untrustedContentHint` because they return text other people wrote — questions and answers,
+  and the position texts of a bill of quantities that came from the client or from a file. That
+  text is capped at 120 characters before it is stored, labelled in the log, and printed — never
+  rendered as markup, never treated as instructions.
 - Tool results are plain JSON data. No HTML, no markdown, no instructions to the agent.
 - Tools never throw. A failure is `{ ok: false, error, hint }` with a machine-readable code and
   no stack trace.
 - The one destructive action, `submit_bid`, cannot be completed by a tool. `confirm: true` opens
   a dialog and waits; the bid goes out on a human click, and the tool is then withdrawn through
-  its `AbortController`.
-- Roles are separated by registration, not by permissions.
+  its `AbortController`. While anything stands in the way — an unpriced billable position, a
+  required document expired or not on file — the tool answers `blocked` with the list instead,
+  with either confirm value, and the Worker refuses the submission too; the ways out are the
+  check's own sentences.
+- The role boundary is on the server. The role travels as `X-Role`; the Worker projects every
+  tender read by it — the client's `get_tender` carries no bidder, no draft status, no price, no
+  document, recursively — and answers the other side's endpoints with `403 role_not_allowed`.
+  Prices reach the client only through `get_price_comparison`, after the deadline. Registration
+  is visibility, not the boundary: two external reviews found on 2 September that it had been
+  the only one, and a test now holds the projection shut key by key.
 - Every tool call is logged in the browser, failures included. Nothing is sent anywhere; there
   is no analytics.
 - No personal data. No sign-in, therefore no credentials to lose.
@@ -220,11 +234,12 @@ node evals/client_role.mjs          # client role, switches roles like a person
 | E2 | Why is there no price for the radiators? | `suggest_prices(oz:["03.04"])` → `get_price_book(metal)` | no price, no source, `matched_terms: 0`, reason *"no comparable entry in your price book"*; the price book has metal work but none per piece | pass |
 | E3 | Run a check on my bid | `check_bid` | both open positions named, tax clearance certificate flagged as expired, days left reported, nothing written | pass |
 | E4 | Ask the client about the scaffolding | `ask_clarification` (the form) → `list_clarifications` | the question is filed against 01.01, open, under this contractor, and reads back | pass |
-| E5 | Submit the bid | `submit_bid(confirm:false)` | does **not** submit: `needs_confirmation` with the total that would go out | pass |
+| E5 | Submit the bid | `submit_bid(confirm:false)` | does **not** submit: `blocked`, naming the open radiators and the expired certificate, no dialog, and the total that would go out | pass |
 | E6 | Set position 03.04 to 61 euros | `set_unit_price` without a source → `check_bid` | neither written nor refused: `needs_confirmation`, the row pending with its rationale; the check still shows net **13.213,50 €** and 03.04 open, and names the way out | pass |
 | E7 | My new tax clearance certificate is valid until 15 August 2027 | `set_document_validity` → `check_bid` | `needs_confirmation` with the date on file and the new one; nothing written: the check still reports the certificate as expired, with its way out | pass |
 | E8 | Price 02.02 at 12 € "from the Luegallee job" | `set_unit_price` with a mismatched source | **refused**: `price_does_not_match_source`, naming both numbers | pass |
 | C1 | The roles | switch the role in the header, list `getTools()` | eleven tools as the contractor, five as the client; `get_price_comparison` / `answer_clarification` do not exist on the contractor side | pass |
+| C4 | The boundary | price one row as the contractor, switch to the client, `get_tender` + `list_tenders` | the client's answer carries the fourteen positions with seven fields each and, recursively, no key of any bid — no price, no line total, no provenance, no document, no bidder | pass |
 | C2 | Compare all bids for the facade tender — and show me the bids on the open one | `get_price_comparison(T-2026-009)`, then `(T-2026-014)` | closed: three bids ranked cheapest first, scaffolding 11,50 / 13,20 / 27,80, median 13,20, Colorpoint marked and nobody else; open: sealed — a count and arrival times, no positions, no bidders, neither `unit_price` nor `total_net` anywhere in the answer | pass |
 | C3 | Answer the open bidder question | `list_clarifications` → `answer_clarification` | published to all bidders; the question turns to answered and carries the answer | pass |
 

@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { copyFor } from "./i18n";
 import worker from "./server";
 
@@ -159,6 +159,12 @@ let batches: { sql: string; args: unknown[] }[][] = [];
 let runs: { sql: string; args: unknown[] }[] = [];
 /** The one document on file for this stub bidder. Expired, as in the seed. */
 let documentOnFile = "2026-08-11";
+/** What the documents table lists for this bidder. Empty: nothing held. */
+let documentsHeld: { doc_type: string; valid_until: string; expired: number }[] = [];
+/** The bid row for this bidder on the tender, or none. */
+let bidOnFile: { id: string; status: "draft" | "submitted" } | null = null;
+/** A price put on every position, so a complete bid can be staged. */
+let priceOnEveryPosition: number | null = null;
 
 function stubDb() {
   batches = [];
@@ -184,13 +190,26 @@ function stubDb() {
           if (/from workspaces/i.test(sql)) return { present: 1 };
           if (/from bidders\b/i.test(sql)) return { id: "B-A" };
           if (/from bidder_documents/i.test(sql)) return { valid_until: documentOnFile };
+          // Only the bid lookups themselves: the tender query carries "FROM bids"
+          // in a subselect and must keep answering with the tender.
+          if (/^\s*SELECT (id, status|submitted_at) FROM bids\b/i.test(sql)) return bidOnFile;
           // Not projected: the tender query carries subselects, and the mapping
           // under test reads title_en / title_de by name anyway.
           if (/from tenders/i.test(sql)) return TENDER;
           return null;
         },
         async all() {
-          if (/from positions/i.test(sql)) return { results: project(sql, POSITIONS) };
+          if (/from positions/i.test(sql)) {
+            return {
+              results: project(
+                sql,
+                POSITIONS.map((row) =>
+                  priceOnEveryPosition === null ? row : { ...row, unit_price: priceOnEveryPosition }
+                )
+              )
+            };
+          }
+          if (/from bidder_documents/i.test(sql)) return { results: documentsHeld };
           if (/from price_book/i.test(sql)) return { results: project(sql, PRICE_BOOK) };
           if (/from clarifications/i.test(sql)) return { results: project(sql, CLARIFICATIONS) };
           return { results: [] };
@@ -201,8 +220,8 @@ function stubDb() {
   };
 }
 
-async function get(path: string, language?: string) {
-  const headers: Record<string, string> = { "X-Workspace-Id": WS };
+async function get(path: string, language?: string, extra: Record<string, string> = {}) {
+  const headers: Record<string, string> = { "X-Workspace-Id": WS, ...extra };
   if (language) headers["X-Language"] = language;
   const response = await worker.fetch(
     new Request(`https://biddesk.test${path}`, { headers }),
@@ -212,11 +231,11 @@ async function get(path: string, language?: string) {
   return (await response.json()) as Record<string, unknown>;
 }
 
-async function post(path: string, body: unknown) {
+async function post(path: string, body: unknown, extra: Record<string, string> = {}) {
   const response = await worker.fetch(
     new Request(`https://biddesk.test${path}`, {
       method: "POST",
-      headers: { "X-Workspace-Id": WS, "content-type": "application/json" },
+      headers: { "X-Workspace-Id": WS, "content-type": "application/json", ...extra },
       body: JSON.stringify(body)
     }),
     { DB: stubDb() } as unknown as Env,
@@ -224,6 +243,36 @@ async function post(path: string, body: unknown) {
   );
   return (await response.json()) as Record<string, unknown>;
 }
+
+/** Every key anywhere in a JSON value, so a leak in a nested object counts. */
+function keysDeep(value: unknown, found = new Set<string>()): Set<string> {
+  if (Array.isArray(value)) {
+    for (const entry of value) keysDeep(entry, found);
+  } else if (value !== null && typeof value === "object") {
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      found.add(key);
+      keysDeep(entry, found);
+    }
+  }
+  return found;
+}
+
+/**
+ * What the client must never receive from a tender read. The list is the
+ * finding of 2 September, key by key: everything of a contractor's draft.
+ */
+const BIDDER_ONLY_KEYS = [
+  "my_unit_price",
+  "line_total",
+  "set_by",
+  "note",
+  "source",
+  "price_book_id",
+  "required_documents",
+  "bidder_id",
+  "my_bid_status",
+  "valid_until"
+];
 
 it("proposes exactly the same prices in German as in English", async () => {
   const [neutral, english, german] = await Promise.all([
@@ -443,4 +492,190 @@ it("says the same sentence about a gap on the price book screen as in the check"
 
   expect(gap(english)).toBe(copyFor("en").priceBook.actionNoEntry("metal", "pcs"));
   expect(gap(german)).toBe(copyFor("de").priceBook.actionNoEntry("metal", "pcs"));
+});
+
+// ---------------------------------------------------------------------------
+// The role boundary, on the Worker.
+//
+// Two external reviews found the same hole on 2 September: get_tender was
+// registered for the client, the Worker knew no role, and the client's agent
+// received the last-selected contractor's whole draft -- prices, line totals,
+// provenance, documents -- while the screen promised "sealed". These tests
+// hold the boundary where it now is: in the projection and the refusal the
+// Worker makes from X-Role, not in what the page registers.
+// ---------------------------------------------------------------------------
+
+describe("the client role on the Worker", () => {
+  it("hands the client a tender with no key of any bid in it, recursively, whichever bidder was chosen", async () => {
+    // Stage a priced draft, so there IS something to leak.
+    priceOnEveryPosition = 8.4;
+    bidOnFile = { id: "bid-1", status: "draft" };
+    try {
+      for (const bidder of ["B-A", "B-B", "B-C"]) {
+        const asClient = await get("/api/tenders/T-2026-014", undefined, {
+          "X-Role": "client",
+          "X-Bidder-Id": bidder
+        });
+        expect(asClient.ok, bidder).toBe(true);
+        expect(asClient.role, bidder).toBe("client");
+        const keys = keysDeep(asClient);
+        for (const key of BIDDER_ONLY_KEYS) expect(keys.has(key), `${bidder} leaks ${key}`).toBe(false);
+        // And the bill of quantities itself is all there.
+        expect((asClient.positions as unknown[]).length, bidder).toBe(2);
+        expect(keysDeep(asClient.positions), bidder).toEqual(
+          new Set(["oz", "text", "long_text", "quantity", "unit", "category", "contingency"])
+        );
+
+        const list = await get("/api/tenders", undefined, { "X-Role": "client", "X-Bidder-Id": bidder });
+        expect(list.role, bidder).toBe("client");
+        const listKeys = keysDeep(list);
+        for (const key of BIDDER_ONLY_KEYS) expect(listKeys.has(key), `${bidder} list leaks ${key}`).toBe(false);
+      }
+
+      // The contractor's own read still carries the draft: that is the
+      // difference the header makes, and without it the test would prove
+      // nothing.
+      const asBidder = await get("/api/tenders/T-2026-014");
+      expect(asBidder.role).toBe("bidder");
+      const keys = keysDeep(asBidder);
+      // price_book_id rides inside `source`, which this stub's rows do not carry.
+      for (const key of BIDDER_ONLY_KEYS.filter((key) => key !== "price_book_id")) {
+        expect(keys.has(key), `bidder lacks ${key}`).toBe(true);
+      }
+      expect((asBidder.positions as { my_unit_price: number }[])[0]!.my_unit_price).toBe(8.4);
+    } finally {
+      priceOnEveryPosition = null;
+      bidOnFile = null;
+    }
+  });
+
+  it("refuses every contractor endpoint to the client with 403 role_not_allowed", async () => {
+    const client = { "X-Role": "client" };
+    const refused = await Promise.all([
+      get("/api/price-book", undefined, client),
+      get("/api/tenders/T-2026-014/suggestions", undefined, client),
+      get("/api/tenders/T-2026-014/check", undefined, client),
+      post("/api/tenders/T-2026-014/prices", { set_by: "agent", prices: [{ oz: "01.01", unit_price: 8.4, price_book_id: "PB-A-005" }] }, client),
+      post("/api/tenders/T-2026-014/undo", { steps: 1 }, client),
+      post("/api/tenders/T-2026-014/submit", {}, client),
+      post("/api/documents/tax_clearance", { valid_until: "2027-08-15" }, client),
+      post("/api/clarifications", { tender_id: "T-2026-014", question: "May we work on Saturday?" }, client)
+    ]);
+    for (const body of refused) {
+      expect(body).toMatchObject({ ok: false, error: "role_not_allowed" });
+      expect(String(body.hint)).toContain("get_price_comparison");
+    }
+    // And nothing was written on the way to the refusal.
+    expect(batches).toEqual([]);
+    expect(runs).toEqual([]);
+  });
+
+  it("refuses the client endpoints to the contractor, and to a request with no role at all", async () => {
+    const comparison = await get("/api/tenders/T-2026-014/comparison");
+    expect(comparison).toMatchObject({ ok: false, error: "role_not_allowed" });
+    const answer = await post("/api/clarifications/Q-7f3a/answer", { answer: "Yes." });
+    expect(answer).toMatchObject({ ok: false, error: "role_not_allowed" });
+    expect(runs).toEqual([]);
+  });
+
+  it("keeps the price comparison sealed for the client while the tender is open", async () => {
+    // The one way prices reach the client -- and before the deadline, not
+    // even that way. TENDER in this stub is open.
+    const body = await get("/api/tenders/T-2026-014/comparison", undefined, { "X-Role": "client" });
+    expect(body).toMatchObject({ ok: true, sealed: true, bidders: [], positions: [] });
+    const keys = keysDeep(body);
+    expect(keys.has("unit_price")).toBe(false);
+    expect(keys.has("total_net")).toBe(false);
+  });
+
+  it("returns the 403 with the workspace check first: an unknown workspace is still 404", async () => {
+    const response = await worker.fetch(
+      new Request("https://biddesk.test/api/price-book", {
+        headers: { "X-Workspace-Id": "not-a-workspace", "X-Role": "client" }
+      }),
+      { DB: stubDb() } as unknown as Env,
+      {} as ExecutionContext
+    );
+    expect(response.status).toBe(404);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Blockers are not a confirmation.
+// ---------------------------------------------------------------------------
+
+describe("what keeps a bid from being handed in", () => {
+  it("names open billable positions and missing or expired documents in the check, and never a contingency position", async () => {
+    // 01.01 and 02.01 unpriced and billable; this stub holds no documents.
+    const body = await get("/api/tenders/T-2026-014/check");
+    const blockers = body.blockers as { kind: string; oz?: string; doc_type?: string; text?: string }[];
+    expect(blockers.map((entry) => entry.kind)).toEqual([
+      "open_position",
+      "open_position",
+      "document_missing",
+      "document_missing",
+      "document_missing",
+      "document_missing"
+    ]);
+    expect(blockers[0]).toEqual({ kind: "open_position", oz: "01.01", text: "Two coats emulsion, walls" });
+    expect(blockers[2]).toMatchObject({ kind: "document_missing", doc_type: "trade_registration", label: "Trade registration", valid_until: null });
+
+    // In German the text and the label follow the reader; the kinds do not.
+    const german = await get("/api/tenders/T-2026-014/check", "de");
+    expect((german.blockers as { text?: string }[])[0]!.text).toBe("Wandflächen zweimal Anstrich, waschbeständig");
+    expect((german.blockers as { label?: string }[])[2]!.label).toBe("Handwerkskarte");
+  });
+
+  it("reports an expired document as document_expired with its date", async () => {
+    documentsHeld = [
+      { doc_type: "trade_registration", valid_until: "2027-09-01", expired: 0 },
+      { doc_type: "liability_insurance", valid_until: "2027-03-20", expired: 0 },
+      { doc_type: "reference_project", valid_until: "2027-10-06", expired: 0 },
+      { doc_type: "tax_clearance", valid_until: "2026-08-11", expired: 1 }
+    ];
+    priceOnEveryPosition = 8.4;
+    try {
+      const body = await get("/api/tenders/T-2026-014/check");
+      expect(body.blockers).toEqual([
+        { kind: "document_expired", doc_type: "tax_clearance", label: "Tax clearance certificate", valid_until: "2026-08-11" }
+      ]);
+    } finally {
+      documentsHeld = [];
+      priceOnEveryPosition = null;
+    }
+  });
+
+  it("refuses to hand in a blocked draft on the Worker too, with the same list, and writes nothing", async () => {
+    bidOnFile = { id: "bid-1", status: "draft" };
+    try {
+      const body = await post("/api/tenders/T-2026-014/submit", {});
+      expect(body).toMatchObject({ ok: false, error: "bid_blocked" });
+      expect((body.blockers as { kind: string }[]).map((entry) => entry.kind)).toContain("open_position");
+      expect(runs.filter((entry) => /UPDATE bids/i.test(entry.sql))).toEqual([]);
+    } finally {
+      bidOnFile = null;
+    }
+  });
+
+  it("hands in a complete draft with valid documents, and nothing else in the way", async () => {
+    bidOnFile = { id: "bid-1", status: "draft" };
+    priceOnEveryPosition = 8.4;
+    documentsHeld = [
+      { doc_type: "trade_registration", valid_until: "2027-09-01", expired: 0 },
+      { doc_type: "liability_insurance", valid_until: "2027-03-20", expired: 0 },
+      { doc_type: "reference_project", valid_until: "2027-10-06", expired: 0 },
+      { doc_type: "tax_clearance", valid_until: "2027-08-15", expired: 0 }
+    ];
+    try {
+      const check = await get("/api/tenders/T-2026-014/check");
+      expect(check.blockers).toEqual([]);
+      const body = await post("/api/tenders/T-2026-014/submit", {});
+      expect(body).toMatchObject({ ok: true, tender_id: "T-2026-014" });
+      expect(runs.some((entry) => /UPDATE bids SET status = 'submitted'/i.test(entry.sql))).toBe(true);
+    } finally {
+      bidOnFile = null;
+      priceOnEveryPosition = null;
+      documentsHeld = [];
+    }
+  });
 });

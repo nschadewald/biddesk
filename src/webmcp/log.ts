@@ -208,9 +208,18 @@ export function summariseOutput(output: unknown): string {
     return parts.join(" · ");
   }
 
+  // A bid that cannot go out yet is neither written nor refused: the tool
+  // names what stands in the way, and the ways out are the check's own.
+  if (record.status === "blocked" && Array.isArray(record.blockers)) {
+    const kinds = (record.blockers as { kind?: unknown }[])
+      .map((blocker) => (typeof blocker.kind === "string" ? blocker.kind : "?"))
+      .join(", ");
+    return `blocked · ${record.blockers.length} in the way${kinds ? ` · ${kinds}` : ""}`;
+  }
+
   // A tool that asks for a human decision has not failed. It reports what would
   // happen and stops, which is the whole point of the destructive one.
-  if (record.needs_confirmation === true) {
+  if (record.needs_confirmation === true || (record.status === "needs_confirmation" && !Array.isArray(record.pending))) {
     const summary = record.summary as { total_net?: unknown } | undefined;
     const total = summary?.total_net;
     return typeof total === "number"

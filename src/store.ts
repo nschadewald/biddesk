@@ -14,6 +14,7 @@ import {
   resetWorkspace,
   setBidder,
   setLanguage,
+  setRole,
   submitBid,
   writeAnswer,
   writeClarification,
@@ -32,6 +33,7 @@ import type {
   AppliedPrice,
   AskClarificationResponse,
   Bidder,
+  BidderTenderDetail,
   BidTotals,
   CheckResult,
   Clarification,
@@ -111,6 +113,14 @@ export type AppState = {
   tenders: Tender[];
   /** The client's view of a tender. Sealed while the tender is still open. */
   comparison: PriceComparison | null;
+  /**
+   * Whether the contractor this browser was just acting for left a draft on
+   * the open tender. Remembered at the role switch, never read from the
+   * Worker: the client's own read carries no bid status at all. It exists so
+   * the client screen can say "your draft is not visible to the client" to
+   * the one person who is both sides of this demo.
+   */
+  ownDraftPending: boolean;
   /** The selected contractor's price book, once the price book screen asked for it. */
   priceBook: PriceBookRow[] | null;
   /** Every position of every tender in this workspace, for the coverage matrix. */
@@ -139,6 +149,7 @@ let state: AppState = {
   bidders: [],
   tenders: [],
   comparison: null,
+  ownDraftPending: false,
   priceBook: null,
   workspacePositions: null,
   priceBookCell: null,
@@ -180,6 +191,15 @@ export function getAppState(): AppState {
   return state;
 }
 
+/**
+ * The contractor's view of the open tender, or null in the client role. The
+ * Worker projects a tender by role, so the type is a union; everything that
+ * prices, checks or hands in narrows through here rather than by assertion.
+ */
+export function bidderDetail(): BidderTenderDetail | null {
+  return state.detail !== null && state.detail.role === "bidder" ? state.detail : null;
+}
+
 /** Guarantees a workspace exists, creating and seeding one if needed. */
 async function requireWorkspace(): Promise<string> {
   if (state.workspaceId) return state.workspaceId;
@@ -198,7 +218,8 @@ export async function openTender(tenderId: string): Promise<TenderDetail> {
   set({
     status: "ready",
     workspaceId: current,
-    bidderId: detail.bidder_id,
+    // The client's read names no bidder; the choice in the header stands.
+    bidderId: detail.role === "bidder" ? detail.bidder_id : state.bidderId,
     tenderId: detail.tender.id,
     detail,
     // Proposals belong to the tender they were made for. Opening another one
@@ -318,8 +339,9 @@ const ROLL_IN_MS = 70;
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function writeRow(tenderId: string, row: AppliedPrice) {
-  if (state.detail === null || state.detail.tender.id !== tenderId) return;
-  const positions = state.detail.positions.map((position) =>
+  const detail = bidderDetail();
+  if (detail === null || detail.tender.id !== tenderId) return;
+  const positions = detail.positions.map((position) =>
     position.oz === row.oz
       ? {
           ...position,
@@ -335,7 +357,7 @@ function writeRow(tenderId: string, row: AppliedPrice) {
   );
   const rejections = { ...state.rejections };
   delete rejections[row.oz];
-  set({ detail: { ...state.detail, positions }, rejections });
+  set({ detail: { ...detail, positions }, rejections });
 }
 
 /**
@@ -382,15 +404,16 @@ export async function setUnitPrices(
   // The first accepted row creates the draft bid. Saying so here costs no
   // request and keeps everything that reads the status honest -- including the
   // client's "your draft is not visible to the client".
+  const detail = bidderDetail();
   if (
     data.applied.length > 0 &&
-    state.detail !== null &&
-    state.detail.tender.id === tenderId &&
-    state.detail.tender.my_bid_status === "none"
+    detail !== null &&
+    detail.tender.id === tenderId &&
+    detail.tender.my_bid_status === "none"
   ) {
     patch.detail = {
-      ...state.detail,
-      tender: { ...state.detail.tender, my_bid_status: "draft" }
+      ...detail,
+      tender: { ...detail.tender, my_bid_status: "draft" }
     };
   }
   set(patch);
@@ -403,7 +426,7 @@ export async function setUnitPrices(
 
 /** The totals bar's own arithmetic, for a tool answer when nothing was written. */
 export function currentTotals(): BidTotals {
-  const positions = state.detail?.positions ?? [];
+  const positions = bidderDetail()?.positions ?? [];
   const round2 = (value: number) => Math.round(value * 100) / 100;
   const sum = (rows: typeof positions) =>
     round2(rows.reduce((carry, row) => carry + (row.line_total ?? 0), 0));
@@ -430,7 +453,8 @@ export async function proposePrices(
 ): Promise<{ pending: PendingPrice[]; rejected: PriceRejection[] }> {
   // The proposal appears on the row, so the tender has to be the one on screen.
   if (state.detail === null || state.detail.tender.id !== tenderId) await openTender(tenderId);
-  const detail = state.detail!;
+  const detail = bidderDetail();
+  if (detail === null) throw new Error("Prices are the contractor's. Switch the role in the header.");
 
   const plan = planPriceWrites(rows, {
     positions: new Map(
@@ -496,7 +520,7 @@ export async function proposeDocumentValidity(
   validUntil: string
 ): Promise<PendingDocument> {
   if (state.detail === null) await openTender(state.tenderId);
-  const document = state.detail!.required_documents.find((entry) => entry.doc_type === docType);
+  const document = bidderDetail()?.required_documents.find((entry) => entry.doc_type === docType);
   if (document === undefined) throw new Error(`${docType} is not a document this client requires.`);
 
   const pending: PendingDocument = {
@@ -533,10 +557,11 @@ export async function confirmDocumentValidity(
     ...(current === workspaceId ? {} : { workspaceId: current }),
     pendingDocuments: rest
   };
-  if (state.detail !== null) {
+  const detail = bidderDetail();
+  if (detail !== null) {
     patch.detail = {
-      ...state.detail,
-      required_documents: state.detail.required_documents.map((document) =>
+      ...detail,
+      required_documents: detail.required_documents.map((document) =>
         document.doc_type === docType ? { ...document, valid_until: data.valid_until } : document
       )
     };
@@ -635,8 +660,20 @@ export async function selectLanguage(language: Language): Promise<void> {
 
 export async function selectRole(role: Role): Promise<void> {
   if (role === state.role) return;
-  // Leaving a role puts its findings away with it.
-  set({ role, check: null, comparison: null, pendingSubmit: null });
+  // The role travels as a header from here on: the Worker projects and
+  // refuses by it. Set before the re-read below, or that read would still
+  // arrive as the other side.
+  setRole(role);
+  // Leaving a role puts its findings away with it. What the contractor's
+  // screen knew about its own draft is kept as one bit, for the sentence on
+  // the client screen -- the Worker will not say it again.
+  set({
+    role,
+    check: null,
+    comparison: null,
+    pendingSubmit: null,
+    ownDraftPending: role === "client" && state.detail?.tender.my_bid_status === "draft"
+  });
   // Re-read, so the other side never works from what this side happened to
   // have in memory.
   await openTender(state.tenderId).catch(() => undefined);

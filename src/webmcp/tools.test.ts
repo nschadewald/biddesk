@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { setRole } from "../api";
 import { getAppState } from "../store";
 import {
   allTools,
   askClarificationFallback,
   bidderOnlyTools,
+  clientSharedTools,
   clientTools,
   sharedTools,
   submitTools
@@ -15,6 +17,9 @@ const listTenders = allTools.find((tool) => tool.name === "list_tenders")!;
 const getTender = allTools.find((tool) => tool.name === "get_tender")!;
 const setUnitPrice = allTools.find((tool) => tool.name === "set_unit_price")!;
 const setDocumentValidity = allTools.find((tool) => tool.name === "set_document_validity")!;
+const submitBid = submitTools[0]!;
+const clientGetTender = clientSharedTools.find((tool) => tool.name === "get_tender")!;
+const clientListTenders = clientSharedTools.find((tool) => tool.name === "list_tenders")!;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -24,6 +29,7 @@ const json = (body: unknown, status = 200) =>
 
 const detail = (id: string) => ({
   ok: true,
+  role: "bidder",
   bidder_id: "B-A",
   tender: {
     id,
@@ -60,18 +66,98 @@ const detail = (id: string) => ({
 
 let requests: string[] = [];
 let bodies: unknown[] = [];
+/** The headers of every request, so a test can see the role arrive. */
+let headersSent: Record<string, string>[] = [];
+/** What /check answers, so the submit tool can be driven through its states. */
+let checkAnswer: Record<string, unknown> = {};
+
+const CHECK_BASE = {
+  ok: true,
+  bidder_id: "B-A",
+  tender_id: "T-2026-014",
+  status: "draft",
+  complete: true,
+  open_positions: [],
+  outliers: [],
+  missing_documents: [],
+  due_date: "2026-09-10",
+  due_in_days: 8,
+  totals: { net: 13213.5, contingency: 370, positions_priced: 12, positions_open: 0 },
+  positions_priced: 12,
+  positions_open: 0,
+  undo_available: true,
+  warnings: [],
+  actions: [],
+  blockers: []
+};
+
+const BLOCKERS = [
+  { kind: "open_position", oz: "03.04", text: "Radiators incl. pipes" },
+  { kind: "document_expired", doc_type: "tax_clearance", label: "Tax clearance certificate", valid_until: "2026-08-12" }
+];
+
+/** The Worker's client projection of the same tender: the bill of quantities, nothing of a bid. */
+const clientDetail = (id: string) => ({
+  ok: true,
+  role: "client",
+  tender: {
+    id,
+    title: "Staircase painting works",
+    client: "Rheinpark Property Management",
+    city: "Düsseldorf",
+    trade: "painting",
+    status: "open",
+    due_date: "2026-09-10",
+    positions_count: 1
+  },
+  positions: [
+    { oz: "01.01", text: "Site setup", long_text: null, quantity: 1, unit: "psch", category: "prep", contingency: false }
+  ]
+});
+
+function keysDeep(value: unknown, found = new Set<string>()): Set<string> {
+  if (Array.isArray(value)) for (const entry of value) keysDeep(entry, found);
+  else if (value !== null && typeof value === "object") {
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      found.add(key);
+      keysDeep(entry, found);
+    }
+  }
+  return found;
+}
 
 beforeEach(() => {
   requests = [];
   bodies = [];
+  headersSent = [];
+  checkAnswer = { ...CHECK_BASE };
+  setRole("bidder");
   localStorage.clear();
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string, init?: RequestInit) => {
       requests.push(input);
+      const sentHeaders = (init?.headers ?? {}) as Record<string, string>;
+      headersSent.push(sentHeaders);
+      const asClient = sentHeaders["X-Role"] === "client";
       if (typeof init?.body === "string") bodies.push(JSON.parse(init.body));
       if (input === "/api/workspace") {
         return json({ ok: true, workspace_id: WS, created: true }, 201);
+      }
+      if (input.endsWith("/check")) {
+        return json(checkAnswer);
+      }
+      if (input.endsWith("/submit")) {
+        return json({ ok: true, tender_id: "T-2026-014", bidder_id: "B-A", submitted_at: "2026-09-02 17:00:00", total_net: 13213.5, totals: CHECK_BASE.totals });
+      }
+      if (input.startsWith("/api/clarifications")) {
+        return json({ ok: true, questions: [] });
+      }
+      if (asClient && input === "/api/tenders") {
+        return json({ ok: true, role: "client", tenders: [clientDetail("T-2026-014").tender] });
+      }
+      if (asClient && input.startsWith("/api/tenders/")) {
+        return json(clientDetail(decodeURIComponent(input.slice("/api/tenders/".length))));
       }
       if (input.endsWith("/prices")) {
         // The Worker's answer to a sourced row: written, with its source.
@@ -99,16 +185,18 @@ beforeEach(() => {
           ? json({ ok: false, error: "tender_not_found", hint: `No tender ${id} in this workspace.` }, 404)
           : json(detail(id));
       }
-      return json({ ok: true, bidder_id: "B-A", tenders: [detail("T-2026-014").tender] });
+      return json({ ok: true, role: "bidder", bidder_id: "B-A", tenders: [detail("T-2026-014").tender] });
     }) as unknown as typeof fetch
   );
 });
 
 afterEach(async () => {
-  const { closeCheck, discardDocumentValidity, discardPendingPrice } = await import("../store");
+  const { cancelSubmit, closeCheck, discardDocumentValidity, discardPendingPrice } = await import("../store");
   discardPendingPrice("01.01");
   discardDocumentValidity("tax_clearance");
   closeCheck();
+  cancelSubmit();
+  setRole("bidder");
   vi.unstubAllGlobals();
 });
 
@@ -209,11 +297,102 @@ it("marks the reading tools read-only and the writing tools not", () => {
   ]);
 });
 
-it("declares untrustedContentHint on the tool that returns other people's text", () => {
+it("declares untrustedContentHint on the tools that return other people's text", () => {
+  // Position texts are the client's, or a GAEB file's; questions and answers
+  // are other parties'. Both are declared, in both roles.
   const withForeignText = allTools
     .filter((tool) => tool.annotations.untrustedContentHint === true)
     .map((tool) => tool.name);
-  expect(withForeignText).toEqual(["list_clarifications"]);
+  expect(withForeignText).toEqual(["get_tender", "list_clarifications"]);
+  expect(
+    clientSharedTools.filter((tool) => tool.annotations.untrustedContentHint === true).map((tool) => tool.name)
+  ).toEqual(["get_tender", "list_clarifications"]);
+});
+
+it("describes the three shared tools per role: same name, same schema, no contractor's price for the client", () => {
+  for (const clientTool of clientSharedTools) {
+    const bidderTool = sharedTools.find((tool) => tool.name === clientTool.name)!;
+    expect(bidderTool).toBeDefined();
+    expect(clientTool.inputSchema).toEqual(bidderTool.inputSchema);
+    expect(clientTool.annotations).toEqual(bidderTool.annotations);
+    expect(clientTool.description).not.toBe(bidderTool.description);
+    expect(clientTool.description).not.toContain("this contractor's own");
+  }
+  expect(clientGetTender.description).toContain("NO prices");
+  expect(clientGetTender.description).toContain("get_price_comparison");
+  expect(clientListTenders.description).not.toContain("this contractor");
+  // The counts the self-diagnosis reports do not move: 11 / 10 / 5.
+  expect(clientSharedTools.length + clientTools.length).toBe(5);
+});
+
+it("get_tender in the client role sends the role header, no bidder, and returns no key of any bid", async () => {
+  setRole("client");
+  const result = await clientGetTender.execute({ tender_id: "T-2026-014" });
+
+  expect(result).toMatchObject({ ok: true, role: "client", id: "T-2026-014" });
+  const keys = keysDeep(result);
+  for (const key of ["my_unit_price", "line_total", "set_by", "note", "source", "price_book_id", "required_documents", "bidder_id", "my_bid_status", "valid_until"]) {
+    expect(keys.has(key), key).toBe(false);
+  }
+  const sent = headersSent.find((headers) => headers["X-Role"] === "client")!;
+  expect(sent).toBeDefined();
+  expect(sent).not.toHaveProperty("X-Bidder-Id");
+
+  const list = await clientListTenders.execute({});
+  expect(list).toMatchObject({ ok: true, role: "client" });
+  expect(keysDeep(list).has("bidder_id")).toBe(false);
+  expect(keysDeep(list).has("my_bid_status")).toBe(false);
+});
+
+// The submit tool: a blocker is not a confirmation, and ok:false never comes
+// together with a request for one.
+it("answers status blocked with the full list when anything is in the way, with either confirm value, and opens no dialog", async () => {
+  checkAnswer = { ...CHECK_BASE, complete: false, open_positions: ["03.04"], positions_open: 1, blockers: BLOCKERS };
+
+  for (const confirm of [false, true]) {
+    const result = await submitBid.execute({ tender_id: "T-2026-014", confirm });
+    expect(result).toMatchObject({ ok: true, status: "blocked", blockers: BLOCKERS });
+    expect(result).not.toHaveProperty("needs_confirmation");
+    expect((result.summary as { total_net: number }).total_net).toBe(13213.5);
+    expect(getAppState().pendingSubmit).toBeNull();
+  }
+  expect(requests.filter((path) => path.endsWith("/submit"))).toEqual([]);
+});
+
+it("asks for a confirmation when nothing is in the way, and only then", async () => {
+  const result = await submitBid.execute({ tender_id: "T-2026-014", confirm: false });
+  expect(result).toEqual({
+    ok: true,
+    status: "needs_confirmation",
+    summary: {
+      tender_id: "T-2026-014",
+      total_net: 13213.5,
+      contingency: 370,
+      positions_priced: 12,
+      positions_open: 0,
+      open_positions: [],
+      complete: true
+    }
+  });
+  expect(getAppState().pendingSubmit).toBeNull();
+  expect(requests.filter((path) => path.endsWith("/submit"))).toEqual([]);
+});
+
+it("refuses a bid already handed in as a plain failure, never as a confirmation", async () => {
+  checkAnswer = { ...CHECK_BASE, status: "submitted" };
+  const result = await submitBid.execute({ tender_id: "T-2026-014", confirm: true });
+  expect(result).toEqual({ ok: false, error: "bid_already_submitted", hint: "This bid has already been handed in." });
+  expect(getAppState().pendingSubmit).toBeNull();
+});
+
+it("opens the dialog on confirm:true with nothing in the way, and the click hands in", async () => {
+  const { confirmSubmit } = await import("../store");
+  const pending = submitBid.execute({ tender_id: "T-2026-014", confirm: true });
+  await vi.waitFor(() => expect(getAppState().pendingSubmit).not.toBeNull());
+  await confirmSubmit();
+  const result = await pending;
+  expect(result).toMatchObject({ ok: true, status: "submitted", total_net: 13213.5 });
+  expect(requests.filter((path) => path.endsWith("/submit"))).toHaveLength(1);
 });
 
 it("marks submit_bid as destructive and says a person has to confirm it", () => {

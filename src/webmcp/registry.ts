@@ -309,15 +309,18 @@ function wrap(definition: ToolDefinition): WebMCPTool {
         untrusted,
         duration_ms: Math.max(0, Date.now() - startedAt - waited),
         waited_for_human_ms: waited,
-        // Two shapes ask for a person: submit_bid's {ok:false, needs_confirmation}
-        // and set_unit_price's {ok:true, status:"needs_confirmation"}. Neither
-        // is a failure and neither is a write.
+        // One shape asks for a person: {ok:true, status:"needs_confirmation"},
+        // from set_unit_price, set_document_validity and submit_bid alike. One
+        // shape says the bid cannot go out yet: {ok:true, status:"blocked"}.
+        // Neither is a failure and neither is a write.
         outcome:
           output?.needs_confirmation === true || output?.status === "needs_confirmation"
             ? "needs_confirmation"
-            : output?.ok === false
-              ? "error"
-              : "ok",
+            : output?.status === "blocked"
+              ? "blocked"
+              : output?.ok === false
+                ? "error"
+                : "ok",
         inputSummary: summariseInput(input),
         outputSummary: summariseOutput(output),
         input,

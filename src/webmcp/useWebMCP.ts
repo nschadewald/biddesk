@@ -11,6 +11,7 @@ import {
 import {
   askClarificationFallback,
   bidderOnlyTools,
+  clientSharedTools,
   clientTools,
   sharedTools,
   submitTools
@@ -18,14 +19,17 @@ import {
 import type { ModelContextSource, ToolDefinition } from "./types";
 
 /**
- * Which block belongs to which role. Roles are separated by what is registered,
- * not by permissions: in the bidder role the client tools do not exist at all,
- * so there is nothing for an agent to reach past.
+ * Which block belongs to which role. Registration is what an agent can see:
+ * in the bidder role the client tools do not exist at all, and the three
+ * shared names come with the description of the side that holds them. The
+ * boundary itself is the Worker's, which projects and refuses by the X-Role
+ * header the store sends -- so a switch here changes what is offered, and the
+ * server changes what is answered.
  */
 function toolsForRole(role: Role): ToolDefinition[] {
   return role === "bidder"
     ? [...sharedTools, ...bidderOnlyTools]
-    : [...sharedTools, ...clientTools];
+    : [...clientSharedTools, ...clientTools];
 }
 
 export type WebMCPStatus = {

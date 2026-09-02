@@ -1619,5 +1619,143 @@ T-2026-015 · 03.01) und dem Handlungssatz.
 ### Offen
 
 - ChatGPT-Abnahme der Zählung 11 / 5 / 11 (Nils).
-- CC-09 (Altangebote einfügen), Video, Devpost-Einreichung.
+- ~~CC-09 (Altangebote einfügen)~~ gestrichen (Mi 16:30, keine Änderung nach der Frist), CC-09 ist jetzt die Rollengrenze (Schritt 20). Video, Devpost-Einreichung.
+- Eine der beiden Spec-Kopien – nach der Einreichung.
+
+## Schritt 20 – Die Rollengrenze wird serverseitig (Mi 02.09.2026, 16:30–19:30)
+
+### Der Fehler, und wie er entstand
+
+Die Auftraggeberrolle versprach auf dem Bildschirm: versiegelt, keine Preise, keine Summen, keine
+Namen. `get_price_comparison` hielt das auch. Gleichzeitig waren `get_tender` und `list_tenders`
+als „gemeinsame" Werkzeuge in beiden Rollen registriert, `api.ts` schickte `X-Bidder-Id` bei jedem
+Aufruf mit (die Bieterwahl überlebte den Rollenwechsel), und der Worker kannte keine Rolle – er
+hatte nie eine gebraucht. `get_tender(T-2026-014)` lieferte dem Auftraggeber deshalb den
+vollständigen Entwurf des zuletzt gewählten Bieters: `my_unit_price`, `line_total`, `set_by`,
+`note`, `source` mit `price_book_id`, dazu `required_documents` mit Gültigkeiten und
+`my_bid_status`. Zwei Werkzeugpfade, zwei Wahrheiten – in einem Produkt, dessen These die
+Vertrauensgrenze ist.
+
+Entstanden ist das aus einer Entscheidung von Tag eins, die damals richtig war und es blieb, bis
+sie allein stand: *Rollen werden durch Registrierung getrennt, nicht durch Rechte* (Header.tsx,
+useWebMCP.ts, README, spec §12.2). Der Satz stimmt für die Client-Werkzeuge beim Bieter und für
+die Bieter-Werkzeuge beim Client – die gibt es dort schlicht nicht. Er stimmte nie für die drei
+Werkzeuge, die beide Rollen haben, weil ein gemeinsames Werkzeug an einem rollenlosen Worker
+zwangsläufig dieselbe Antwort für beide Seiten holt. Die Rolle lebte nur im Store und in der
+Werkzeugliste; kein Byte davon erreichte den Server.
+
+### Wie er gefunden wurde
+
+Extern. Zwei unabhängige Reviews am Mittwochnachmittag, beide mit demselben Befund, beide im Code
+nachvollzogen. Intern war er unsichtbar, und der Grund ist die eigentliche Lehre:
+
+**Warum 178 grüne Tests ihn nicht sahen.** `tools.test.ts` führte `get_tender` in der
+Client-Liste als *Sollzustand* („Client: three shared plus two of its own. Five.") und prüfte nur
+die Namen. `client_role.mjs` (C1) prüfte, dass die Client-Werkzeuge beim Bieter *nicht
+existieren* – die richtige Richtung, aber nur die eine. C2 prüfte den Preisspiegel auf
+Versiegelung und fand keinen Preis, weil dieser eine Pfad tatsächlich dicht war. Kein Test hat je
+`get_tender` **als Client** aufgerufen und in die Antwort geschaut. Ein Test, der eine Liste
+gegen sich selbst prüft, prüft eine Konvention, keine Eigenschaft. Die Eigenschaft heißt: „Was
+der Auftraggeber bekommt, enthält keinen Preis" – und die stand nirgends als Assertion.
+
+### Was gebaut wurde
+
+**Teil A – die Rolle wird serverseitig.**
+- `X-Role: bidder | client` reist wie `X-Language`: zum Fetch-Zeitpunkt in `api.ts` gesetzt, vom
+  Store bei `selectRole` gestellt, im Worker an **einer** Stelle gelesen (`readRole`, in
+  `requireWorkspace` in die Variablen gelegt). Ohne Header gilt `bidder` – Evals, `/how-to-test`
+  und `verify_seed.py` sehen, was sie immer sahen. In der Client-Rolle schickt `api.ts` kein
+  `X-Bidder-Id` mehr mit.
+- **Projektion je Rolle im Worker.** `GET /api/tenders` als Client ohne `bidder_id` und
+  `my_bid_status`; `GET /api/tenders/:id` als Client mit Positionen aus genau sieben Feldern,
+  ohne `required_documents`, ohne Bieterbezug, mit `role:"client"` – und der Client-Zweig löst gar
+  keinen Bieter auf und joint keine `bids`, `bid_prices`, `bidder_documents`. `types.ts` sagt es
+  als Union (`BidderTenderDetail | ClientTenderDetail`), der Store verengt über `bidderDetail()`.
+- **Verweigerung je Rolle.** `bidderOnly` auf price-book, suggestions, prices, check, submit,
+  undo, documents, Rückfrage stellen; `clientOnly` auf comparison und answer. Antwort `403 {
+  ok:false, error:"role_not_allowed", hint }`, der hint nennt `get_price_comparison` als den
+  einen Weg. Reihenfolge: unbekannter Workspace bleibt 404, dann erst 403.
+- **Beschreibungen je Rolle.** `sharedToolsFor(role)` liefert die drei gemeinsamen Werkzeuge mit
+  gleichem Namen, gleichem Schema und rollenabhängigem Text; die Client-Fassung von `get_tender`
+  sagt „returns NO prices" und nennt `get_price_comparison`. Werkzeugzahl 13 / 11 / 10 / 5
+  unverändert, Test hält beide Listen gleich in Schema und Annotationen.
+- `untrustedContentHint` auf `get_tender` in beiden Rollen: Positionstexte kommen vom
+  Auftraggeber oder aus einer GAEB-Datei.
+- Die Zeile „your draft is not visible to the client" kannte der Client-Read bisher über
+  `my_bid_status`. Das Bit heißt jetzt `ownDraftPending`, wird beim Rollenwechsel aus dem
+  Bieter-Bildschirm gemerkt und nie vom Worker geliefert.
+
+**Teil B – Blocker sind keine Bestätigung.** `submissionBlockers()` in `src/submission.ts` ist
+die eine Funktion: offene Nicht-Bedarfspositionen, abgelaufene **und fehlende** Pflichtnachweise
+(Colorpoint hält im Seed kein Referenzprojekt – der Fall ist echt); Bedarfspositionen blockieren
+nie. `check_bid` liefert `blockers`, `submit_bid` antwortet `{ ok:true, status:"blocked",
+blockers, summary }` mit `confirm:false` und `true`, ohne Dialog; ohne Blocker `{ ok:true,
+status:"needs_confirmation", summary }`. `ok:false` zusammen mit `needs_confirmation:true` gibt
+es nicht mehr. Der Worker weist `POST /submit` bei Blockern mit `409 bid_blocked` ab – dieselbe
+Funktion, frisch gelesen. Im UI: Abgabeknopf deaktiviert, darunter die Liste mit den
+Handlungssätzen aus CC-04/05 (Preis setzen oder herleiten lassen · Nachweisdatum nennen). Log:
+Kennzeichnung `BLOCKED`, Kurzform „blocked · 2 in the way · open_position, document_expired".
+
+**Teil C – Auftraggeber-Prompts.** Das Panel zeigt je Rolle eigene Beispielsätze und eine
+Erklärzeile, zweisprachig, in `src/i18n.ts`; Rollenwechsel aktualisiert Prompts, Zahl und
+Erklärtext gemeinsam.
+
+### Die Sabotage-Probe
+
+Test: für B-A, B-B, B-C, Rolle Client, `GET /api/tenders/T-2026-014` mit gestagtem
+bepreisten Entwurf – die Antwort enthält **rekursiv** keinen der Schlüssel `my_unit_price`,
+`line_total`, `set_by`, `note`, `source`, `price_book_id`, `required_documents`, `bidder_id`,
+`my_bid_status`, `valid_until`; dieselbe Antwort ohne Header trägt sie alle. Sabotage:
+`readRole` fest auf `bidder`.
+
+| Test | |
+|---|---|
+| `server.test.ts` · hands the client a tender with no key of any bid in it, recursively | **rot** |
+| `server.test.ts` · refuses every contractor endpoint to the client with 403 | **rot** |
+| `server.test.ts` · keeps the price comparison sealed for the client | **rot** (403 statt sealed) |
+| die übrigen 17, darunter „refuses the client endpoints to the contractor" | grün |
+
+Zurückgesetzt, 20/20, Typecheck sauber. Ein erster Anlauf der Probe hatte die Rolle
+versehentlich auf einen ungültigen Wert gesetzt (14 rot) – auch aufschlussreich, aber nicht die
+verabredete Probe; deshalb wiederholt.
+
+### Was nicht gebaut wurde
+
+Kein Login, keine Autorisierung – Known Limitation 3 steht wörtlich. Der Rollenwechsel ist ein
+Demo-Mechanismus; **innerhalb** der Demo ist die Grenze jetzt echt und liegt dort, wo sie
+hingehört. `/api/tenders/import` bleibt ohne Rollenwächter: ein Mensch zieht die Datei hinein,
+dafür gibt es kein Werkzeug.
+
+### Gemessen, nicht vermutet
+
+Deploy **`bf452d58`** (17:16), Live-Matrix danach: Bieter-Evals **14/14 Schritte über 8 Fälle**,
+E1 weiterhin 12 / 0 / 13.213,50 €, **E5 jetzt `blocked`** mit `[("open_position","03.04"),
+("document_expired","tax_clearance")]` und `ok:true` ohne `needs_confirmation`, E6 und E7
+unverändert (13.457,50 € nach Klick; Nachweisdatum wartet). Client-Evals **C1–C4** grün: 11 / 5
+Werkzeuge, Preisspiegel geschlossen vollständig und offen versiegelt, **C4** – ein bepreister
+Entwurf als Bieter, dann als Auftraggeber `get_tender` und `list_tenders`: vierzehn Positionen zu
+je sieben Feldern, rekursiv keiner der zehn Bid-Schlüssel. GAEB bestanden (T-2026-021: acht
+Vorschläge, eine Lücke, 6.319,45 €). Direkte API-Probe mit frischem Workspace: Bieter schreibt
+01.01 = 480, Auftraggeber-Read ohne jeden Bid-Schlüssel, Bieter-Read mit Preis und vier
+Nachweisen; price-book, check, suggestions als Client → 403, comparison als Bieter → 403,
+comparison als Client versiegelt ohne `unit_price`; `POST /submit` → `409 bid_blocked` mit der
+Liste. Live-Oberfläche: Auftraggeberrolle zeigt eigene Erklärzeile und die drei
+Auftraggeber-Prompts, Bieterrolle wie vorher.
+
+Ein Stolperer im Ablauf, notiert, weil er wieder passieren kann: In der Kette „typecheck → vitest
+→ deploy" meldete vitest einmal **„no tests"** (Pool-Start unter Last abgestorben, Exit 0), und die
+Kette deployte trotzdem. Die Suite war fünf Minuten davor auf demselben Code grün und wurde
+danach noch einmal im Vordergrund gefahren (18 Dateien, 202 Tests) – ein „no tests" ist kein
+Grün, und `&&` schützt nicht davor.
+
+### Stand
+
+202 Unit-Tests in 18 Dateien (neu: `src/submission.test.ts`, 20 in `server.test.ts`), Typecheck
+sauber, `verify_seed.py` grün, Bieter-Evals 14/14, Client-Evals C1–C4, GAEB bestanden. Deploy
+**`bf452d58`** = neuer Freeze-Stand.
+
+### Offen
+
+- ChatGPT-Abnahme der Zählung 11 / 5 / 11 (Nils).
+- Video, Devpost-Einreichung.
 - Eine der beiden Spec-Kopien – nach der Einreichung.

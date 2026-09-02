@@ -136,9 +136,17 @@ check("E4 · it is filed against the position, open, under this bidder",
       and asked[0]["bidder"] == "Farbwerk Meier GmbH",
       asked and (asked[0]["oz"], asked[0]["status"], asked[0]["bidder"]))
 
+# After E1 the radiators are still open and the tax clearance certificate has
+# expired. A blocker is not a confirmation: the tool names both, opens no
+# dialog, and never answers ok:false together with a request to confirm.
 e5 = out("E5", "submit_bid")
-check("E5 · confirm:false does NOT submit, it asks",
-      e5 and e5["ok"] is False and e5["needs_confirmation"] is True)
+check("E5 · does NOT submit: blocked, with ok:true and no needs_confirmation",
+      e5 and e5["ok"] is True and e5["status"] == "blocked" and "needs_confirmation" not in e5,
+      e5 and (e5.get("ok"), e5.get("status")))
+check("E5 · names the open radiators and the expired certificate as what is in the way",
+      e5 and [(b["kind"], b.get("oz") or b.get("doc_type")) for b in e5.get("blockers", [])]
+      == [("open_position", "03.04"), ("document_expired", "tax_clearance")],
+      e5 and [(b["kind"], b.get("oz") or b.get("doc_type")) for b in e5.get("blockers", [])])
 check("E5 · and reports the total that would go out",
       e5 and abs(e5["summary"]["total_net"] - 13213.50) < 0.01, e5 and e5["summary"]["total_net"])
 

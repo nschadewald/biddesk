@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useCopy, type Copy } from "./i18n";
+import { useAppState } from "./store";
 import { logStore } from "./webmcp/log";
 import type { ListedTool } from "./webmcp/registry";
 import type { LogEntry } from "./webmcp/types";
@@ -51,6 +52,11 @@ function useWideViewport(): boolean {
 
 export default function AgentPanel({ webmcp, onReset, resetting }: Props) {
   const copy = useCopy();
+  // The prompts, the explainer and the tool count change together with the
+  // role: a client is not invited to price anything.
+  const { role } = useAppState();
+  const prompts = role === "client" ? copy.panel.promptsClient : copy.panel.prompts;
+  const roleNote = role === "client" ? copy.panel.roleNoteClient : copy.panel.roleNoteBidder;
   const entries = useSyncExternalStore(logStore.subscribe, logStore.getSnapshot, logStore.getSnapshot);
   const wide = useWideViewport();
   const [open, setOpen] = useState<boolean | null>(null);
@@ -99,10 +105,12 @@ export default function AgentPanel({ webmcp, onReset, resetting }: Props) {
 
       <SelfDiagnosis webmcp={webmcp} copy={copy} />
 
+      <p className="text-xs text-slate-500">{roleNote}</p>
+
       <section>
         <h3 className="text-xs font-medium text-slate-500">{copy.panel.tryThese}</h3>
         <ul className="mt-2 flex flex-col gap-1.5">
-          {copy.panel.prompts.map((prompt) => (
+          {prompts.map((prompt) => (
             <PromptRow key={prompt} prompt={prompt} copiedLabel={copy.panel.copied} />
           ))}
         </ul>
@@ -289,7 +297,11 @@ function LogRow({ entry }: { entry: LogEntry }) {
           // its meaning there because it appears nowhere else. The outcome is
           // stated in words, and the reason stands in the output line.
           <span className="rounded border border-slate-300 px-1 text-[10px] uppercase text-slate-600">
-            {entry.outcome === "needs_confirmation" ? "awaiting confirmation" : "failed"}
+            {entry.outcome === "needs_confirmation"
+              ? "awaiting confirmation"
+              : entry.outcome === "blocked"
+                ? "blocked"
+                : "failed"}
           </span>
         )}
         <span className="rounded border border-slate-200 px-1 text-[10px] uppercase text-slate-500">

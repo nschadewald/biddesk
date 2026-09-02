@@ -2,6 +2,7 @@ import type {
   ApiError,
   AnswerResponse,
   Language,
+  Role,
   AskClarificationResponse,
   Bidder,
   CheckResult,
@@ -68,9 +69,27 @@ export function setLanguage(next: Language) {
   }
 }
 
+/**
+ * Which side of the table the requests come from.
+ *
+ * It travels exactly like the language: a header, read at the moment of the
+ * fetch, set by the store when a person switches roles. The Worker is where
+ * it counts -- it projects and refuses by this header, so the role is a
+ * server-side fact and not merely a choice of which tools the page registers.
+ * Without the header the Worker assumes the contractor, which is what every
+ * script that talks to the API directly expects.
+ */
+let role: Role = "bidder";
+
+export function setRole(next: Role) {
+  role = next;
+}
+
 function headers(extra: Record<string, string> = {}): Record<string, string> {
-  const withLanguage = { ...extra, "X-Language": language };
-  return bidderId === null ? withLanguage : { ...withLanguage, "X-Bidder-Id": bidderId };
+  const base = { ...extra, "X-Language": language, "X-Role": role };
+  // The client is nobody's contractor: the bidder choice does not travel with
+  // it, so no request from the client role can name a bidder by accident.
+  return bidderId === null || role === "client" ? base : { ...base, "X-Bidder-Id": bidderId };
 }
 
 // Private windows and the embedded ChatGPT browser can refuse localStorage.

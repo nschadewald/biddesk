@@ -70,6 +70,20 @@ try {
     bidderTools
   );
 
+  // Leave something to leak: one priced row in the contractor's draft, read
+  // back through the contractor's own get_tender first.
+  await call("set_unit_price", {
+    tender_id: "T-2026-014",
+    prices: [{ oz: "01.01", unit_price: 480, price_book_id: "PB-A-001" }]
+  });
+  const asBidder = await call("get_tender", { tender_id: "T-2026-014" });
+  check(
+    "the contractor's own read carries the draft: 01.01 priced, documents listed",
+    asBidder.positions?.find((p) => p.oz === "01.01")?.my_unit_price === 480
+      && Array.isArray(asBidder.required_documents),
+    asBidder.positions?.find((p) => p.oz === "01.01")?.my_unit_price
+  );
+
   // Switch the role the way a person does: the select in the header.
   await page.select("header select", "client");
   await new Promise((r) => setTimeout(r, 3500));
@@ -121,6 +135,38 @@ try {
   const blob = JSON.stringify(open);
   check("no price anywhere in the answer",
     !blob.includes("unit_price") && !blob.includes("total_net"));
+
+  console.log("\nC4 · get_tender as the client: the bill of quantities, and no key of any bid");
+  // The finding of 2 September: the same tool, registered for the client,
+  // used to return the contractor's whole draft. The Worker now projects by
+  // role, and the answer must not carry these keys anywhere -- not as null,
+  // not at all.
+  const keysDeep = (value, found = new Set()) => {
+    if (Array.isArray(value)) for (const entry of value) keysDeep(entry, found);
+    else if (value !== null && typeof value === "object") {
+      for (const [key, entry] of Object.entries(value)) {
+        found.add(key);
+        keysDeep(entry, found);
+      }
+    }
+    return found;
+  };
+  const BIDDER_ONLY_KEYS = [
+    "my_unit_price", "line_total", "set_by", "note", "source", "price_book_id",
+    "required_documents", "bidder_id", "my_bid_status", "valid_until"
+  ];
+  const asClient = await call("get_tender", { tender_id: "T-2026-014" });
+  check("the client's read answers, as the client", asClient.ok === true && asClient.role === "client",
+    [asClient.ok, asClient.role]);
+  check("fourteen positions, each with its seven fields", asClient.positions?.length === 14
+    && asClient.positions.every((p) => JSON.stringify(Object.keys(p).sort())
+      === JSON.stringify(["category", "contingency", "long_text", "oz", "quantity", "text", "unit"])),
+    asClient.positions?.length);
+  const leaked = BIDDER_ONLY_KEYS.filter((key) => keysDeep(asClient).has(key));
+  check("no key of any bid anywhere in the answer", leaked.length === 0, leaked);
+  const clientList = await call("list_tenders", {});
+  const leakedList = BIDDER_ONLY_KEYS.filter((key) => keysDeep(clientList).has(key));
+  check("and none in list_tenders either", clientList.role === "client" && leakedList.length === 0, leakedList);
 
   console.log("\nC3 · The client answers a bidder question, for everyone");
   const before = await call("list_clarifications", { tender_id: "T-2026-014", status: "open" });

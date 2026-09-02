@@ -167,14 +167,38 @@ it("caps foreign text in the log for a tool that declares untrustedContentHint",
   expect(JSON.stringify(entry.output)).not.toContain("z".repeat(200));
 });
 
+it("logs a blocked bid as blocked: not a failure, not a write, not a wait", async () => {
+  const seen = stubModelContext("document");
+  await registerToolBlock(
+    [
+      {
+        ...tool("submit_bid", async () => ({
+          ok: true,
+          status: "blocked",
+          blockers: [{ kind: "open_position", oz: "03.04", text: "Radiators" }],
+          summary: { total_net: 13213.5 }
+        })),
+        annotations: { readOnlyHint: false, destructiveHint: true }
+      }
+    ],
+    newSignal()
+  );
+
+  await seen[0]!.tool.execute({ tender_id: "T-2026-014", confirm: false });
+  const entry = logStore.getSnapshot()[0]!;
+
+  expect(entry.outcome).toBe("blocked");
+  expect(entry.outputSummary).toBe("blocked · 1 in the way · open_position");
+});
+
 it("does not log a request for confirmation as a failure", async () => {
   const seen = stubModelContext("document");
   await registerToolBlock(
     [
       {
         ...tool("submit_bid", async () => ({
-          ok: false,
-          needs_confirmation: true,
+          ok: true,
+          status: "needs_confirmation",
           summary: { total_net: 13213.5 }
         })),
         annotations: { readOnlyHint: false, destructiveHint: true }

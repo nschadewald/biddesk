@@ -148,8 +148,13 @@ export default function HowToTest() {
           There is no sign-in. Every visitor gets their own workspace with a private copy of
           the demo data, kept in your browser&apos;s local storage and swept after seven days,
           so nothing you do here reaches anyone else. Switching role or contractor is a demo
-          mechanism, not an authorisation model: the two roles are separated by which tools
-          are registered, not by rights. Every company, project and price in here is invented.
+          mechanism, not an authorisation model — there is no sign-in behind it. Within the
+          demo the boundary is real, though, and it sits on the server: the role travels as a
+          request header, the Worker projects every tender read by it and refuses every
+          contractor endpoint to the client role, and prices reach the client only through
+          <code>get_price_comparison</code>, after the deadline. What the page registers is
+          what each side can see; the Worker decides what each side gets. Every company,
+          project and price in here is invented.
           “Reset demo” in the agent panel puts everything back.
         </p>
       </section>

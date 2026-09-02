@@ -58,6 +58,10 @@ const RATIONALE = "4 radiators at 25 min each at your rate of 58 EUR";
 
 /** What the page sent to POST /prices, for the tests that click. */
 let priceWrites: { set_by: string; prices: Record<string, unknown>[] }[] = [];
+/** The headers of every request, so a test can see the role travel. */
+let headersSeen: { path: string; headers: Record<string, string> }[] = [];
+/** What /check answers under `blockers`, for the submit button. */
+let checkBlockers: Record<string, unknown>[] = [];
 /** What the page sent to POST /api/documents/..., and whether the stub still reports the expiry. */
 let documentWrites: Record<string, unknown>[] = [];
 let taxClearanceExpired = true;
@@ -72,6 +76,8 @@ const REQUIRED_DOCUMENTS = [
 function stubApi(options: { priced?: boolean } = {}) {
   priceWrites = [];
   documentWrites = [];
+  headersSeen = [];
+  checkBlockers = [];
   taxClearanceExpired = true;
   // With `priced`, the first row already carries the net of the demo run, so
   // confirming 61 EUR on the four radiators lands on the figure the spec names.
@@ -94,8 +100,52 @@ function stubApi(options: { priced?: boolean } = {}) {
       // The Worker resolves X-Language at its mapping boundary and sends one
       // text per field. The stub does the same, so a test can see the header
       // arrive rather than trust that it was set.
-      const german =
-        (init?.headers as Record<string, string> | undefined)?.["X-Language"] === "de";
+      const sentHeaders = (init?.headers ?? {}) as Record<string, string>;
+      headersSeen.push({ path: input, headers: sentHeaders });
+      const german = sentHeaders["X-Language"] === "de";
+      const asClient = sentHeaders["X-Role"] === "client";
+      // The Worker's client projection: the bill of quantities, nothing of a bid.
+      if (asClient && input === "/api/tenders") {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            role: "client",
+            tenders: [
+              {
+                id: "T-2026-014",
+                title: "Staircase painting works – Rheinallee 12",
+                client: "Rheinpark Property Management",
+                city: "Düsseldorf",
+                trade: "painting",
+                status: "open",
+                due_date: "2026-09-10",
+                positions_count: 14
+              }
+            ]
+          })
+        );
+      }
+      if (asClient && input.startsWith("/api/tenders/") && !input.endsWith("/comparison")) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            role: "client",
+            tender: {
+              id: "T-2026-014",
+              title: "Staircase painting works – Rheinallee 12",
+              client: "Rheinpark Property Management",
+              city: "Düsseldorf",
+              trade: "painting",
+              status: "open",
+              due_date: "2026-09-10",
+              positions_count: 14
+            },
+            positions: positions.map(({ oz, text, long_text, quantity, unit, category, contingency }) => ({
+              oz, text, long_text, quantity, unit, category, contingency
+            }))
+          })
+        );
+      }
       if (input.includes("/api/documents/") && init?.method === "POST") {
         const sent = JSON.parse(String(init.body)) as Record<string, unknown>;
         documentWrites.push(sent);
@@ -131,6 +181,7 @@ function stubApi(options: { priced?: boolean } = {}) {
             positions_open: 12,
             undo_available: false,
             warnings: [],
+            blockers: checkBlockers,
             actions: taxClearanceExpired
               ? [{ finding: "document", doc_type: "tax_clearance", action: "tell your agent the new expiry date — you confirm it on the page — or upload a current certificate." }]
               : []
@@ -178,6 +229,7 @@ function stubApi(options: { priced?: boolean } = {}) {
         ? new Response(
             JSON.stringify({
               ok: true,
+              role: "bidder",
               bidder_id: "B-A",
               tenders: [
                 {
@@ -226,6 +278,7 @@ function stubApi(options: { priced?: boolean } = {}) {
         : new Response(
             JSON.stringify({
               ok: true,
+              role: "bidder",
               bidder_id: "B-A",
               tender: {
                 id: "T-2026-014",
@@ -428,6 +481,67 @@ it("says where this plays on the client screen too", async () => {
   } finally {
     await selectRole("bidder");
   }
+});
+
+it("sends the role to the Worker and shows the client its own prompts and explainer", async () => {
+  stubApi();
+  const { selectRole } = await import("./store");
+  render(<App />);
+  await waitFor(() => expect(screen.getAllByRole("row").length).toBeGreaterThan(1));
+  // The contractor's prompts and note, before the switch.
+  expect(screen.getByText("Submit the bid.")).toBeInTheDocument();
+  expect(screen.getByText(/^Contractor: prices come from/)).toBeInTheDocument();
+
+  try {
+    await userEvent.selectOptions(screen.getByLabelText(/Acting as/), "client");
+    await screen.findByText(/Tenders published by this client/);
+
+    // The re-read of the tender travelled as the client, with no bidder.
+    const reread = headersSeen.filter(
+      (entry) => entry.path === "/api/tenders/T-2026-014" && entry.headers["X-Role"] === "client"
+    );
+    expect(reread.length).toBeGreaterThan(0);
+    for (const entry of reread) expect(entry.headers).not.toHaveProperty("X-Bidder-Id");
+
+    // Prompts, explainer: the client's, and none of the contractor's.
+    expect(screen.getByText("Show me the bids on the open stairwell tender.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Answer the open question about the scaffolding: it will be removed on 15 September.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Submit the bid.")).not.toBeInTheDocument();
+    expect(screen.getByText(/^Client: bids stay sealed/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Contractor: prices come from/)).not.toBeInTheDocument();
+
+    // And in German, the same three, as Sie.
+    await selectLanguage("de");
+    await screen.findByText("Zeig mir die Angebote zur offenen Ausschreibung Treppenhaus.");
+    await selectLanguage("en");
+  } finally {
+    await selectRole("bidder");
+  }
+});
+
+it("keeps the submit button shut while the check names a blocker, and lists the ways out", async () => {
+  stubApi({ priced: true });
+  checkBlockers = [
+    { kind: "open_position", oz: "03.04", text: "Radiators incl. pipes" },
+    { kind: "document_expired", doc_type: "tax_clearance", label: "Tax clearance certificate", valid_until: "2026-08-12" }
+  ];
+  render(<App />);
+  await screen.findAllByText("13.213,50 €");
+
+  await userEvent.click(screen.getByRole("button", { name: "Submit bid" }));
+
+  // No dialog. The list, with the check's own sentence under the document.
+  const blockers = within(await screen.findByTestId("submit-blockers"));
+  expect(blockers.getByText("Cannot be handed in yet: 2 things in the way.")).toBeInTheDocument();
+  expect(blockers.getByText("03.04 Radiators incl. pipes — no price")).toBeInTheDocument();
+  expect(blockers.getByText("Tax clearance certificate — expired 12 Aug 2026")).toBeInTheDocument();
+  expect(
+    blockers.getByText("tell your agent the new expiry date — you confirm it on the page — or upload a current certificate.")
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Submit bid" })).toBeDisabled();
 });
 
 it("writes a proposed price only on the person's click, as theirs, and the total follows", async () => {

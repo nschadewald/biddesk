@@ -21,7 +21,8 @@ import type { Tender } from "./types";
  * double the surface without strengthening anything. The gap is deliberate.
  */
 export default function ClientScreen() {
-  const { detail, tenderId, comparison, clarifications, tenders, language } = useAppState();
+  const { detail, tenderId, comparison, clarifications, tenders, language, ownDraftPending } =
+    useAppState();
   const copy = useCopy();
 
   useEffect(() => {
@@ -33,8 +34,9 @@ export default function ClientScreen() {
   }, [tenderId]);
 
   const tender = detail?.tender;
-  // The selected contractor started a bid but has not handed it in.
-  const ownDraftPending = tender?.my_bid_status === "draft";
+  // Whether the contractor this browser just acted for left a draft is not in
+  // `tender`: the Worker's client projection carries no bid status. The store
+  // remembered it at the role switch, for the one person who is both sides.
 
   return (
     <>

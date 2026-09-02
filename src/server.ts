@@ -17,15 +17,19 @@ import type {
   BidStatus,
   BidTotals,
   CheckAction,
+  ClientPosition,
   Language,
   MissingDocument,
   Position,
   PreviousPrice,
   PriceBookRow,
   RequiredDocument,
+  Role,
+  SubmissionBlocker,
   Suggestion,
   Tender
 } from "./types";
+import { submissionBlockers } from "./submission";
 import {
   createWorkspace,
   isWorkspaceId,
@@ -33,7 +37,7 @@ import {
   workspaceExists
 } from "./workspace";
 
-type Variables = { workspaceId: string };
+type Variables = { workspaceId: string; role: Role };
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -85,6 +89,23 @@ const REQUIRED_DOCUMENTS: ReadonlyArray<{
  */
 const readLanguage = (c: { req: { header: (name: string) => string | undefined } }): Language =>
   c.req.header("X-Language")?.toLowerCase() === "de" ? "de" : "en";
+
+/**
+ * Which side of the table this request comes from.
+ *
+ * The ONE place the role enters the API. Everything that differs between the
+ * two roles -- what a tender read returns, which routes answer at all -- is
+ * decided from this value on the Worker, not from which tools the page
+ * happened to register. Two external reviews found the same hole on 2
+ * September: the page registered get_tender for the client, and the Worker,
+ * knowing no role, handed the client the last-selected contractor's whole
+ * draft. Registration is visibility; this is the boundary.
+ *
+ * No header means the contractor: the evals, the how-to-test page and every
+ * script that talks to the API directly see what they always saw.
+ */
+const readRole = (c: { req: { header: (name: string) => string | undefined } }): Role =>
+  c.req.header("X-Role")?.toLowerCase() === "client" ? "client" : "bidder";
 
 const pick = (language: Language, english: string, german: string) =>
   language === "de" ? german : english;
@@ -192,6 +213,33 @@ const toTender = (row: TenderRow, language: Language): Tender => ({
   due_date: row.due_date,
   positions_count: row.positions_count,
   my_bid_status: (row.my_bid_status ?? "none") as BidStatus
+});
+
+/**
+ * The client's projection: the bill of quantities as the client wrote it,
+ * and nothing of any bid. No bidder, no draft status, no prices, no line
+ * totals, no provenance, no remarks, no documents. These two mappers are the
+ * boundary a test holds shut, key by key and recursively.
+ */
+const toClientTender = (row: TenderRow, language: Language): Omit<Tender, "my_bid_status"> => ({
+  id: row.id,
+  title: pick(language, row.title_en, row.title_de),
+  client: row.client_name,
+  city: row.city,
+  trade: row.trade,
+  status: row.status,
+  due_date: row.due_date,
+  positions_count: row.positions_count
+});
+
+const toClientPosition = (row: PositionRow, language: Language): ClientPosition => ({
+  oz: row.oz,
+  text: pick(language, row.text_en, row.text_de),
+  long_text: pickNullable(language, row.long_text_en, row.long_text_de),
+  quantity: row.quantity,
+  unit: row.unit,
+  category: row.category,
+  contingency: row.contingency === 1
 });
 
 const toPosition = (row: PositionRow, language: Language): Position => ({
@@ -319,15 +367,46 @@ const requireWorkspace: MiddlewareHandler<{
     );
   }
   c.set("workspaceId", workspaceId);
+  c.set("role", readRole(c));
   await next();
 };
+
+/**
+ * Refuses a route to the role it does not belong to. Registration keeps the
+ * other side's tools out of sight; this keeps them out of reach -- a request
+ * that arrives with the wrong role gets a 403 and a named reason, whatever
+ * the page registered or a script sent by hand.
+ */
+const onlyRole =
+  (allowed: Role, hint: string): MiddlewareHandler<{ Bindings: Env; Variables: Variables }> =>
+  async (c, next) => {
+    if (c.get("role") !== allowed) {
+      return c.json(fail("role_not_allowed", hint), 403);
+    }
+    await next();
+  };
+
+const bidderOnly = onlyRole(
+  "bidder",
+  "This belongs to the contractor role. The client reads prices through get_price_comparison alone, after the deadline; switch the role in the header for the contractor's work."
+);
+const clientOnly = onlyRole(
+  "client",
+  "This belongs to the client role. Switch the role in the header to compare bids or answer questions."
+);
 
 app.use("/api/tenders", requireWorkspace);
 app.use("/api/tenders/*", requireWorkspace);
 
 app.get("/api/tenders", async (c) => {
   const workspaceId = c.get("workspaceId");
-  const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
+  const role = c.get("role");
+  // The client has no bidder. The subselect for my_bid_status then matches
+  // nothing, and the projection below leaves the field out altogether.
+  const bidderId =
+    role === "client"
+      ? ""
+      : await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
   const language = readLanguage(c);
 
   const status = c.req.query("status");
@@ -364,8 +443,17 @@ app.get("/api/tenders", async (c) => {
     .bind(...params)
     .all<TenderRow>();
 
+  if (role === "client") {
+    return c.json({
+      ok: true,
+      role,
+      tenders: results.map((row) => toClientTender(row, language))
+    });
+  }
+
   return c.json({
     ok: true,
+    role,
     bidder_id: bidderId,
     tenders: results.map((row) => toTender(row, language))
   });
@@ -374,8 +462,41 @@ app.get("/api/tenders", async (c) => {
 app.get("/api/tenders/:id", async (c) => {
   const workspaceId = c.get("workspaceId");
   const tenderId = c.req.param("id");
-  const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
+  const role = c.get("role");
   const language = readLanguage(c);
+
+  if (role === "client") {
+    // No bidder is resolved and no bid is joined: the client's read never
+    // touches bid_prices, bids or bidder_documents at all.
+    const tender = await c.env.DB.prepare(
+      `SELECT ${TENDER_COLUMNS}
+         FROM tenders t
+        WHERE t.workspace_id = ?1 AND t.id = ?3`
+    )
+      .bind(workspaceId, "", tenderId)
+      .first<TenderRow>();
+    if (!tender) {
+      return c.json(fail("tender_not_found", `No tender ${tenderId} in this workspace.`), 404);
+    }
+    const positions = await c.env.DB.prepare(
+      `SELECT p.oz, p.text_en, p.text_de, p.long_text_en, p.long_text_de,
+              p.quantity, p.unit, p.category, p.contingency
+         FROM positions p
+        WHERE p.workspace_id = ?1 AND p.tender_id = ?2
+        ORDER BY p.sort_no`
+    )
+      .bind(workspaceId, tenderId)
+      .all<PositionRow>();
+
+    return c.json({
+      ok: true,
+      role,
+      tender: toClientTender(tender, language),
+      positions: positions.results.map((row) => toClientPosition(row, language))
+    });
+  }
+
+  const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
 
   const tender = await c.env.DB.prepare(
     `SELECT ${TENDER_COLUMNS}
@@ -423,6 +544,7 @@ app.get("/api/tenders/:id", async (c) => {
 
   return c.json({
     ok: true,
+    role,
     bidder_id: bidderId,
     tender: toTender(tender, language),
     positions: positions.results.map((row) => toPosition(row, language)),
@@ -460,7 +582,7 @@ async function readPriceBook(
 
 app.use("/api/price-book", requireWorkspace);
 
-app.get("/api/price-book", async (c) => {
+app.get("/api/price-book", bidderOnly, async (c) => {
   const workspaceId = c.get("workspaceId");
   const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
   const category = c.req.query("category");
@@ -486,7 +608,7 @@ app.get("/api/price-book", async (c) => {
   return c.json({ ok: true, bidder_id: bidderId, entries: rows });
 });
 
-app.get("/api/tenders/:id/suggestions", async (c) => {
+app.get("/api/tenders/:id/suggestions", bidderOnly, async (c) => {
   const workspaceId = c.get("workspaceId");
   const tenderId = c.req.param("id");
   const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
@@ -618,7 +740,7 @@ async function readTotals(
   };
 }
 
-app.post("/api/tenders/:id/prices", async (c) => {
+app.post("/api/tenders/:id/prices", bidderOnly, async (c) => {
   const workspaceId = c.get("workspaceId");
   const tenderId = c.req.param("id");
   const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
@@ -767,7 +889,7 @@ app.post("/api/tenders/:id/prices", async (c) => {
   });
 });
 
-app.post("/api/tenders/:id/undo", async (c) => {
+app.post("/api/tenders/:id/undo", bidderOnly, async (c) => {
   const workspaceId = c.get("workspaceId");
   const tenderId = c.req.param("id");
   const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
@@ -865,7 +987,87 @@ app.post("/api/tenders/:id/undo", async (c) => {
 const OUTLIER_PCT = 30;
 const MAX_QUESTION_LENGTH = 500;
 
-app.get("/api/tenders/:id/check", async (c) => {
+/** The required documents this bidder lacks or holds expired, labelled in the reader's language. */
+async function readMissingDocuments(
+  db: D1Database,
+  workspaceId: string,
+  bidderId: string,
+  language: Language
+): Promise<MissingDocument[]> {
+  const documents = await db
+    .prepare(
+      `SELECT doc_type, valid_until, valid_until < date('now') AS expired
+         FROM bidder_documents WHERE workspace_id = ?1 AND bidder_id = ?2`
+    )
+    .bind(workspaceId, bidderId)
+    .all<{ doc_type: string; valid_until: string; expired: number }>();
+
+  const held = new Map(documents.results.map((row) => [row.doc_type, row]));
+  return REQUIRED_DOCUMENTS.flatMap<MissingDocument>((required) => {
+    const row = held.get(required.doc_type);
+    // The label is the name of a document a person holds in their hand, so it
+    // follows the language. Everything else in a check result -- the warnings,
+    // the reasons, the field names -- is read by an agent and stays English.
+    const document = {
+      doc_type: required.doc_type,
+      label: pick(language, required.label_en, required.label_de)
+    };
+    if (row === undefined) {
+      return [{ ...document, valid_until: null, reason: "not_held" }];
+    }
+    if (row.expired === 1) {
+      return [{ ...document, valid_until: row.valid_until, reason: "expired" }];
+    }
+    return [];
+  });
+}
+
+/**
+ * What stands between this draft and the dialog, read afresh. The submit
+ * route asks this before it writes, so a blocker the check would report is a
+ * blocker the submit refuses -- one function, one answer.
+ */
+async function readBlockers(
+  db: D1Database,
+  workspaceId: string,
+  tenderId: string,
+  bidId: string,
+  bidderId: string,
+  language: Language
+): Promise<SubmissionBlocker[]> {
+  const [positions, missingDocuments] = await Promise.all([
+    db
+      .prepare(
+        `SELECT p.oz, p.text_en, p.text_de, p.contingency, bp.unit_price AS my_unit_price
+           FROM positions p
+           LEFT JOIN bid_prices bp
+             ON bp.workspace_id = p.workspace_id AND bp.bid_id = ?3 AND bp.oz = p.oz
+          WHERE p.workspace_id = ?1 AND p.tender_id = ?2
+          ORDER BY p.sort_no`
+      )
+      .bind(workspaceId, tenderId, bidId)
+      .all<{
+        oz: string;
+        text_en: string;
+        text_de: string;
+        contingency: number;
+        my_unit_price: number | null;
+      }>(),
+    readMissingDocuments(db, workspaceId, bidderId, language)
+  ]);
+
+  return submissionBlockers({
+    positions: positions.results.map((row) => ({
+      oz: row.oz,
+      text: pick(language, row.text_en, row.text_de),
+      contingency: row.contingency === 1,
+      my_unit_price: row.my_unit_price
+    })),
+    missingDocuments
+  });
+}
+
+app.get("/api/tenders/:id/check", bidderOnly, async (c) => {
   const workspaceId = c.get("workspaceId");
   const tenderId = c.req.param("id");
   const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
@@ -885,9 +1087,9 @@ app.get("/api/tenders/:id/check", async (c) => {
 
   const bid = await findBid(c.env.DB, workspaceId, tenderId, bidderId);
 
-  const [positions, priceBook, documents, changes] = await Promise.all([
+  const [positions, priceBook, missingDocuments, changes] = await Promise.all([
     c.env.DB.prepare(
-      `SELECT p.oz, p.text_de, p.unit, p.category, p.contingency, p.sort_no,
+      `SELECT p.oz, p.text_en, p.text_de, p.unit, p.category, p.contingency, p.sort_no,
               bp.unit_price AS my_unit_price
          FROM positions p
          LEFT JOIN bid_prices bp
@@ -898,6 +1100,7 @@ app.get("/api/tenders/:id/check", async (c) => {
       .bind(workspaceId, tenderId, bid?.id ?? "")
       .all<{
         oz: string;
+        text_en: string;
         text_de: string;
         unit: string;
         category: string;
@@ -905,12 +1108,7 @@ app.get("/api/tenders/:id/check", async (c) => {
         my_unit_price: number | null;
       }>(),
     readPriceBook(c.env.DB, workspaceId, bidderId),
-    c.env.DB.prepare(
-      `SELECT doc_type, valid_until, valid_until < date('now') AS expired
-         FROM bidder_documents WHERE workspace_id = ?1 AND bidder_id = ?2`
-    )
-      .bind(workspaceId, bidderId)
-      .all<{ doc_type: string; valid_until: string; expired: number }>(),
+    readMissingDocuments(c.env.DB, workspaceId, bidderId, language),
     c.env.DB.prepare(
       "SELECT COUNT(*) AS blocks FROM change_log WHERE workspace_id = ?1 AND bid_id = ?2"
     )
@@ -948,23 +1146,16 @@ app.get("/api/tenders/:id/check", async (c) => {
       ];
     });
 
-  const held = new Map(documents.results.map((row) => [row.doc_type, row]));
-  const missingDocuments = REQUIRED_DOCUMENTS.flatMap<MissingDocument>((required) => {
-    const row = held.get(required.doc_type);
-    // The label is the name of a document a person holds in their hand, so it
-    // follows the language. Everything else in a check result -- the warnings,
-    // the reasons, the field names -- is read by an agent and stays English.
-    const document = {
-      doc_type: required.doc_type,
-      label: pick(language, required.label_en, required.label_de)
-    };
-    if (row === undefined) {
-      return [{ ...document, valid_until: null, reason: "not_held" }];
-    }
-    if (row.expired === 1) {
-      return [{ ...document, valid_until: row.valid_until, reason: "expired" }];
-    }
-    return [];
+  // The same function the submit route asks. What the check names as a
+  // blocker is exactly what keeps the dialog shut.
+  const blockers = submissionBlockers({
+    positions: positions.results.map((row) => ({
+      oz: row.oz,
+      text: pick(language, row.text_en, row.text_de),
+      contingency: row.contingency === 1,
+      my_unit_price: row.my_unit_price
+    })),
+    missingDocuments
   });
 
   const totals = await readTotals(c.env.DB, workspaceId, tenderId, bidderId);
@@ -1052,7 +1243,8 @@ app.get("/api/tenders/:id/check", async (c) => {
     positions_open: totals.positions_open,
     undo_available: (changes?.blocks ?? 0) > 0,
     warnings,
-    actions
+    actions,
+    blockers
   });
 });
 
@@ -1111,7 +1303,7 @@ app.get("/api/clarifications", async (c) => {
   return c.json({ ok: true, questions });
 });
 
-app.post("/api/clarifications", async (c) => {
+app.post("/api/clarifications", bidderOnly, async (c) => {
   const workspaceId = c.get("workspaceId");
   const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
   const body = await c.req
@@ -1165,7 +1357,7 @@ app.post("/api/clarifications", async (c) => {
   return c.json({ ok: true, question_id: id, status: "open" }, 201);
 });
 
-app.post("/api/tenders/:id/submit", async (c) => {
+app.post("/api/tenders/:id/submit", bidderOnly, async (c) => {
   const workspaceId = c.get("workspaceId");
   const tenderId = c.req.param("id");
   const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
@@ -1176,6 +1368,30 @@ app.post("/api/tenders/:id/submit", async (c) => {
   }
   if (bid.status === "submitted") {
     return c.json(fail("bid_already_submitted", "This bid has already been handed in."), 409);
+  }
+
+  // A blocker is not a confirmation. The page never opens the dialog while
+  // one exists; the Worker refuses all the same, so a script cannot hand in
+  // what the check would not let through.
+  const blockers = await readBlockers(
+    c.env.DB,
+    workspaceId,
+    tenderId,
+    bid.id,
+    bidderId,
+    readLanguage(c)
+  );
+  if (blockers.length > 0) {
+    return c.json(
+      {
+        ...fail(
+          "bid_blocked",
+          "The bid cannot be handed in yet: price every billable position and bring the required documents up to date first."
+        ),
+        blockers
+      },
+      409
+    );
   }
 
   await c.env.DB.prepare(
@@ -1221,7 +1437,7 @@ const isRealDate = (value: string) =>
  * not a write. Contractor master data, not part of the bid: it works after the
  * bid is handed in, and undo does not cover it.
  */
-app.post("/api/documents/:doc_type", async (c) => {
+app.post("/api/documents/:doc_type", bidderOnly, async (c) => {
   const workspaceId = c.get("workspaceId");
   const bidderId = await resolveBidder(c.env.DB, workspaceId, c.req.header("X-Bidder-Id"));
   const language = readLanguage(c);
@@ -1306,7 +1522,7 @@ app.get("/api/bidders", async (c) => {
   });
 });
 
-app.get("/api/tenders/:id/comparison", async (c) => {
+app.get("/api/tenders/:id/comparison", clientOnly, async (c) => {
   const workspaceId = c.get("workspaceId");
   const tenderId = c.req.param("id");
   const language = readLanguage(c);
@@ -1407,7 +1623,7 @@ app.get("/api/tenders/:id/comparison", async (c) => {
   });
 });
 
-app.post("/api/clarifications/:id/answer", async (c) => {
+app.post("/api/clarifications/:id/answer", clientOnly, async (c) => {
   const workspaceId = c.get("workspaceId");
   const questionId = c.req.param("id");
   const body = await c.req

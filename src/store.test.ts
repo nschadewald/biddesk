@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  bidderDetail,
   confirmDocumentValidity,
   confirmPendingPrice,
   discardPendingPrice,
@@ -40,6 +41,7 @@ const position = (oz: string, quantity: number, contingency = false) => ({
 
 const detail = {
   ok: true,
+  role: "bidder",
   bidder_id: "B-A",
   tender: {
     id: "T-2026-014",
@@ -146,7 +148,7 @@ it("unrolls the rows one at a time so the totals bar can be followed", async () 
   vi.useFakeTimers();
 
   const priced = () =>
-    getAppState().detail!.positions.filter((row) => row.my_unit_price !== null).length;
+    bidderDetail()!.positions.filter((row) => row.my_unit_price !== null).length;
 
   const call = setUnitPrices("T-2026-014", [], "agent");
   await vi.advanceTimersByTimeAsync(0);
@@ -173,7 +175,7 @@ it("sets everything at once when the visitor asked for reduced motion", async ()
   await setUnitPrices("T-2026-014", [], "agent");
 
   expect(
-    getAppState().detail!.positions.filter((row) => row.my_unit_price !== null)
+    bidderDetail()!.positions.filter((row) => row.my_unit_price !== null)
   ).toHaveLength(2);
 });
 
@@ -190,7 +192,7 @@ it("keeps the source on the row, so the chip survives the write", async () => {
 
   await setUnitPrices("T-2026-014", [], "agent");
 
-  const row = getAppState().detail!.positions.find((entry) => entry.oz === "02.01")!;
+  const row = bidderDetail()!.positions.find((entry) => entry.oz === "02.01")!;
   expect(row.my_unit_price).toBe(2.9);
   expect(row.set_by).toBe("agent");
   expect(row.source).toEqual(SOURCE);
@@ -234,12 +236,12 @@ it("marks the bid a draft as soon as the first row is written", async () => {
   };
   vi.stubGlobal("matchMedia", () => ({ matches: true }));
 
-  expect(getAppState().detail!.tender.my_bid_status).toBe("none");
+  expect(bidderDetail()!.tender.my_bid_status).toBe("none");
   await setUnitPrices("T-2026-014", [], "agent");
 
   // Without this the client side would keep saying "no bid yet" while a draft
   // sits on screen.
-  expect(getAppState().detail!.tender.my_bid_status).toBe("draft");
+  expect(bidderDetail()!.tender.my_bid_status).toBe("draft");
 });
 
 it("re-reads everything on screen when the language changes, and nothing else", async () => {
@@ -299,7 +301,7 @@ describe("a price with no source", () => {
     ]);
     expect(getAppState().pendingPrices["01.01"]).toBeDefined();
     expect(written(fetchMock.mock.calls).length).toBe(before);
-    expect(getAppState().detail!.positions[0]!.my_unit_price).toBeNull();
+    expect(bidderDetail()!.positions[0]!.my_unit_price).toBeNull();
 
     discardPendingPrice("01.01");
     expect(getAppState().pendingPrices["01.01"]).toBeUndefined();
@@ -330,7 +332,7 @@ describe("a price with no source", () => {
     expect(sent.prices).toEqual([{ oz: "01.01", unit_price: 61, note: "derived" }]);
     expect(sent.prices[0]).not.toHaveProperty("price_book_id");
 
-    const row = getAppState().detail!.positions[0]!;
+    const row = bidderDetail()!.positions[0]!;
     expect(row).toMatchObject({ my_unit_price: 61, set_by: "human", source: null, note: "derived" });
     expect(getAppState().pendingPrices["01.01"]).toBeUndefined();
   });
@@ -361,7 +363,7 @@ describe("a price with no source", () => {
 
     const sent = written(fetchMock.mock.calls).at(-1)!;
     expect(sent.prices).toEqual([{ oz: "01.01", unit_price: 61, note: "own calculation" }]);
-    const row = getAppState().detail!.positions[0]!;
+    const row = bidderDetail()!.positions[0]!;
     expect(row.my_unit_price).toBe(61);
     expect(row.note).toBe("own calculation");
     expect(row.set_by).toBe("human");
@@ -389,7 +391,7 @@ describe("a document date stated in the chat", () => {
     expect(getAppState().pendingDocuments.tax_clearance).toBeDefined();
     expect(getAppState().check).not.toBeNull();
     expect(documentWrites(fetchMock.mock.calls).length).toBe(before);
-    expect(getAppState().detail!.required_documents[0]!.valid_until).toBe("2026-08-11");
+    expect(bidderDetail()!.required_documents[0]!.valid_until).toBe("2026-08-11");
   });
 
   it("is written by the click, and the document on file follows at once", async () => {
@@ -403,7 +405,7 @@ describe("a document date stated in the chat", () => {
       "/api/documents/tax_clearance",
       { valid_until: "2027-08-15" }
     ]);
-    expect(getAppState().detail!.required_documents[0]!.valid_until).toBe("2027-08-15");
+    expect(bidderDetail()!.required_documents[0]!.valid_until).toBe("2027-08-15");
     expect(getAppState().pendingDocuments.tax_clearance).toBeUndefined();
   });
 });

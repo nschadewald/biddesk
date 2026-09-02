@@ -22,7 +22,11 @@ export type Tender = {
   status: "open" | "closed";
   due_date: string;
   positions_count: number;
-  my_bid_status: BidStatus;
+  /**
+   * Absent in the client role. Whether a contractor has started a draft is
+   * that contractor's business; the client learns of a bid when it arrives.
+   */
+  my_bid_status?: BidStatus;
 };
 
 /** Where a suggested price comes from. Never absent when a price is offered. */
@@ -33,7 +37,12 @@ export type SuggestionSource = {
   source_position_text: string;
 };
 
-export type Position = {
+/**
+ * What the client wrote: the bill of quantities and nothing of any bid. This
+ * is the whole of a position as the client role receives it -- the Worker
+ * projects to exactly these seven fields, and a test holds it to that.
+ */
+export type ClientPosition = {
   oz: string;
   text: string;
   long_text: string | null;
@@ -41,6 +50,9 @@ export type Position = {
   unit: string;
   category: string;
   contingency: boolean;
+};
+
+export type Position = ClientPosition & {
   /** Null until this bidder has priced the position. */
   my_unit_price: number | null;
   line_total: number | null;
@@ -89,17 +101,35 @@ export type RequiredDocument = {
   valid_until: string | null;
 };
 
-export type TenderDetail = {
+/**
+ * The same tender, two projections -- and the Worker decides which, from the
+ * X-Role header, not the page. The contractor's view carries their own draft;
+ * the client's view carries the bill of quantities and nothing else. Prices
+ * reach the client through get_price_comparison alone, after the deadline.
+ */
+export type BidderTenderDetail = {
   ok: true;
+  role: "bidder";
   bidder_id: string;
   tender: Tender;
   positions: Position[];
   required_documents: RequiredDocument[];
 };
 
+export type ClientTenderDetail = {
+  ok: true;
+  role: "client";
+  tender: Tender;
+  positions: ClientPosition[];
+};
+
+export type TenderDetail = BidderTenderDetail | ClientTenderDetail;
+
 export type TenderList = {
   ok: true;
-  bidder_id: string;
+  role: Role;
+  /** Absent in the client role. */
+  bidder_id?: string;
   tenders: Tender[];
 };
 
@@ -249,6 +279,18 @@ export type PriceOutlier = {
 };
 
 /**
+ * What stands between a draft and the submit dialog. Computed in one place on
+ * the Worker (src/submission.ts) and read by check_bid, submit_bid and the
+ * submit button alike: an open billable position, an expired required
+ * document, a required document not on file. Contingency positions never
+ * block. A blocker is not a confirmation: while one exists, no dialog opens.
+ */
+export type SubmissionBlocker =
+  | { kind: "open_position"; oz: string; text: string }
+  | { kind: "document_expired"; doc_type: string; label: string; valid_until: string }
+  | { kind: "document_missing"; doc_type: string; label: string; valid_until: null };
+
+/**
  * get_bid_state was folded into this on 31.08: one look at the bid, not two.
  * This is the only place in the interface where red appears.
  */
@@ -270,6 +312,8 @@ export type CheckResult = {
   warnings: string[];
   /** One sentence per finding, in the reader's language, saying what to do. */
   actions: CheckAction[];
+  /** What keeps the bid from being handed in. Empty means the dialog may open. */
+  blockers: SubmissionBlocker[];
 };
 
 /** Written by other parties. Never rendered as HTML, never trusted as instructions. */

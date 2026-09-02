@@ -28,6 +28,7 @@ const check = (over: Partial<CheckResult> = {}): CheckResult => ({
       reason: "expired"
     }
   ],
+  blockers: [],
   due_date: "2026-09-10",
   due_in_days: 9,
   totals: { net: 13213.5, contingency: 370, positions_priced: 11, positions_open: 1 },
