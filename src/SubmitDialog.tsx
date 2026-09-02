@@ -18,6 +18,8 @@ type PositionShape = { oz: string; contingency: boolean; my_unit_price: number |
  * 12 of 12" above a table with an empty row read as a bug in the run-through;
  * it was the rule -- contingency rows are quoted apart and never block --
  * and the dialog now says so.
+ *
+ * The only modal on the page, and the only element with role="dialog".
  */
 export default function SubmitDialog({
   tenderId,
@@ -50,19 +52,19 @@ export default function SubmitDialog({
   }, [onCancel]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/35 p-6">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="submit-dialog-title"
-        className="w-full max-w-md rounded border border-slate-300 bg-white p-5 shadow-lg"
+        className="w-full max-w-[440px] rounded-xl bg-white p-6 shadow-xl"
       >
-        <h2 id="submit-dialog-title" className="text-sm font-semibold text-slate-900">
+        <h2 id="submit-dialog-title" className="text-[22px] leading-tight font-medium text-navy">
           {copy.submit.title}
         </h2>
-        <p className="mt-1 text-xs text-slate-500">{copy.submit.subtitle(tenderId)}</p>
+        <p className="mt-1.5 text-[13px] text-ink-muted">{copy.submit.subtitle(tenderId)}</p>
 
-        <dl className="mt-3 flex flex-col gap-1 border-y border-slate-200 py-3 text-sm">
+        <dl className="mt-4 flex flex-col gap-1.5 border-y border-line py-3 text-sm">
           <Line label={copy.submit.netTotal} value={formatEuro(totals.net)} strong />
           <Line label={copy.submit.contingencyTotal} value={formatEuro(totals.contingency)} />
           <Line
@@ -82,7 +84,7 @@ export default function SubmitDialog({
 
         {contingencyOpen.length > 0 && (
           // Stated, not coloured: red is reserved for the check result.
-          <ul className="mt-2 flex flex-col gap-0.5 text-xs text-slate-700">
+          <ul className="mt-2 flex flex-col gap-0.5 text-xs text-ink-muted">
             {contingencyOpen.map((row) => (
               <li key={row.oz}>{copy.submit.contingencyOpenLine(row.oz)}</li>
             ))}
@@ -94,25 +96,14 @@ export default function SubmitDialog({
           // blocker never reaches this dialog -- neither through the button nor
           // through submit_bid. Kept for a totals object that arrives another
           // way; it should not be seen.
-          <p className="mt-2 text-xs text-slate-700">
-            {copy.submit.stillOpen(totals.positions_open)}
-          </p>
+          <p className="mt-2 text-xs text-ink">{copy.submit.stillOpen(totals.positions_open)}</p>
         )}
 
-        <div className="mt-4 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded border border-slate-300 px-2.5 py-1 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
-          >
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onCancel} className="btn-ghost">
             {copy.submit.cancel}
           </button>
-          <button
-            ref={confirmRef}
-            type="button"
-            onClick={onConfirm}
-            className="rounded border border-slate-900 bg-slate-900 px-2.5 py-1 text-xs text-white hover:bg-slate-800"
-          >
+          <button ref={confirmRef} type="button" onClick={onConfirm} className="btn-primary">
             {copy.submit.confirm}
           </button>
         </div>
@@ -123,11 +114,9 @@ export default function SubmitDialog({
 
 function Line({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className="flex items-baseline justify-between">
-      <dt className="text-xs text-slate-500">{label}</dt>
-      <dd className={strong ? "font-semibold tabular-nums" : "tabular-nums text-slate-700"}>
-        {value}
-      </dd>
+    <div className="flex items-baseline justify-between gap-4">
+      <dt className="text-ink-muted">{label}</dt>
+      <dd className={strong ? "font-medium text-ink tabular-nums" : "text-ink tabular-nums"}>{value}</dd>
     </div>
   );
 }

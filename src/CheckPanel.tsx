@@ -51,21 +51,15 @@ export default function CheckPanel({
   const deadlineAction = actions.find((entry) => entry.finding === "deadline")?.action;
 
   return (
-    <section className="border-b border-slate-200 py-3 text-sm">
+    <section className="card px-4 py-4 text-sm">
       <div className="flex items-baseline justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {copy.check.title}
-        </h3>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-xs text-slate-400 hover:text-slate-900"
-        >
+        <h3 className="text-[15px] font-medium text-navy">{copy.check.title}</h3>
+        <button type="button" onClick={onClose} className="text-xs text-ink-muted hover:text-ink">
           {copy.check.close}
         </button>
       </div>
 
-      <p className="mt-2 text-xs text-slate-600">
+      <p className="mt-1.5 text-[13px] text-ink-muted">
         {findings === 0 ? copy.check.nothingToFlag : copy.check.findings(findings)}{" "}
         {check.complete ? copy.check.allPriced(billableTotal) : null}{" "}
         {openContingency.length > 0 ? copy.check.contingencyOpen(openContingency.length) : null}{" "}
@@ -76,7 +70,7 @@ export default function CheckPanel({
         .
       </p>
 
-      <ul className="mt-2 flex flex-col gap-1">
+      <ul className="mt-3 flex flex-col gap-2.5">
         {openBillable.length > 0 && (
           <Finding label={copy.check.openPositions}>
             {openBillable.join(", ")}
@@ -148,15 +142,15 @@ export default function CheckPanel({
       {Object.values(pendingDocuments)
         .filter((pending) => !check.missing_documents.some((d) => d.doc_type === pending.doc_type))
         .map((pending) => (
-          <div key={pending.doc_type} className="mt-2 text-xs">
-            <span className="font-medium text-slate-700">{pending.label}</span>
+          <div key={pending.doc_type} className="mt-2 text-[13px]">
+            <span className="font-medium text-ink">{pending.label}</span>
             <DocumentConfirmation pending={pending} language={language} copy={copy} />
           </div>
         ))}
 
-      {deadlineAction && <p className="mt-2 text-xs text-slate-700">{deadlineAction}</p>}
+      {deadlineAction && <p className="mt-2 text-[13px] text-ink">{deadlineAction}</p>}
 
-      <p className="mt-2 text-xs text-slate-500">{copy.check.footnote}</p>
+      <p className="mt-3 text-xs text-ink-subtle">{copy.check.footnote}</p>
     </section>
   );
 }
@@ -178,10 +172,13 @@ function DocumentConfirmation({
   return (
     <div
       data-testid={`confirm-document-${pending.doc_type}`}
-      className="mt-1 rounded border border-slate-400 bg-slate-50 px-2 py-1.5 text-left text-xs text-slate-700"
+      className="mt-2 max-w-[560px] rounded-lg border border-line bg-elev px-3 py-2.5 text-left text-xs text-ink"
     >
-      <p className="font-medium text-slate-900">{copy.check.confirmDocumentTitle}</p>
-      <p className="mt-0.5 tabular-nums">
+      <p className="text-sm font-medium text-ink">{copy.check.confirmDocumentTitle}</p>
+      <p className="mt-1 text-ink-muted">
+        {copy.check.confirmDocumentBody(formatDate(pending.valid_until, language))}
+      </p>
+      <p className="mt-1 tabular-nums">
         {copy.check.documentDates(
           pending.previous_valid_until === null
             ? null
@@ -189,21 +186,18 @@ function DocumentConfirmation({
           formatDate(pending.valid_until, language)
         )}
       </p>
-      <p className="mt-0.5 text-slate-500">
-        {copy.check.confirmDocumentBody(formatDate(pending.valid_until, language))}
-      </p>
-      <div className="mt-1.5 flex justify-end gap-2">
+      <div className="mt-2 flex justify-end gap-2">
         <button
           type="button"
           onClick={() => discardDocumentValidity(pending.doc_type)}
-          className="rounded border border-slate-300 px-1.5 py-0.5 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
+          className="btn-ghost btn-sm"
         >
           {copy.row.discard}
         </button>
         <button
           type="button"
           onClick={() => void confirmDocumentValidity(pending.doc_type)}
-          className="rounded border border-slate-400 px-1.5 py-0.5 text-xs font-medium text-slate-900 hover:border-slate-900"
+          className="btn-primary btn-sm"
         >
           {copy.row.confirm}
         </button>
@@ -215,8 +209,8 @@ function DocumentConfirmation({
 /** What to do about a finding. Not red: the finding is the fact, this is the way out. */
 function NextStep({ prefix, children }: { prefix?: string; children: React.ReactNode }) {
   return (
-    <span className="mt-0.5 block text-slate-600">
-      {prefix ? <span className="font-mono text-[11px] text-slate-500">{prefix} </span> : null}
+    <span className="mt-0.5 block text-ink-muted">
+      {prefix ? <span className="font-mono text-[11px] text-ink-subtle">{prefix} </span> : null}
       {children}
     </span>
   );
@@ -241,14 +235,14 @@ function Finding({
       data-testid={tone === "slate" ? "finding-contingency" : undefined}
       className={
         tone === "slate"
-          ? "border-l-2 border-slate-400 pl-2 text-xs"
-          : "border-l-2 border-red-600 pl-2 text-xs"
+          ? "border-l-[3px] border-line-strong pl-3 text-[13px]"
+          : "border-l-[3px] border-red-600 pl-3 text-[13px]"
       }
     >
-      <span className={tone === "slate" ? "font-medium text-slate-700" : "font-medium text-red-700"}>
+      <span className={tone === "slate" ? "block font-medium text-ink" : "block font-medium text-red-700"}>
         {label}
-      </span>{" "}
-      <span className="text-slate-700">{children}</span>
+      </span>
+      <span className="text-ink">{children}</span>
     </li>
   );
 }
