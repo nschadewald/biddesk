@@ -40,7 +40,23 @@ function stubApi() {
       // arrive rather than trust that it was set.
       const german =
         (init?.headers as Record<string, string> | undefined)?.["X-Language"] === "de";
-      return input.startsWith("/api/clarifications")
+      return input === "/api/tenders"
+        ? new Response(JSON.stringify({ ok: true, bidder_id: "B-A", tenders: [] }))
+        : input.endsWith("/comparison")
+          ? new Response(
+              JSON.stringify({
+                ok: true,
+                tender_id: "T-2026-014",
+                title: "Staircase painting works – Rheinallee 12",
+                sealed: true,
+                sealed_until: "2026-09-10",
+                bids_received: 2,
+                received_at: [],
+                bidders: [],
+                positions: []
+              })
+            )
+        : input.startsWith("/api/clarifications")
         ? new Response(JSON.stringify({ ok: true, questions: [] }))
         : input === "/api/bidders"
           ? new Response(
@@ -241,5 +257,22 @@ it("switches the language without touching a single tool registration", async ()
   } finally {
     await selectLanguage("en");
     Reflect.deleteProperty(document, "modelContext");
+  }
+});
+
+it("says where this plays on the client screen too", async () => {
+  stubApi();
+  const { selectRole } = await import("./store");
+  render(<App />);
+  await waitFor(() => expect(screen.getAllByRole("row").length).toBeGreaterThan(1));
+
+  try {
+    await userEvent.selectOptions(screen.getByLabelText(/Acting as/), "client");
+    await screen.findByText(/Tenders published by this client/);
+    expect(
+      screen.getByText("A German public tender (VOB/GAEB). Names, prices and firms are invented.")
+    ).toBeInTheDocument();
+  } finally {
+    await selectRole("bidder");
   }
 });

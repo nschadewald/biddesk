@@ -93,9 +93,13 @@ in the contractor role the client's tools do not exist at all.
 | `answer_clarification` | client | no | Publishes an answer to every bidder, not only to the one who asked. |
 
 Ten are registered in the contractor role, nine after a bid is handed in, five in the client
-role. The self-diagnosis in the agent panel counts what the **browser** lists via `getTools()`,
-never what the page assumes: a tool the page offers but the browser does not vouch for is shown
-as such and left out of the number.
+role. The self-diagnosis in the agent panel counts what the **browser** reports, not what the
+page registered: a tool the page offers but the browser does not vouch for is shown as such and
+left out of the number. That distinction is one this project got wrong until 2 September —
+`getTools()` answers with a Promise in Chrome 152, and an `Array.isArray` check had been
+silently falling back to the page's own bookkeeping since the first build. The number was right
+by luck, not by measurement; the fix, and the ChatGPT case that exposed it, are in
+`docs/07-technik-entscheidungen.md`, step 14.
 
 **Both WebMCP styles are in use.** Eleven tools are registered imperatively through a central
 wrapper. `ask_clarification` is declared by a `<form toolname="ask_clarification">` in the

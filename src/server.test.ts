@@ -80,6 +80,39 @@ const TENDER = {
   my_bid_status: null
 };
 
+/**
+ * Two questions: one from the seed, which the database holds in both
+ * languages, and one a person typed, which it holds in one. The second must
+ * come back as typed whatever the header says -- nobody translates other
+ * parties' text.
+ */
+const CLARIFICATIONS = [
+  {
+    id: "Q-001",
+    tender_id: "T-2026-014",
+    oz: "01.01",
+    question: "Will the scaffolding still be in place?",
+    answer: "It will be removed on 15 September.",
+    question_de: "Bleibt das Gerüst stehen?",
+    answer_de: "Es wird am 15. September abgebaut.",
+    status: "answered",
+    created_at: "2026-08-30 12:00:00",
+    name: "Farbwerk Meier GmbH"
+  },
+  {
+    id: "Q-7f3a",
+    tender_id: "T-2026-014",
+    oz: null,
+    question: "Können wir am Samstag arbeiten?",
+    answer: null,
+    question_de: null,
+    answer_de: null,
+    status: "open",
+    created_at: "2026-09-02 09:00:00",
+    name: "Farbwerk Meier GmbH"
+  }
+];
+
 const PRICE_BOOK = [
   {
     id: "PB-A-005",
@@ -135,6 +168,7 @@ function stubDb() {
         async all() {
           if (/from positions/i.test(sql)) return { results: project(sql, POSITIONS) };
           if (/from price_book/i.test(sql)) return { results: project(sql, PRICE_BOOK) };
+          if (/from clarifications/i.test(sql)) return { results: project(sql, CLARIFICATIONS) };
           return { results: [] };
         }
       };
@@ -216,4 +250,34 @@ it("does change the position texts with the language, which is the other half", 
     (body.required_documents as { label: string }[]).map((document) => document.label);
   expect(labels(english)).toContain("Tax clearance certificate");
   expect(labels(german)).toContain("Unbedenklichkeitsbescheinigung");
+});
+
+it("hands seed questions back in the reader's language, and typed ones as typed", async () => {
+  const english = await get("/api/clarifications");
+  const german = await get("/api/clarifications", "de");
+  const rows = (body: Record<string, unknown>) =>
+    body.questions as { id: string; question: string; answer: string | null }[];
+
+  // The seed question follows the header, question and answer alike.
+  expect(rows(english)[0]).toMatchObject({
+    id: "Q-001",
+    question: "Will the scaffolding still be in place?",
+    answer: "It will be removed on 15 September."
+  });
+  expect(rows(german)[0]).toMatchObject({
+    id: "Q-001",
+    question: "Bleibt das Gerüst stehen?",
+    answer: "Es wird am 15. September abgebaut."
+  });
+
+  // The typed one does not: it has no second language, so it comes back as
+  // it was written, whichever language the screen is in.
+  expect(rows(english)[1]).toMatchObject({ id: "Q-7f3a", question: "Können wir am Samstag arbeiten?" });
+  expect(rows(german)[1]).toMatchObject({ id: "Q-7f3a", question: "Können wir am Samstag arbeiten?" });
+
+  // And the German columns never leak into the payload: one text per field.
+  for (const row of [...rows(english), ...rows(german)]) {
+    expect(row).not.toHaveProperty("question_de");
+    expect(row).not.toHaveProperty("answer_de");
+  }
 });

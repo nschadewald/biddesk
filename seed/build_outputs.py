@@ -65,6 +65,11 @@ CREATE TABLE IF NOT EXISTS bid_prices (
 CREATE TABLE IF NOT EXISTS clarifications (
   workspace_id TEXT NOT NULL, id TEXT NOT NULL, tender_id TEXT NOT NULL,
   bidder_id TEXT NOT NULL, oz TEXT, question TEXT NOT NULL, answer TEXT,
+  -- German only for seed rows. A question a person or an agent typed has no
+  -- second language: nobody translates other parties' text, so these stay NULL
+  -- and the Worker falls back to what was typed. Additive on purpose, so the
+  -- live database took two ADD COLUMNs and no rename.
+  question_de TEXT, answer_de TEXT,
   status TEXT NOT NULL CHECK (status IN ('open','answered')),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (workspace_id, id));
@@ -128,9 +133,10 @@ for bidder, prices in d.get("submitted_bids_t14", {}).items():
                  "('{{WS}}',%s,%s,%.2f,'human');" % (q(bid_id), q(oz), pr))
 
 for c in d["clarifications"]:
-    L.append("INSERT INTO clarifications (workspace_id,id,tender_id,bidder_id,oz,question,answer,status) VALUES "
-             "('{{WS}}',%s,%s,%s,%s,%s,%s,%s);" % (
-              q(c["id"]),q(c["tender_id"]),q(c["bidder_id"]),q(c["oz"]),q(c["question"]),q(c["answer"]),q(c["status"])))
+    L.append("INSERT INTO clarifications (workspace_id,id,tender_id,bidder_id,oz,question,answer,question_de,answer_de,status) VALUES "
+             "('{{WS}}',%s,%s,%s,%s,%s,%s,%s,%s,%s);" % (
+              q(c["id"]),q(c["tender_id"]),q(c["bidder_id"]),q(c["oz"]),q(c["question_en"]),q(c["answer_en"]),
+              q(c["question_de"]),q(c["answer_de"]),q(c["status"])))
 
 io.open("seed.sql","w",encoding="utf-8").write("\n".join(L)+"\n")
 

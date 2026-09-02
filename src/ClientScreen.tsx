@@ -42,6 +42,10 @@ export default function ClientScreen() {
         {/* The client is a fact of the tender, not a string in the interface. */}
         <h2 className="text-lg font-medium">{tender?.client ?? copy.header.roleClient}</h2>
         <p className="mt-1 text-xs text-slate-500">{copy.client.subtitle}</p>
+        {/* Same line as on the bid screen, same place: where this plays, and
+            that none of it is real. A juror in the client role sees the same
+            German names beside English words. */}
+        <p className="mt-1 text-[11px] text-slate-400">{copy.bid.scene}</p>
 
         <div className="-mx-1 mt-3 overflow-x-auto px-1">
         <table className="w-full min-w-[40rem] border-collapse text-sm">

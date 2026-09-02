@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   appendLogEntry,
+  bindLogToWorkspace,
   capStrings,
   logStore,
   summariseInput,
@@ -122,6 +123,90 @@ describe("reset", () => {
     await resetDemo();
 
     expect(logStore.getSnapshot()).toHaveLength(0);
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("persistence", () => {
+  const WS = "77777777-7777-4777-8777-777777777777";
+  const KEY = `biddesk.log.${WS}`;
+
+  beforeEach(() => {
+    localStorage.clear();
+    bindLogToWorkspace(null);
+    logStore.clear();
+  });
+
+  it("survives a reload of the page, newest first, same ring of 100", async () => {
+    bindLogToWorkspace(WS);
+    appendLogEntry(entry("get_tender"));
+    appendLogEntry(entry("suggest_prices"));
+    expect(JSON.parse(localStorage.getItem(KEY) ?? "[]")).toHaveLength(2);
+
+    // A reload is a fresh module with nothing in memory. The store binds the
+    // workspace again on boot, and the history is back.
+    vi.resetModules();
+    const fresh = await import("./log");
+    expect(fresh.logStore.getSnapshot()).toHaveLength(0);
+    fresh.bindLogToWorkspace(WS);
+
+    expect(fresh.logStore.getSnapshot().map((row) => row.tool)).toEqual([
+      "suggest_prices",
+      "get_tender"
+    ]);
+  });
+
+  it("is emptied by a reset, in storage too", () => {
+    bindLogToWorkspace(WS);
+    appendLogEntry(entry("get_tender"));
+    expect(localStorage.getItem(KEY)).not.toBeNull();
+
+    logStore.clear();
+
+    expect(logStore.getSnapshot()).toHaveLength(0);
+    expect(localStorage.getItem(KEY)).toBeNull();
+  });
+
+  it("keeps the log apart per workspace", () => {
+    bindLogToWorkspace(WS);
+    appendLogEntry(entry("get_tender"));
+    bindLogToWorkspace(null);
+    logStore.clear();
+
+    bindLogToWorkspace("88888888-8888-4888-8888-888888888888");
+    expect(logStore.getSnapshot()).toHaveLength(0);
+    // The first workspace's log is untouched.
+    expect(JSON.parse(localStorage.getItem(KEY) ?? "[]")).toHaveLength(1);
+  });
+
+  it("stores no more than the ring holds", () => {
+    bindLogToWorkspace(WS);
+    for (let i = 0; i < 130; i++) appendLogEntry(entry(`tool_${i}`));
+    expect(JSON.parse(localStorage.getItem(KEY) ?? "[]")).toHaveLength(100);
+  });
+
+  it("starts empty on damaged storage rather than refusing to start", () => {
+    localStorage.setItem(KEY, "this is not json");
+    expect(() => bindLogToWorkspace(WS)).not.toThrow();
+    expect(logStore.getSnapshot()).toHaveLength(0);
+
+    localStorage.setItem(KEY, JSON.stringify([{ nonsense: true }, entry("get_tender")]));
+    bindLogToWorkspace(null);
+    bindLogToWorkspace(WS);
+    // The row without an id is not one of ours; the shaped one is not either,
+    // because a stored entry carries an id. Neither gets in.
+    expect(logStore.getSnapshot()).toHaveLength(0);
+  });
+
+  it("keeps working in a browser that refuses storage", () => {
+    const boom = () => {
+      throw new Error("localStorage is disabled");
+    };
+    vi.stubGlobal("localStorage", { getItem: boom, setItem: boom, removeItem: boom, clear: boom });
+
+    expect(() => bindLogToWorkspace(WS)).not.toThrow();
+    appendLogEntry(entry("get_tender"));
+    expect(logStore.getSnapshot()).toHaveLength(1);
     vi.unstubAllGlobals();
   });
 });

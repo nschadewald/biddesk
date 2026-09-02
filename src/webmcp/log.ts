@@ -10,16 +10,84 @@ import type { LogEntry } from "./types";
  * poured out, and text written by other parties is truncated and never
  * rendered as HTML. React escapes by construction; the truncation is what
  * keeps the log readable.
+ *
+ * It survives a reload. A tester read an empty log after F5 as "my history is
+ * gone" while every price was still there, and that reading is fair: the log
+ * is the evidence of what the agent did. So it lives in localStorage, keyed by
+ * workspace, the same ring of 100. "This log stays in your browser. Nothing is
+ * sent anywhere." stays literally true -- it just also stays.
  */
 const CAPACITY = 100;
 const FOREIGN_TEXT_LIMIT = 120;
+const STORAGE_PREFIX = "biddesk.log.";
 
 let entries: LogEntry[] = [];
 let nextId = 1;
+/** The localStorage key of the workspace this log belongs to, once known. */
+let boundKey: string | null = null;
 const listeners = new Set<() => void>();
 
 function emit() {
   for (const listener of listeners) listener();
+}
+
+function persist() {
+  if (boundKey === null) return;
+  try {
+    if (entries.length === 0) {
+      localStorage.removeItem(boundKey);
+      return;
+    }
+    localStorage.setItem(boundKey, JSON.stringify(entries));
+  } catch {
+    // Quota, a private window, a browser that refuses storage: the log lives on
+    // in memory for this page view, which is what it always did.
+  }
+}
+
+/** Enough of the shape to be sure a stored row is one of ours and not damage. */
+function isLogEntry(value: unknown): value is LogEntry {
+  if (value === null || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row.id === "number" &&
+    typeof row.time === "string" &&
+    typeof row.tool === "string" &&
+    (row.access === "read" || row.access === "write") &&
+    typeof row.duration_ms === "number" &&
+    typeof row.outcome === "string"
+  );
+}
+
+function restore(key: string): LogEntry[] {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(isLogEntry).slice(0, CAPACITY) : [];
+  } catch {
+    // Damaged or unreadable: start empty rather than refuse to start.
+    return [];
+  }
+}
+
+/**
+ * Ties the log to a workspace. What that workspace's log held comes back;
+ * everything appended from here on is kept under its key. Called by the store
+ * whenever the workspace id changes -- on boot, and again if a swept-up
+ * workspace was silently replaced. Entries already in memory are kept on top:
+ * they happened in this session, whichever workspace they were made in.
+ */
+export function bindLogToWorkspace(workspaceId: string | null): void {
+  const key = workspaceId === null ? null : `${STORAGE_PREFIX}${workspaceId}`;
+  if (key === boundKey) return;
+  boundKey = key;
+  const merged = [...entries, ...(key === null ? [] : restore(key))].slice(0, CAPACITY);
+  // Ids are React keys and nothing more; renumber so two sources cannot clash.
+  entries = merged.map((entry, index) => ({ ...entry, id: merged.length - index }));
+  nextId = merged.length + 1;
+  persist();
+  emit();
 }
 
 export const logStore = {
@@ -32,9 +100,14 @@ export const logStore = {
   getSnapshot(): LogEntry[] {
     return entries;
   },
+  /** Empties the log, in storage too. A reset must look like a first visit. */
   clear() {
-    if (entries.length === 0) return;
+    if (entries.length === 0) {
+      persist();
+      return;
+    }
     entries = [];
+    persist();
     emit();
   }
 };
@@ -43,6 +116,7 @@ export function appendLogEntry(entry: Omit<LogEntry, "id">): LogEntry {
   const stored: LogEntry = { ...entry, id: nextId++ };
   // Newest first: the last thing an agent did is the thing a juror looks for.
   entries = [stored, ...entries].slice(0, CAPACITY);
+  persist();
   emit();
   return stored;
 }

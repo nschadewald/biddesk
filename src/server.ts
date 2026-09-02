@@ -972,6 +972,7 @@ app.use("/api/clarifications/*", requireWorkspace);
 
 app.get("/api/clarifications", async (c) => {
   const workspaceId = c.get("workspaceId");
+  const language = readLanguage(c);
   const tenderId = c.req.query("tender_id");
   const status = c.req.query("status");
 
@@ -987,8 +988,8 @@ app.get("/api/clarifications", async (c) => {
   }
 
   const { results } = await c.env.DB.prepare(
-    `SELECT c.id, c.tender_id, c.oz, c.question, c.answer, c.status, c.created_at,
-            b.name AS bidder
+    `SELECT c.id, c.tender_id, c.oz, c.question, c.answer, c.question_de, c.answer_de,
+            c.status, c.created_at, b.name AS bidder
        FROM clarifications c
        LEFT JOIN bidders b ON b.workspace_id = c.workspace_id AND b.id = c.bidder_id
       WHERE ${where.join(" AND ")}
@@ -1001,12 +1002,24 @@ app.get("/api/clarifications", async (c) => {
       oz: string | null;
       question: string;
       answer: string | null;
+      question_de: string | null;
+      answer_de: string | null;
       status: string;
       created_at: string;
       bidder: string | null;
     }>();
 
-  return c.json({ ok: true, questions: results });
+  // Same boundary as the position texts: one text per field, in the reader's
+  // language. Only seed rows carry a German version; what a person or an agent
+  // typed comes back exactly as typed, in either language -- nobody translates
+  // other parties' text, and the German columns are NULL for those rows.
+  const questions = results.map(({ question_de, answer_de, ...row }) => ({
+    ...row,
+    question: language === "de" ? (question_de ?? row.question) : row.question,
+    answer: language === "de" ? (answer_de ?? row.answer) : row.answer
+  }));
+
+  return c.json({ ok: true, questions });
 });
 
 app.post("/api/clarifications", async (c) => {

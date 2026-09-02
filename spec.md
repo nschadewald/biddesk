@@ -465,7 +465,7 @@ Bewusst nicht oder nur gekürzt:
 - **Fremdtexte** (Rückfragen und Antworten) werden auf 120 Zeichen gekürzt, als „untrusted content" gekennzeichnet und **niemals als HTML gerendert** – das ist die Prompt-Injection-Grenze, an der sonst fremder Text in den Agentenkontext und in unsere Oberfläche gelangt.
 - **Massendaten** werden zusammengefasst statt ausgeschüttet: `get_price_book` erscheint als „34 entries", nicht als 34 Zeilen. Sonst ist das Log unlesbar und der Beweis verschwindet im Rauschen.
 - **Keine Fehler-Stacktraces**, nur die Fehlerform `{ok:false, error, hint}` – Stacktraces verraten interne Pfade.
-- **Ringpuffer von 100 Einträgen**, damit eine lange Sitzung nicht den Speicher füllt.
+- **Ringpuffer von 100 Einträgen**, damit eine lange Sitzung nicht den Speicher füllt – seit dem 02.09. in `localStorage` je Workspace, damit er das Neuladen überlebt (ein Tester las ein leeres Log nach F5 als „meine Historie ist weg"). Der Reset leert ihn, im Speicher wie im Bild.
 
 Und eine Zeile Text unter dem Log, die mehr wert ist als sie kostet: **„This log stays in your browser. Nothing is sent anywhere."** Das stimmt – es gibt keine Analytik – und beantwortet die Frage, die ein Juror bei einem Aufzeichnungsfenster automatisch stellt.
 

@@ -22,6 +22,9 @@ import type { Language } from "./types";
  *   - /how-to-test, which is written for the jury.
  *   - amounts and quantities. 13.213,50 EUR reads the same in both languages,
  *     see src/format.ts.
+ *
+ * The German half addresses the reader as Sie, never du -- house rule, and a
+ * test in i18n.test.ts holds the line.
  */
 
 const en = {
@@ -284,9 +287,9 @@ const de: Copy = {
     contingency: "Bedarf",
     unitPriceFor: (oz) => `Einheitspreis für ${oz}`,
     use: "Übernehmen",
-    chipLead: "aus deinem Angebot",
+    chipLead: "aus Ihrem Angebot",
     chipWhere: (project, month) => `${project} · ${month}`,
-    originalLine: "die Zeile, die du damals bepreist hast",
+    originalLine: "die Zeile, die Sie damals bepreist haben",
     noComparableEntry: "kein vergleichbarer Eintrag",
     notWritten: "nicht übernommen",
     matched: (terms, on) => `matched_terms ${terms} · matched_on ${on}`,
@@ -368,7 +371,7 @@ const de: Copy = {
     prompts: [
       "Öffne die Ausschreibung T-2026-014 und bepreise jede Position aus meinem Preisbuch. Lass alles ohne Treffer leer und sag mir, welche das sind.",
       "Warum steht bei den Heizkörpern kein Preis?",
-      "Prüfe mein Angebot – fällt dir etwas auf?",
+      "Prüfe mein Angebot – gibt es etwas Auffälliges?",
       "Frag den Auftraggeber, ob das Gerüst der Dachdeckerarbeiten stehen bleibt.",
       "Gib das Angebot ab."
     ]

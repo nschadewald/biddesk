@@ -57,6 +57,11 @@ CREATE TABLE IF NOT EXISTS bid_prices (
 CREATE TABLE IF NOT EXISTS clarifications (
   workspace_id TEXT NOT NULL, id TEXT NOT NULL, tender_id TEXT NOT NULL,
   bidder_id TEXT NOT NULL, oz TEXT, question TEXT NOT NULL, answer TEXT,
+  -- German only for seed rows. A question a person or an agent typed has no
+  -- second language: nobody translates other parties' text, so these stay NULL
+  -- and the Worker falls back to what was typed. Additive on purpose, so the
+  -- live database took two ADD COLUMNs and no rename.
+  question_de TEXT, answer_de TEXT,
   status TEXT NOT NULL CHECK (status IN ('open','answered')),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (workspace_id, id));

@@ -1107,11 +1107,8 @@ bestanden, `verify_seed.py` grün.
 ### Offen
 
 - Devpost-Text und Video.
-- **Du oder Sie.** Der neue Chip-Text ist im Du („aus deinem Angebot", „die Zeile, die du
-  damals bepreist hast"), die übrige deutsche Fassung siezt an vier Stellen („Tragen Sie ihn
-  selbst ein", „Ihrem eigenen früheren Preis", „Ihr Entwurf", „Ihrem Browser"). Beides in einem
-  Bildschirm fällt einem deutschen Leser auf. Die Entscheidung ist eine Marken-, keine
-  Technikfrage; anzupassen sind sechs Zeichenketten in `src/i18n.ts`.
+- ~~**Du oder Sie.**~~ Entschieden am 02.09.: **Sie** (Markenregel MERKUR Impulse), umgesetzt
+  in Schritt 15. Ein Test hält jetzt fest, dass die deutsche Hälfte kein „du" mehr enthält.
 - Eine der beiden Spec-Kopien sollte verschwinden (siehe oben).
 
 ## Schritt 14 – ChatGPT sah neun Werkzeuge, die Seite zählte zehn (Mi 02.09.2026)
@@ -1179,20 +1176,108 @@ Selbstdiagnose ohne das Formular. Dazu der Rollenwechsel, der Zwilling und Formu
 mitnimmt. `registry.test.ts` prüft jetzt außerdem, dass ein Promise aus `getTools()` abgewartet
 wird und dass ein vom Browser gelistetes, von uns nie angebotenes Werkzeug trotzdem zählt.
 
-### Was hier nicht geprüft werden konnte
+### Abnahme in ChatGPT – gemessen, nicht vermutet (02.09., Nils)
 
-Die eigentliche Abnahme ist ChatGPT: Werkzeugansicht 10, 4 mit Schreibzugriff, dieselbe Zahl
-im Agent-Panel, und Prompt 4 als `ask_clarification` im Live-Log statt als getippter Text.
-Das kann nur Nils. Was hier belegt ist: Chrome 152 zeigt weiterhin zehn mit dem Formular als
-bestätigtem Werkzeug (Client-Eval), und die drei Browser-Ausprägungen verhalten sich im Test
-wie beschrieben.
+Nach dem Deploy von `36d25bb` zeigt ChatGPTs Werkzeugansicht **10 Werkzeuge, 4 mit
+Schreibzugriff**; das Agent-Panel zählt **10**; am Formular steht „ask_clarification ·
+declared by form · not confirmed by this browser". Das ist genau der vorhergesagte Pfad:
+**ChatGPT listet das Formular-Werkzeug nicht**, das Formular bleibt nach 600 ms
+`unconfirmed`, der Zwilling wird angemeldet, und ChatGPT nimmt diese späte Registrierung auf.
+Damit ist auch die Frage beantwortet, ob ChatGPT auf `toolchange` reagiert oder seine Liste
+beim Laden einfriert: Es reagiert. Die Alternative – imperativ zuerst, überall, und `toolname`
+erst nach Nachweis – ist nicht nötig.
+
+Chrome 152 zeigt weiterhin zehn mit dem Formular als bestätigtem Werkzeug (Client-Eval und
+Panel-Sonde), also je Browser die richtige der beiden Fassungen unter demselben Namen.
+
+**Das Muster gilt ab jetzt für jede Feature-Erkennung in `src/webmcp/`:** Die Präsenz einer
+API beweist die API, nicht die Fähigkeit. Beweislast beim Browser.
+
+### Ein Befund über uns selbst
+
+Die Selbstdiagnose hatte seit Schritt 3 behauptet, sie zähle „über `getTools()`". Sie tat es
+nie: `getTools()` liefert in Chrome 152 ein Promise, `Array.isArray` darauf ist falsch, und der
+Rückfall auf die eigene Buchführung war still. Die Zahl stimmte – aus Glück, nicht aus Messung.
+Das steht jetzt so im README, weil Ehrlichkeit über die eigene Messung die Sorte Beleg ist, die
+diese Einreichung trägt.
 
 ### Stand
 
-133 Unit-Tests in 16 Dateien. Evals und `verify_seed.py` siehe Abnahme des Commits.
+133 Unit-Tests in 16 Dateien, Bieter-Evals 11/11, Client-Evals grün, GAEB bestanden,
+`verify_seed.py` grün, ChatGPT 10/4/10.
 
 ### Offen
 
-- ChatGPT-Abnahme (Nils).
+- Devpost-Text und Video.
+- Eine der beiden Spec-Kopien.
+
+## Schritt 15 – Vier Befunde aus dem zweiten Durchlauf (Mi 02.09.2026)
+
+### Rückfragen folgen jetzt der Sprache – die aus dem Seed, und nur die
+
+Deutsche Oberfläche, aber Q-001 und Q-002 standen englisch da. Die Seed-Rückfragen und
+-Antworten sind jetzt zweisprachig (`question_en/de`, `answer_en/de` in `seed.json`) und
+werden an **derselben Mapping-Stelle** wie die Positionstexte über `X-Language` gewählt.
+
+Zwei Entscheidungen dabei:
+
+- **Additiv statt Umbenennen.** Die Datenbank behält `question`/`answer` und bekommt
+  `question_de`/`answer_de` dazu. Grund: Die Live-Datenbank hat Workspaces von Juroren.
+  Ein `RENAME COLUMN` hätte zwischen Migration und Deploy entweder den alten oder den neuen
+  Worker gebrochen; zwei `ADD COLUMN` brechen keinen von beiden. Der Worker fällt bei `NULL`
+  auf den englischen Text zurück, deshalb bleiben auch die Rückfragen in **bestehenden**
+  Workspaces lesbar (englisch, bis zum nächsten Reset).
+- **Fremdtext übersetzt niemand.** Was ein Mensch oder ein Agent eingibt, bekommt keine
+  zweite Sprache – die `_de`-Spalten bleiben `NULL`, und die Frage kommt in beiden Sprachen
+  zurück, wie sie getippt wurde. `server.test.ts` prüft beides an einer Seed- und einer
+  getippten Zeile und hält fest, dass keine `_de`-Schlüssel in die Nutzlast lecken. Live
+  gegengeprüft mit einer deutsch getippten Frage in einem frischen Workspace.
+
+### Das Live-Log überlebt das Neuladen
+
+Der Tester las ein leeres Log nach F5 als „meine Historie ist weg", während jeder Preis noch
+da war – und die Lesart ist fair, denn das Log **ist** der Beleg dessen, was der Agent getan
+hat. Es liegt jetzt in `localStorage` unter `biddesk.log.<workspace>`, derselbe Ring von 100.
+„This log stays in your browser. Nothing is sent anywhere." bleibt wörtlich wahr – es bleibt
+jetzt nur auch.
+
+Gebunden wird es an genau einer Stelle: `set()` im Store, dem einzigen Ort, an dem die
+Workspace-Kennung wechselt. Ein Reset leert Bild und Speicher. Beschädigter Speicher startet
+leer statt gar nicht; ein Browser, der Speicher verweigert, bekommt das Log wie bisher nur im
+Arbeitsspeicher. Als Test: fünf Fälle in `log.test.ts`, darunter der echte Kaltstart über
+`vi.resetModules()`. Live in Chrome 152 gemessen: zwei Zeilen vor dem Neuladen, dieselben
+zwei danach, nach Reset leer und der Schlüssel entfernt, nach erneutem Laden weiter leer.
+
+**Messnotiz:** Die erste Sonde meldete überall `[]` – weil Puppeteer 800 px breit öffnet und
+das Panel darunter eingeklappt ist: kein `<ol>`, kein Reset-Knopf. Erst das Skript prüfen,
+dann das Produkt verdächtigen (Schritt 9 lässt grüßen).
+
+### Szene-Zeile auch beim Auftraggeber, und Sie statt du
+
+Die Zeile „A German public tender (VOB/GAEB). Names, prices and firms are invented." steht
+jetzt auch unter dem Titel der Auftraggeberansicht, mit Test über den Rollenwechsel. Und die
+deutsche Fassung siezt durchgehend (Markenregel MERKUR Impulse): „aus Ihrem Angebot", „die
+Zeile, die Sie damals bepreist haben". Ein Test in `i18n.test.ts` sucht die deutsche Hälfte
+nach `du|dir|dich|dein*` ab, damit das so bleibt.
+
+### Zweite Stelle, die eine API-Präsenz für einen Funktionsnachweis hält
+
+Beim Bauen gesucht, eine gefunden, **nicht geändert**: `WebMCPStatus.supported` – die grüne
+Kopfzeile „WebMCP detected" – kommt aus dem Rollenblock: Sie ist wahr, sobald ein Modellkontext
+existiert und dessen `registerTool`-Aufrufe aufgelöst wurden. Das ist immerhin ein
+Rundgang und keine bloße Präsenzprüfung, aber es ist nicht die Browserliste. Ein Browser, der
+Registrierungen annimmt und nichts listet, bekäme „WebMCP detected · 0 tools registered". Die
+Zahl daneben ist seit Schritt 14 ehrlich; die Überschrift könnte es enger sein. Bewusst
+gelassen: Kein bekannter Browser verhält sich so, und ein `supported`, das erst nach dem
+ersten `getTools()` wahr wird, hieße für Chrome 152 eine Sekunde „nicht verfügbar" beim
+Laden. Wenn es je zuschlägt, ist es eine Zeile in `useWebMCP`.
+
+### Stand
+
+142 Unit-Tests in 16 Dateien, Bieter-Evals 11/11 (P1–P5 englisch nach dem Deploy), Client-Evals
+grün, GAEB bestanden, `verify_seed.py` grün.
+
+### Offen
+
 - Devpost-Text und Video.
 - Eine der beiden Spec-Kopien.

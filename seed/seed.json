@@ -919,8 +919,10 @@
       "tender_id": "T-2026-014",
       "bidder_id": "B-A",
       "oz": "01.01",
-      "question": "Will the scaffolding from the roofing works still be in place during our works, or do we have to provide our own access?",
-      "answer": "The scaffolding will be removed on 15 September. Please price your own access equipment.",
+      "question_en": "Will the scaffolding from the roofing works still be in place during our works, or do we have to provide our own access?",
+      "question_de": "Bleibt das Gerüst der Dachdeckerarbeiten während unserer Arbeiten stehen, oder müssen wir eigene Zugangstechnik stellen?",
+      "answer_en": "The scaffolding will be removed on 15 September. Please price your own access equipment.",
+      "answer_de": "Das Gerüst wird am 15. September abgebaut. Bitte kalkulieren Sie eigene Zugangstechnik ein.",
       "status": "answered"
     },
     {
@@ -928,8 +930,10 @@
       "tender_id": "T-2026-014",
       "bidder_id": "B-C",
       "oz": "02.04",
-      "question": "Is the colour for the dado coating already decided? It affects the material price.",
-      "answer": null,
+      "question_en": "Is the colour for the dado coating already decided? It affects the material price.",
+      "question_de": "Ist die Farbe für den Sockelanstrich schon festgelegt? Sie beeinflusst den Materialpreis.",
+      "answer_en": null,
+      "answer_de": null,
       "status": "open"
     }
   ],

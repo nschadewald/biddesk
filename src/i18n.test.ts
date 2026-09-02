@@ -58,6 +58,14 @@ it("actually translated the words a contractor reads first", () => {
   }
 });
 
+it("addresses the reader as Sie, never as du", () => {
+  // House rule. The chip once said "aus deinem Angebot" beside four strings
+  // that said "Ihr", and a German reader notices that in the first minute.
+  const informal = /\b(du|dir|dich|dein\w*)\b/i;
+  const offenders = Object.entries(de).filter(([, value]) => informal.test(value));
+  expect(offenders).toEqual([]);
+});
+
 it("keeps the tool names out of the dictionary", () => {
   // Tools are English in both languages, by rule. If a tool name ever appears
   // as a translatable string, that rule has been broken somewhere.

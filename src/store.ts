@@ -47,7 +47,7 @@ import type {
   TenderList,
   UndoResponse
 } from "./types";
-import { logStore, recordHumanWait } from "./webmcp/log";
+import { bindLogToWorkspace, logStore, recordHumanWait } from "./webmcp/log";
 
 /**
  * One truth. Tools and the mouse both go through these actions, so a tender
@@ -115,7 +115,11 @@ setLanguage(state.language);
 const listeners = new Set<() => void>();
 
 function set(patch: Partial<AppState>) {
+  const before = state.workspaceId;
   state = { ...state, ...patch };
+  // The one place the workspace id changes hands, so the one place the log
+  // learns which workspace it belongs to.
+  if (state.workspaceId !== before) bindLogToWorkspace(state.workspaceId);
   for (const listener of listeners) listener();
 }
 
