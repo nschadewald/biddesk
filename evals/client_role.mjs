@@ -61,6 +61,7 @@ try {
     page.evaluate(async () => [...(await document.modelContext.getTools())].map((t) => t.name));
 
   const bidderTools = await toolNames();
+  console.log("\nC1 · The roles: what exists on each side");
   console.log(`Chrome sees ${bidderTools.length} tools in the contractor role`);
   check("contractor role registers eleven tools", bidderTools.length === 11, bidderTools.length);
   check(
@@ -94,7 +95,7 @@ try {
     clientTools
   );
 
-  console.log("\nE6 · Compare all bids for the facade tender");
+  console.log("\nC2 · Price comparison: the closed tender in full");
   const closed = await call("get_price_comparison", { tender_id: "T-2026-009" });
   check("the closed tender is not sealed", closed.sealed === false);
   check("three bids compared, ranked cheapest first", closed.bidders?.length === 3
@@ -111,7 +112,7 @@ try {
     && closed.positions.filter((p) => p.outliers.length > 0).map((p) => p.oz).join() === "01.01",
     scaffolding?.outliers);
 
-  console.log("\nE9 · An open tender stays sealed, even from the client's own agent");
+  console.log("\nC2 · Price comparison: the open tender stays sealed, even from the client's own agent");
   const open = await call("get_price_comparison", { tender_id: "T-2026-014" });
   check("sealed while the tender is open", open.sealed === true);
   check("bids counted and timed, nothing else", open.bids_received >= 2
@@ -121,7 +122,7 @@ try {
   check("no price anywhere in the answer",
     !blob.includes("unit_price") && !blob.includes("total_net"));
 
-  console.log("\nE10 · The client answers a bidder question, for everyone");
+  console.log("\nC3 · The client answers a bidder question, for everyone");
   const before = await call("list_clarifications", { tender_id: "T-2026-014", status: "open" });
   const question = before.questions[0];
   const answered = await call("answer_clarification", {

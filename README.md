@@ -123,7 +123,7 @@ which: where it lists the form's tool, the form is the tool; where it does not l
 moment, or cannot list tools at all, the imperative twin is registered instead. That rule
 replaced a feature test on `SubmitEvent`, which proved the DOM API existed and nothing more —
 ChatGPT's browser carries the extension underneath, but its agent layer never lists forms, so
-the page counted ten tools while the agent saw nine.
+the page counted ten tools while the agent saw nine (eleven and ten today, one tool later).
 
 ## Architecture
 
@@ -216,19 +216,17 @@ node evals/client_role.mjs          # client role, switches roles like a person
 | E3 | Run a check on my bid | `check_bid` | both open positions named, tax clearance certificate flagged as expired, days left reported, nothing written | pass |
 | E4 | Ask the client about the scaffolding | `ask_clarification` (the form) → `list_clarifications` | the question is filed against 01.01, open, under this contractor, and reads back | pass |
 | E5 | Submit the bid | `submit_bid(confirm:false)` | does **not** submit: `needs_confirmation` with the total that would go out | pass |
-| E6 | Compare all bids for the facade tender | `get_price_comparison(T-2026-009)` | three bids ranked cheapest first; scaffolding 11,50 / 13,20 / 27,80, median 13,20; Colorpoint marked, nobody else | pass |
-| E7 | Set position 03.04 to 61 euros | `set_unit_price` without a source | **refused**: `price_without_source`, with a reason that says the person enters it in the table | pass |
+| E6 | Set position 03.04 to 61 euros | `set_unit_price` without a source → `check_bid` | neither written nor refused: `needs_confirmation`, the row pending with its rationale; the check still shows net **13.213,50 €** and 03.04 open, and names the way out | pass |
+| E7 | My new tax clearance certificate is valid until 15 August 2027 | `set_document_validity` → `check_bid` | `needs_confirmation` with the date on file and the new one; nothing written: the check still reports the certificate as expired, with its way out | pass |
 | E8 | Price 02.02 at 12 € "from the Luegallee job" | `set_unit_price` with a mismatched source | **refused**: `price_does_not_match_source`, naming both numbers | pass |
-| E9 | Show me the bids on the open tender | `get_price_comparison(T-2026-014)` | sealed: a count and arrival times; no positions, no bidders, and neither `unit_price` nor `total_net` anywhere in the answer | pass |
-| E10 | Answer the open bidder question | `list_clarifications` → `answer_clarification` | published to all bidders; the question turns to answered and carries the answer | pass |
+| C1 | The roles | switch the role in the header, list `getTools()` | eleven tools as the contractor, five as the client; `get_price_comparison` / `answer_clarification` do not exist on the contractor side | pass |
+| C2 | Compare all bids for the facade tender — and show me the bids on the open one | `get_price_comparison(T-2026-009)`, then `(T-2026-014)` | closed: three bids ranked cheapest first, scaffolding 11,50 / 13,20 / 27,80, median 13,20, Colorpoint marked and nobody else; open: sealed — a count and arrival times, no positions, no bidders, neither `unit_price` nor `total_net` anywhere in the answer | pass |
+| C3 | Answer the open bidder question | `list_clarifications` → `answer_clarification` | published to all bidders; the question turns to answered and carries the answer | pass |
 
-Plus the property that makes the roles real: **eleven tools in the contractor role, five in the
-client role**, and `get_price_comparison` / `answer_clarification` simply do not exist on the
-contractor side — checked in the browser, not asserted in a unit test.
-
-Tool chain: **11 of 11 steps across 7 cases**, three consecutive clean runs. E1–E5 and E7–E8 run
-through the CLI; E6, E9, E10 need the role switch, which no tool offers on purpose, so
-`evals/client_role.mjs` drives a real browser for those.
+Tool chain: **14 of 14 steps across 8 cases (E1–E8)**, three consecutive clean runs against the
+frozen build. C1–C3 need the role switch, which no tool offers on purpose, so
+`evals/client_role.mjs` drives a real browser for those — the role property in C1 is checked in
+the browser, not asserted in a unit test.
 
 **What these evals do not cover.** They exercise the tools, not a model's judgement. Whether an
 agent *chooses* the right chain from the prompt needs a model and an API key

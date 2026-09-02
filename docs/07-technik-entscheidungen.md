@@ -804,7 +804,9 @@ API-Schlüssel. Es sieht aber nicht an, **was zurückkam**. Spec §6 verlangt be
 je Fall das sichtbare Ergebnis. **11 von 11 Schritten, 7 Fälle, drei saubere Läufe
 hintereinander.**
 
-Die Rollentrennung ist der Grund, warum E6/E9/E10 nicht über die CLI laufen: Es gibt kein
+Die Rollentrennung ist der Grund, warum die Client-Fälle (heute C1–C3; bis zum 02.09. E6/E9/E10
+genannt, dann einheitlich umnummeriert, weil E6 und E7 als CLI-Fälle dazukamen) nicht über die
+CLI laufen: Es gibt kein
 Werkzeug, das die Rolle wechselt – genau die Eigenschaft, um die es geht. `evals/client_role.mjs`
 fährt dafür ein echtes Chrome und schaltet im Kopfbereich um wie ein Mensch. Zehn Werkzeuge als
 Bieter, fünf als Auftraggeber, und `get_price_comparison` existiert auf der Bieterseite nicht.
@@ -1490,3 +1492,50 @@ Deploy), Client-Evals grün (11 Werkzeuge), GAEB bestanden, `verify_seed.py` gr�
 - ChatGPT-Abnahme der Zählung 11 / 5 / 11 (Nils).
 - Devpost-Text und Video.
 - Eine der beiden Spec-Kopien.
+
+## Schritt 18 – Textpass, Zahlenabgleich, Freeze (Mi 02.09.2026)
+
+Kein neues Verhalten. Nur Wahrheit zwischen Code, README, Spec, Evals und den beiden
+Einreichungstexten (`docs/08`, `docs/09`) samt dem Klartext-Fall (`docs/05`).
+
+**Eine Nummerierung überall.** Die README führte E6/E9/E10 für die Client-Fälle, während
+`bidder.evals.json` seit CC-04 ein eigenes E6 (Preis wartet) und seit CC-05 ein E7 (Nachweis
+wartet) hat. Jetzt: Bieterfälle **E1–E8** wie in der JSON, Client-Fälle **C1–C3** –
+C1 die Rollen-Eigenschaft (elf/fünf, die Client-Werkzeuge existieren beim Bieter nicht),
+C2 der Preisspiegel (geschlossen vollständig, offen versiegelt), C3 die beantwortete Rückfrage.
+README-Tabelle, `assert_outcomes.py`, `client_role.mjs` und dieses Dokument tragen dieselben
+Namen; `docs/08` nennt keine Nummern.
+
+**Die Eval-Zeile.** „11 of 11 steps across 7 cases" stammte aus Schritt 10. Heute: **14 von 14
+Schritten über 8 Fälle**, dreimal hintereinander sauber gegen den eingefrorenen Build gefahren –
+die drei Läufe wurden für diesen Satz gefahren, nicht aus der Erinnerung übernommen.
+
+**Abweichungen in den Cowork-Texten**, gegen Code und README geprüft: `docs/05` sagte „Diese
+acht ändern nichts" – es sind **sieben** Lesewerkzeuge (`readOnlyHint`: check_bid,
+get_price_book, get_price_comparison, get_tender, list_clarifications, list_tenders,
+suggest_prices; sechs schreibende; zusammen dreizehn). Korrigiert. Alles andere in `docs/05`,
+`docs/08`, `docs/09` – 13 / 11 / 10 / 5, acht Fälle, 14 Schritte, 13.213,50 €, 13.457,50 €,
+Lighthouse 1,00 nach 0,75, Known Limitations 1–7, ~30 ms / 600 ms – stimmt mit dem Code
+überein. Nicht korrigiert, weil kein Zahlen- oder Werkzeugfehler: `docs/08` verortet die
+Selbstdiagnose „in the header" (sie steht im Agent-Panel); `docs/09` nennt das alte
+Ablaufdatum der Bescheinigung als „12 Aug 2026" – der Seed rechnet relativ, am Aufnahmetag
+steht dort das Datum von vor 20 Tagen.
+
+**Kein Deploy.** `public/llms.txt` hat sich in diesem Pass nicht geändert; der Freeze-Build ist
+`701d45c3` aus CC-05. Live geprüft: `/`, `/how-to-test`, `/llms.txt` je 200, Selbstdiagnose
+„WebMCP detected · 11 tools registered".
+
+### Stand (Freeze)
+
+170 Unit-Tests in 16 Dateien · Typecheck sauber · `verify_seed.py` grün · Bieter-Evals 14/14
+(E1–E8), dreimal hintereinander · Client-Evals C1–C3 grün · GAEB bestanden · Deploy `701d45c3`.
+Ab dem Commit dieses Schritts: kein Code mehr, bis Video und erste Einreichung stehen. Ausnahme
+nur bei demo-blockierendem Fehler (Seite lädt nicht, Reset defekt, P1–P5 oder einer der drei
+Sätze aus `docs/09` schlägt fehl) – dann beheben, deployen, volle Matrix erneut, neuer
+Freeze-Stand.
+
+### Offen
+
+- ChatGPT-Abnahme der Zählung 11 / 5 / 11 (Nils).
+- Video und Devpost-Einreichung.
+- Eine der beiden Spec-Kopien – nach der Einreichung.

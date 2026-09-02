@@ -40,10 +40,10 @@ Jetzt sagt er seinem KI-Assistenten – auf Deutsch, in einem Satz:
 Und dann passiert das, worauf es ankommt: **Die Tabelle füllt sich auf Meiers Bildschirm.** Nicht im Chat, nicht als Textwüste zum Kopieren – in der Tabelle, Zeile für Zeile, während er zusieht.
 
 - Bei „Sockelanstrich Latex" steht ein Preis und daneben, woher er kommt: aus seinem Angebot Luegallee vom März.
-- Bei „Heizkörperlack" steht kein Preis, sondern: *dazu finde ich bei dir nichts Vergleichbares.* Meier trägt ihn selbst ein.
+- Bei „Heizkörperlack" steht kein Preis, sondern: *dazu finde ich bei Ihnen nichts Vergleichbares.* Meier sagt: „Nimm 61 Euro – vier Heizkörper, je 25 Minuten, zu meinem Satz." Der Assistent trägt das nicht ein; er legt es an die Zeile, mit der Herleitung, und wartet. Meier klickt. Der Preis steht – als seiner, ohne Herkunfts-Chip, mit seiner Begründung daneben.
 - Unten läuft die Summe mit. Die zwei Bedarfspositionen stehen separat – der Assistent kennt die Regel.
 
-Meier sagt: **„Prüf das mal."** Antwort: Drei Positionen sind noch offen. Eine liegt 40 % über deinem üblichen Preis – sieht nach einem Zahlendreher aus. Deine Unbedenklichkeitsbescheinigung ist älter als sechs Monate. Und die Frist läuft in vier Tagen ab.
+Meier sagt: **„Prüf das mal."** Antwort: Eine Position liegt 40 % über Ihrem üblichen Preis – sieht nach einem Zahlendreher aus. Ihre Unbedenklichkeitsbescheinigung ist abgelaufen. Und die Frist läuft in vier Tagen ab. Zu jedem Punkt steht, was zu tun ist. Meier: „Die neue Bescheinigung gilt bis August 2027." Wieder legt der Assistent es ihm zur Bestätigung hin – *hochgeladen oder geprüft wird hier nichts*, steht dabei – Meier klickt, der rote Punkt ist weg.
 
 Er sagt: **„Frag die Verwaltung, ob das Gerüst vom Dachdecker noch steht."** Die Frage geht raus; die Antwort kommt zurück und ist für alle Bieter sichtbar – so, wie es sich in einem Vergabeverfahren gehört.
 
@@ -69,7 +69,7 @@ Heute bedienen KI-Assistenten eine Website wie ein Fremder eine **unbeschriftete
 
 **WebMCP dreht das um. Die Website legt dem Assistenten ein beschriftetes Bedienpult hin:**
 
-> „Das hier sind die dreizehn Dinge, die du bei mir tun kannst. Das brauchst du jeweils dafür. Diese acht ändern nichts, die darfst du jederzeit. Und diese eine gibt ein verbindliches Angebot ab – dafür braucht es die Hand eines Menschen."
+> „Das hier sind die dreizehn Dinge, die du bei mir tun kannst. Das brauchst du jeweils dafür. Diese sieben ändern nichts, die darfst du jederzeit. Und diese eine gibt ein verbindliches Angebot ab – dafür braucht es die Hand eines Menschen."
 
 Dazu kommt der zweite Punkt, der im Video am meisten hermacht: **Mensch und Assistent arbeiten auf demselben Bildschirm.** Kein Hin- und Herkopieren zwischen Chatfenster und Programm. Der Assistent trägt ein, der Mensch korrigiert eine Zeile, der Assistent rechnet mit der Korrektur weiter.
 
@@ -107,6 +107,7 @@ Ehrlichkeit hält das Gespräch sauber:
 - Es hängt **nicht an echten Vergabeplattformen**. Das wäre der nächste Schritt, nicht dieser.
 - Im Hintergrund läuft **kein KI-Modell, das Preise erfindet**. Die Vorschläge kommen aus dem Preisbuch des Betriebs, und zu jedem Vorschlag steht, aus welchem alten Angebot er stammt. Was die KI beisteuert, ist das Zuordnen und Nachrechnen – nicht das Raten.
 - Der Assistent gehört dem Nutzer, nicht uns. BidDesk stellt nur die Werkzeuge bereit.
+- Die weichen Kriterien – Fristen gegen Kapazität, Lieferzeiten, Eignungsnachweise, die zwei Zeilen auf Seite 23, die den Auftrag kippen – sind noch nicht drin. Das ist die Stelle, an der ein Sprachmodell wirklich glänzt, und sie kommt als Nächstes. Wir haben bewusst bei den harten Fakten angefangen, weil dort die Vertrauensfrage entschieden wird: Wenn der Assistent beim Preis nichts erfindet, glaubt man ihm auch beim Risiko.
 
 ---
 
