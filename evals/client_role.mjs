@@ -158,10 +158,16 @@ try {
   const asClient = await call("get_tender", { tender_id: "T-2026-014" });
   check("the client's read answers, as the client", asClient.ok === true && asClient.role === "client",
     [asClient.ok, asClient.role]);
-  check("fourteen positions, each with its seven fields", asClient.positions?.length === 14
+  // Six fields: the bill of quantities as the agent acts on it. The long text
+  // travels only with include_long_text (tool budget, CC-10 part 2).
+  check("fourteen positions, each with its six fields", asClient.positions?.length === 14
     && asClient.positions.every((p) => JSON.stringify(Object.keys(p).sort())
-      === JSON.stringify(["category", "contingency", "long_text", "oz", "quantity", "text", "unit"])),
-    asClient.positions?.length);
+      === JSON.stringify(["category", "contingency", "oz", "quantity", "text", "unit"])),
+    asClient.positions?.map((p) => Object.keys(p).sort().join(",")).find((k, i, all) => all.indexOf(k) === i));
+  const withLongText = await call("get_tender", { tender_id: "T-2026-014", include_long_text: true });
+  check("and the long text comes only on request", withLongText.positions?.some((p) => "long_text" in p) === true
+    && !asClient.positions.some((p) => "long_text" in p),
+    withLongText.positions?.filter((p) => "long_text" in p).length);
   const leaked = BIDDER_ONLY_KEYS.filter((key) => keysDeep(asClient).has(key));
   check("no key of any bid anywhere in the answer", leaked.length === 0, leaked);
   const clientList = await call("list_tenders", {});

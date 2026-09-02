@@ -85,11 +85,27 @@ function evalSetsOnDisk() {
   return { present, missing };
 }
 
-/** The version live before this deploy, for the rollback command. */
-function currentVersionId() {
-  const { out } = run("npx", ["wrangler", "deployments", "list"]);
-  const match = out.match(/Version\(s\):[^0-9a-f]*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
-  return match?.[1] ?? null;
+/**
+ * The version this script accepted last time, for the rollback command.
+ * Kept in a file of our own: `wrangler deployments list` waits for a terminal
+ * and never answered inside the guard, so the first two runs said "previous
+ * version unknown". A file the guard writes itself cannot hang.
+ */
+const LAST_DEPLOY_FILE = join(ROOT, "scripts", "last-deploy.json");
+
+function lastAcceptedVersion() {
+  try {
+    return JSON.parse(readFileSync(LAST_DEPLOY_FILE, "utf8")).version ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberAcceptedVersion(version) {
+  writeFileSync(
+    LAST_DEPLOY_FILE,
+    `${JSON.stringify({ version, at: new Date().toISOString() }, null, 2)}\n`
+  );
 }
 
 // ---------------------------------------------------------------- the gate
@@ -129,8 +145,8 @@ if (gateOnly) process.exit(0);
 
 // ---------------------------------------------------------------- the deploy
 
-const previous = currentVersionId();
-say(`deploying · previous version ${previous ?? "unknown"}`);
+const previous = lastAcceptedVersion();
+say(`deploying · last accepted version ${previous ?? "unknown"}`);
 
 if (run("npx", ["vite", "build"], { inherit: true }).code !== 0) {
   say("DEPLOY REFUSED · vite build failed");
@@ -182,4 +198,5 @@ if (!allGreen) {
   process.exit(1);
 }
 
-say(`deploy accepted · ${version} · ${tests.total} unit tests · three eval sets green`);
+rememberAcceptedVersion(version);
+say(`deploy accepted · ${version} · ${tests.total} unit tests · three eval sets green (scripts/last-deploy.json updated, commit it)`);

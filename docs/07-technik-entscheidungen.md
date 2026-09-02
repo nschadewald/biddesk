@@ -1916,7 +1916,24 @@ schreibt, und bricht ab, wenn eine über 500 liegt; erst dann läuft der Test. Z
 eigener Test verlangte „Use it" in jeder Beschreibung und fiel über „Use that path" in
 `set_unit_price` – der Test prüfte eine Wendung, nicht die Sache. Jetzt prüft er das Wort.
 
+### Der Wächter beißt beim zweiten Einsatz
+
+`npm run deploy` für diesen Schritt: Tor bestanden (218 gezählt), Build, Deploy **`6fe011de`**,
+15 s, Evals – Bieter grün (E1 12 / 0 / 13.213,50), GAEB grün, **Client rot**: „DEPLOY NOT
+ACCEPTED". C4 verlangte je Auftraggeber-Position sieben Felder, die kompakte Form liefert sechs
+(`long_text` nur auf Anfrage). Eine veraltete Erwartung im Eval, kein Produktfehler – aber genau
+das soll der Wächter nicht durchwinken, und er hat es nicht. C4 zählt seitdem sechs Felder und
+prüft zusätzlich, dass `include_long_text:true` den Langtext bringt; gegen `6fe011de` neu
+gefahren: grün. Kein Rollback, kein zweiter Build – der Code des Deploys ist der committete.
+
+Zwei Kleinigkeiten am Wächter aus diesem Lauf: `wrangler deployments list` wartet auf ein
+Terminal und antwortete im Skript nie („previous version unknown"); der Rollback-Hinweis nennt
+jetzt die Version aus `scripts/last-deploy.json`, die der Wächter nach jedem angenommenen Deploy
+selbst schreibt. Und die Kette „add && commit; deploy" aus Schritt 21 ist damit erledigt: der
+Deploy läuft nur noch über das Skript.
+
 ### Stand
 
 218 Unit-Tests in 20 Dateien (neu: `src/webmcp/budget.test.ts`, 9 Tests), Typecheck sauber,
-E1–E8 unverändert. Deploy: siehe unten.
+`verify_seed.py` grün, Bieter-Evals 14/14 (E1–E8 unverändert), Client-Evals C1–C4, GAEB
+bestanden. Deploy **`6fe011de`** = **Videostand**. Commit `debac0b` plus Nachzug.
