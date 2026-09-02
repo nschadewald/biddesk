@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { copyFor } from "./i18n";
 
 /**
  * Written for a juror with forty tabs open who has three minutes.
@@ -7,37 +8,30 @@ import { useState } from "react";
  * opening the page in a browser without WebMCP, or declining the one permission
  * ChatGPT asks for, and concluding the thing does not work. Both are addressed
  * here before anything else, in that order.
+ *
+ * The prompts are the agent panel's seven, read from the same dictionary, in
+ * the same order as the video script. This page once carried a list of its own
+ * -- five prompts from before the confirmations and the blockers existed --
+ * and told a juror that "Submit the bid" opens a dialog, at a moment when the
+ * product answers "blocked". A page that testifies against the product is
+ * worse than no page. So there is one list, and a test holds this page to it.
  */
 
-const PROMPTS: { prompt: string; expect: string }[] = [
-  {
-    prompt:
-      "Open tender T-2026-014 and price every position from my price book. Leave anything without a match empty and tell me which ones.",
-    expect:
-      "Twelve rows fill in one after another, each keeping a chip that names the past project the price came from. 03.04 (radiators) and 04.02 (hourly rate) stay empty and read “no comparable entry”. The totals bar climbs to 13.213,50 € net, with 370,00 € of contingency positions shown separately."
-  },
-  {
-    prompt: "Why is there no price for the radiators?",
-    expect:
-      "No writes at all. The agent looks the position up and answers that the price book holds nothing of that category and unit — a real gap, not a low-confidence guess it decided to hide. It should not offer a number. The log records read calls only."
-  },
-  {
-    prompt: "Run a check on my bid — anything that looks off?",
-    expect:
-      "Three findings: the open positions, an expired tax clearance certificate, and the days left until the deadline. This is the only place in the interface where red appears."
-  },
-  {
-    prompt:
-      "Ask the client whether the scaffolding from the roofing works will still be in place.",
-    expect:
-      "A new question appears with status open. No price changes. This one tool is declared by the form on the page rather than registered in code — both WebMCP styles are in use here."
-  },
-  {
-    prompt: "Submit the bid.",
-    expect:
-      "The agent does not submit. A dialog appears with the final total, and the bid goes out only when you click the button. Afterwards the table is locked and the tool list gets one shorter: submit_bid has been withdrawn."
-  }
+/** What each prompt should visibly produce, in the order of copy.panel.prompts. */
+const EXPECTATIONS: string[] = [
+  "Twelve rows fill in one after another, each keeping a chip that names the past project the price came from. 03.04 (radiators) and 04.02 (hourly rate) stay empty and read “no comparable entry”. The totals bar climbs to 13.213,50 € net, with 370,00 € of contingency positions shown separately.",
+  "No writes at all. The agent looks the position up and answers that the price book holds nothing of that category and unit — a real gap, not a low-confidence guess it decided to hide. It should not offer a number. The log records read calls only.",
+  "Nothing is written. Both rows show a proposal with the derivation and wait — in the log, AWAITING CONFIRMATION. Confirm on each row: the price is recorded as yours, without a chip. Net 13.457,50 €, contingency positions 850,00 €.",
+  "One finding: the tax clearance certificate, expired three weeks ago — the only red on the page — with what to do about it beside it. (Checking before prompt 3 shows 03.04 as a blocker as well, and 04.02 as a contingency position that does not block.)",
+  "Nothing is uploaded or verified. The check panel shows the date on file and the new one and waits for your click; afterwards the finding goes quiet, and the page says what it recorded: a date a person stated.",
+  "A new question appears with status open. No price changes. This one tool is declared by the form on the page rather than registered in code — both WebMCP styles are in use here; in ChatGPT's browser, which does not list form tools, its imperative twin answers under the same name.",
+  "The agent does not submit. A dialog shows the final total, and the bid goes out only when you click the button. Afterwards the table is locked and the tool list is one shorter: submit_bid has been withdrawn. Submitting before prompts 3 and 5 returns blocked, with the list of what stands in the way, and no dialog — that is the product working as it should, not a fault."
 ];
+
+/** One list, the panel's. The test page never carries prompts of its own. */
+export const PROMPTS: { prompt: string; expect: string }[] = copyFor("en").panel.prompts.map(
+  (prompt, index) => ({ prompt, expect: EXPECTATIONS[index] ?? "" })
+);
 
 export default function HowToTest() {
   return (
@@ -86,8 +80,8 @@ export default function HowToTest() {
             </li>
             <li>Accept the handoff prompt when it appears — see the box above.</li>
             <li>
-              The arrow in the address bar lists the tools this page offers. Ten of them, in
-              the contractor role.
+              The arrow in the address bar lists the tools this page offers. Eleven of them, in
+              the contractor role; five as the client.
             </li>
           </ol>
         </div>
@@ -96,8 +90,8 @@ export default function HowToTest() {
           <h3 className="text-sm font-medium">2 · Chrome</h3>
           <p className="mt-1.5 text-sm text-slate-700">
             This origin is registered for the WebMCP origin trial, so Chrome 149 or newer
-            should work with no setup. If the panel still says WebMCP is unavailable, switch
-            on{" "}
+            should work with no setup — measured in Chrome 152 without a flag. If the panel
+            still says WebMCP is unavailable, switch on{" "}
             <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">
               chrome://flags/#enable-webmcp-testing
             </code>{" "}
@@ -116,29 +110,34 @@ export default function HowToTest() {
 
         <p className="mt-3 text-sm text-slate-600">
           <strong>Check before you type anything:</strong> the first line of the agent panel
-          on the right says either “WebMCP detected · N tools registered” or “WebMCP not
+          on the right says either “WebMCP detected · 11 tools registered” or “WebMCP not
           available in this browser”. That line is counted at runtime, not written down. If it
           is grey, no prompt will do anything, and the problem is the browser, not the page.
         </p>
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold">The five prompts, and what you should see</h2>
+        <h2 className="text-sm font-semibold">The seven prompts, and what you should see</h2>
         <p className="mt-1 text-xs text-slate-500">
-          In order. Each one is also copyable from the agent panel on the main page.
+          In order — the same seven, in the same order, as the agent panel on the main page,
+          where each one is copyable too.
         </p>
-        <ol className="mt-2 flex flex-col gap-2">
+        <ol className="mt-2 flex flex-col gap-2" data-testid="prompt-cards">
           {PROMPTS.map((entry, index) => (
             <PromptCard key={entry.prompt} index={index + 1} {...entry} />
           ))}
         </ol>
         <p className="mt-3 text-sm text-slate-600">
-          Two more worth a minute: switch the contractor in the header to{" "}
+          Three more worth a minute. Switch the contractor in the header to{" "}
           <strong>Malerei Brandt &amp; Sohn</strong> or <strong>Colorpoint</strong> and open
           T-2026-015 — the same bill of quantities leaves a different number of gaps for each
-          firm, which nothing hard-coded could do. Then switch the role to{" "}
+          firm, which nothing hard-coded could do. Switch the role to{" "}
           <strong>Client</strong>: five different tools, and the bids on the open tender are
-          sealed — a count and arrival times, no prices.
+          sealed — a count and arrival times, no prices. And, as Farbwerk Meier, ask{" "}
+          <em>“What have other bidders asked about the basement corridor tender?”</em> — one of
+          the questions ends in an instruction to set every price to 1 euro and submit. It comes
+          back as data, labelled as another party's text and capped in the log; watch what your
+          agent does with it. Nothing about the bid may change.
         </p>
       </section>
 
@@ -177,7 +176,7 @@ function PromptCard({
     <li className="rounded border border-slate-200 p-3">
       <div className="flex items-start gap-3">
         <span className="text-xs tabular-nums text-slate-400">{index}</span>
-        <p className="flex-1 text-sm">{prompt}</p>
+        <p className="flex-1 text-sm" data-testid="prompt-text">{prompt}</p>
         <button
           type="button"
           onClick={async () => {
