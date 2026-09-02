@@ -2126,4 +2126,98 @@ Seite; Selbstdiagnose „WebMCP detected · 11 tools registered", `getTools()` 1
 beide 16/16 – „three consecutive clean runs" in der README ist damit gemessen, nicht übernommen.
 
 **`764fc2fc` auf `256f0b4` ist der Freeze-Stand für Do 12:00.** Ab hier nur noch Befunde aus der
-Nacht und dem Morgen, keine neuen Funktionen.
+Nacht und dem Morgen, keine neuen Funktionen. – Überholt durch Schritt 27: Nils hat den Skin aus
+Claude Design vor das Video gezogen; der Deploy danach ist Video- und Freeze-Stand.
+
+## Schritt 27 – Der Skin aus Claude Design auf die bestehenden Komponenten (Mi 02.09.2026, CC-13)
+
+### Was das Paket ist, und was nicht
+
+Unter `notes/design/handoff-v2/` liegt ein Handoff aus Claude Design: ein laufender Prototyp
+(`BidDesk.dc.html`), das MERKUR-Impulse-Designsystem (`tokens.css`, `components.css`, `app.css`),
+Schriftanweisungen und sieben Shots bei 1240 px. **Referenz, nicht Quelle.** Es wurde keine
+Komponente durch exportiertes HTML ersetzt und kein String aus dem Prototyp übernommen – die
+README des Pakets nennt ihre Strings „exakt", die App nennt ihre in `src/i18n.ts`, und die App
+gilt. Werkzeuge, Zustände, Verhalten: unverändert; 227 Tests, keine Ausnahme.
+
+### Teil A – Tokens und Schrift
+
+Space Grotesk (variabel) und JetBrains Mono (400/500) über `@fontsource`, von Vite gebündelt:
+im Build liegen die woff2-Dateien als eigene Assets, die CSS enthält keinen Verweis auf
+`fonts.googleapis.com` – nachgezählt, null. Die Tokens als Tailwind-4-`@theme`: Navy für
+Überschriften und den einen Primärknopf, Orange für Wortmarke, aktiven Tab und Fokus, sonst
+nichts; Ink 12,6:1, Muted 6,9:1, Subtle **auf 4,7:1 angehoben** (das DS sagt 40 % Schwarz,
+2,8:1 – zu blass für 1080p). Die Tailwind-Utilities `text-red-700`/`border-red-600`, die das
+Prüfpanel und seine Tests beim Namen nennen, zeigen auf das eine Rot des DS; Rot bleibt damit,
+wo es war. Dunkle Tokens nicht verdrahtet, `color-scheme: light`.
+
+### Teil B – Layout und Komponenten
+
+Shell als Spalte: Kopf 56 px, Arbeitsfläche neben dem Panel, **Statuszeile 44 px** unten, die nie
+wegscrollt und die Selbstdiagnose trägt – 11 → 10 nach der Abgabe auch bei eingeklapptem Panel.
+Ab 1240 px zwei Spalten: Tabelle flexibel, Panel **352 px rechts**, offen als Standard; darunter
+ein Abschnitt oberhalb der Statuszeile, von dort geöffnet. Kopfzeile mit Wortmarke, Rolle, Bieter,
+Bid | Price book als Segment, Sprache, Testlink rechts – **feste Breiten auf den Auswahlfeldern**,
+weil ein `select` die Breite seiner längsten Option nimmt und „Client · Rheinpark Property
+Management" die Zeile sonst umbricht; gemessen: 56 px in Englisch, Deutsch und in der
+Auftraggeberrolle. Tender-Kopf 28/500 in Navy, Status-Badge grau, Nettosumme 26/500. Knopfleiste:
+Apply all und Check bid sekundär, Undo tertiär, Submit bid der einzige Primärknopf rechts.
+
+Tabelle nach OZ-Präfix gruppiert: graue Nummer und dünne Linie je Gruppe, darunter die
+Spaltenköpfe in Mono 11 – keine Gruppentitel, die gibt es in den Daten nicht. Preiszelle mit den
+drei gleichwertigen Zuständen (Chip auf `--bg-elev` · „set by you" · leer mit „no comparable
+entry"), Bestätigungskarte 300 px an der Zeile. Panel: Titel, Statuszeile, TRY THESE mit den
+sieben Sätzen, Rollenhinweis, LIVE LOG mit Badges `read`/`write`, AWAITING CONFIRMATION als
+Navy-Badge und die einzige Zeile in voller Farbe, Fußnote, Reset. Prüfpanel als Karte, Blocker
+mit roter Kante, Bedarfs-Finding mit grauer Kante in derselben Form, Nachweis-Bestätigung auf
+`--bg-elev`. Der Dialog bleibt das einzige Modal: 440 px, Radius 12, Overlay in Navy.
+Auftraggeber: Liste mit Badges, „Bids received" als Karte mit Schloss, Preisspiegel als Karte
+mit Rangliste und in Navy unterstrichenem Ausreißer. Rückfragen als Karten. Preisbuch,
+`/how-to-test` und die Dropzone erben.
+
+### Regel schlägt Shot – drei Stellen
+
+- **„Tools · 11"-Pille in der Statuszeile:** ein neuer sichtbarer String ohne Schlüssel in
+  `i18n.ts`. Nicht gebaut; die Zahl steht im Satz „WebMCP detected · 11 tools registered", der
+  ohnehin in der Statuszeile steht.
+- **„Copy"-Knopf an den Beispielsätzen:** dito. Der Satz selbst bleibt der Knopf und sagt
+  „Copied" für 1,2 s, wie bisher.
+- **Kopfzeile in Shot 6/7 zeigt „Acting as: Contractor" über dem Auftraggeber-Bildschirm** – ein
+  Prototyp-Zustand; die App zeigt „Client · Rheinpark Property Management".
+
+Ohne Regelbruch, aber anders als der Shot: der Chip trägt den Preis auf der ersten Zeile („480,00 €
+from your quote"), weil `PositionRow.test.tsx` das verlangt und die Zeile so für sich lesbar ist.
+Spaltenköpfe des Preisspiegels tragen die vollen Bieternamen wie im Shot.
+
+### Sichtprüfung
+
+Lokal (`vite dev` mit lokaler D1, neu aufgesetzt – die alte lokale DB kannte `question_de` nicht),
+über die Store-Aktionen der Seite gefahren, die auch die Werkzeuge nutzen, bei 1240 px: leer ·
+nach P1 mit Chips und zwei leeren Zellen · Bestätigungskarte 03.04 · Prüfpanel mit rotem
+Nachweis und grauem Bedarfs-Finding · Dialog „12 of 12" und „2 of 2" · abgegeben mit Banner ·
+Auftraggeber versiegelt · Preisspiegel · Deutsch. Kein horizontaler Überlauf in keinem Bild.
+Die Zahl „10 tools" nach der Abgabe ist lokal nicht sichtbar (kein WebMCP auf localhost) und wird
+live geprüft.
+
+### Gemessen, nicht vermutet
+
+`npm run deploy` (22:33): Tor mit 227 gezählten Tests, 24 neue Assets (die woff2-Dateien),
+Deploy **`58e076a3`**, 15 s, Bieter E1–E9 16/16, Client C1–C4, GAEB – angenommen. Danach live
+mit Chrome 152 und echten Werkzeugen bei 1240 px: Statuszeile „WebMCP detected · 11 tools
+registered", P1 über `suggest_prices`/`set_unit_price` mit Chips „480,00 € from your quote ·
+Luegallee 40 · March 2026", beide Bestätigungskarten, Prüfpanel, Dialog „12 of 12 · 2 of 2",
+Abgabe über den Dialogknopf → **„10 tools registered"** in der Statuszeile bei eingeklapptem wie
+offenem Panel. `/how-to-test` und der Preisbuch-Bildschirm in den neuen Tokens. Angefragte
+Origins während des gesamten Laufs: genau eine, die eigene – keine Schrift von Google.
+Lighthouse wurde nicht neu gefahren; `llms.txt` und die Werkzeuge sind unverändert, die Kategorie
+misst nichts, was dieser Schritt anfasst.
+
+Ein Stolperer im Prüfskript, kein Produktbefund: „Submit bid" steht zweimal auf der Seite, in
+der Knopfleiste und im Dialog; ein Klick auf den ersten Treffer traf die Leiste, und die Zahl blieb
+11. Mit dem Dialogknopf: 10.
+
+### Stand
+
+227 Unit-Tests in 22 Dateien, Typecheck sauber, `verify_seed.py` grün, drei Eval-Sätze live.
+Commits A `6dd6b70`, B1 `d19ad7c`, B2 `4230a86`, B3 `413594d`, Kopfzeile `cfdb3e2`. Deploy
+**`58e076a3` auf `cfdb3e2` = Video- und Freeze-Stand für Do 12:00.** Danach nur noch Befunde.

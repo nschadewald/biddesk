@@ -6,8 +6,9 @@ versiegelt — sonst trägt „zwei, jetzt drei" am Ende nicht), **beide** leere
 Preis des Menschen (der Abgabedialog liest sich sonst wie ein Fehler), kein Ausreißer in der
 Prüfszene (den gäbe es nur nach einem absichtlichen Zahlendreher — gestrichen), Beweiskarte
 gestrichen (zu technisch, gehört in den Devpost-Text), Abbinder ohne Diagramm. Aufnahme im
-ChatGPT-Desktop-Browser auf dem Stand, den Claude Code als **„Videostand"** meldet (nach CC-11 und
-CC-10 Teil 2), Oberfläche **Englisch**, frischer Workspace, Fenster ≥ 1240 px, Cursor sichtbar.
+ChatGPT-Desktop-Browser auf dem **Freeze-Stand `cfdb3e2`, live `58e076a3`** (Mi 02.09., 22:33 —
+CC-10 Teil 3, CC-12 und der Skin aus CC-13 sind drin, danach nur noch Befunde), Oberfläche **Englisch**, frischer
+Workspace, Fenster ≥ 1240 px, Cursor sichtbar.
 
 ---
 
@@ -133,8 +134,8 @@ Chip · die Bestätigung im Check-Panel und der verschwindende rote Befund · Ab
 **Nicht wegschneiden:** das gestaffelte Einlaufen bei Prompt 1 und die Sekunde zwischen
 AWAITING CONFIRMATION und dem Klick.
 
-**Freeze-Regel:** Aufnahme auf dem gemeldeten „Videostand" (Hash und Deploy-Id in CCs Meldung).
-Ändert sich der Code danach, wird nur das nachgedreht, was sich sichtbar geändert hat.
+**Freeze-Regel:** Aufnahme auf `cfdb3e2` / `58e076a3`. Ändert sich der Code danach (nur noch
+Befunde, Freeze Do 12:00), wird nur das nachgedreht, was sich sichtbar geändert hat.
 
 ## Produktionshinweise
 - Sicherungsaufnahme zuerst: einmal ungeschnitten komplett, mitschneiden.
