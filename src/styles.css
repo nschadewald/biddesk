@@ -1,9 +1,148 @@
+/*
+ * The MERKUR Impulse skin, as Tailwind 4 theme tokens.
+ *
+ * Read off the design handoff (tokens.css, components.css, the seven shots),
+ * not copied: only what the components use. Light theme only -- the design
+ * system ships dark tokens, and they are deliberately not wired.
+ *
+ * Fonts are self-hosted through @fontsource, so the page makes no request to
+ * a third party at runtime. The fallback stacks keep the metrics close enough
+ * that nothing jumps while the files load.
+ *
+ * Contrast floor, whatever the tokens say: body text and table values at
+ * least 7:1 on white, secondary text and column headers at least 4.5:1. The
+ * design system's "subtle" (40 % black, 2.8:1) is raised to 4.7:1 here -- the
+ * video goes out at 1080p on YouTube, and grey that blurs there is lost.
+ */
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
 @import "tailwindcss";
+
+@theme {
+  --font-sans:
+    "Space Grotesk Variable", "Space Grotesk", system-ui, -apple-system, "Segoe UI", Helvetica,
+    Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Brand */
+  --color-navy: #1d3a4d;
+  --color-navy-800: #13283a;
+  --color-navy-500: #3e6b85;
+  --color-navy-100: #d6e0e7;
+  --color-navy-50: #edf2f5;
+  --color-orange: #f07d00;
+  --color-orange-600: #d66e00;
+  --color-orange-50: #fff5eb;
+
+  /* Text. ink 12.6:1, muted 6.9:1, subtle 4.7:1 on white. */
+  --color-ink: #2b2b2b;
+  --color-ink-muted: #5f5f5f;
+  --color-ink-subtle: #737373;
+
+  /* Surfaces and lines */
+  --color-elev: #f4f6f8;
+  --color-inset: #eceff2;
+  --color-line: rgb(29 58 77 / 0.12);
+  --color-line-strong: rgb(29 58 77 / 0.24);
+
+  /* Meaning. Red belongs to the check panel's blockers and nowhere else;
+     the Tailwind red utilities the check panel and its tests name are
+     pointed at the design system's one red. */
+  --color-danger: #b83a2b;
+  --color-red-600: #b83a2b;
+  --color-red-700: #b83a2b;
+  --color-success: #2e8b57;
+
+  --shadow-sm: 0 1px 2px rgb(29 58 77 / 0.06), 0 1px 1px rgb(29 58 77 / 0.04);
+  --shadow-md: 0 4px 12px rgb(29 58 77 / 0.08), 0 2px 4px rgb(29 58 77 / 0.04);
+  --shadow-xl: 0 32px 64px -20px rgb(29 58 77 / 0.25);
+  --shadow-focus: 0 0 0 3px rgb(240 125 0 / 0.3);
+
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Two columns from here: the table flexible, the agent panel a fixed column. */
+  --breakpoint-wide: 1240px;
+}
 
 html {
   color-scheme: light;
 }
 
 body {
+  margin: 0;
   background-color: #ffffff;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-orange);
+  color: #ffffff;
+}
+
+@layer components {
+  /* The one primary: navy, filled. Everything else steps back from it. */
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-transparent px-4 text-sm font-medium whitespace-nowrap transition-colors;
+  }
+  .btn-primary:focus-visible,
+  .btn-secondary:focus-visible,
+  .btn-ghost:focus-visible {
+    @apply outline-none shadow-focus;
+  }
+  .btn-primary:disabled,
+  .btn-secondary:disabled,
+  .btn-ghost:disabled {
+    @apply cursor-not-allowed opacity-45;
+  }
+  .btn-primary {
+    @apply bg-navy text-white hover:bg-navy-800;
+  }
+  .btn-secondary {
+    @apply border-navy bg-transparent text-navy hover:bg-navy hover:text-white;
+  }
+  .btn-ghost {
+    @apply text-ink hover:bg-elev;
+  }
+  .btn-sm {
+    @apply h-7 px-3 text-xs;
+  }
+
+  /* Inputs and selects: strong line, orange focus, 8 px radius on chrome, 6 px in table cells. */
+  .field {
+    @apply rounded-lg border border-line-strong bg-white px-3 text-sm text-ink transition-[border-color,box-shadow];
+  }
+  .field:hover {
+    @apply border-navy-500;
+  }
+  .field:focus {
+    @apply border-orange outline-none shadow-focus;
+  }
+  .field::placeholder {
+    @apply text-ink-subtle;
+  }
+
+  /* Mono, uppercase, tracked: column heads, eyebrows, badges. 11 px, never smaller. */
+  .eyebrow {
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-ink-subtle;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full border border-line bg-elev px-2 py-px font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted;
+  }
+  .badge-navy {
+    @apply border-transparent bg-navy text-white;
+  }
+
+  /* Cards and the provenance chip. */
+  .card {
+    @apply rounded-lg border border-line bg-white;
+  }
+  .chip {
+    @apply flex w-full max-w-full flex-col rounded-md border border-line bg-elev px-2 py-1 text-left text-xs leading-snug text-ink;
+  }
 }
