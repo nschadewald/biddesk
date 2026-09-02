@@ -117,23 +117,21 @@ export default function PositionRow({
 
   return (
     <>
-      <tr data-oz={position.oz} className="border-b border-slate-100 align-top">
-        <td className="py-2 pr-3 font-mono text-xs text-slate-500">{position.oz}</td>
-        <td className="py-2 pr-3">
+      <tr data-oz={position.oz} className="border-b border-line align-top">
+        <td className="py-2.5 pr-3 font-mono text-xs text-ink-subtle">{position.oz}</td>
+        <td className="py-2.5 pr-3 text-ink">
           {position.text}
           {position.contingency && (
-            <span className="ml-2 rounded border border-slate-200 px-1 py-0.5 text-[10px] uppercase tracking-wide text-slate-500">
-              {copy.row.contingency}
-            </span>
+            <span className="badge ml-2 align-middle">{copy.row.contingency}</span>
           )}
         </td>
-        <td className="py-2 pr-3 text-right tabular-nums text-slate-700">
+        <td className="py-2.5 pr-3 text-right text-ink tabular-nums">
           {formatQuantity(position.quantity)}
         </td>
-        <td className="py-2 pr-3 text-slate-500">{position.unit}</td>
+        <td className="py-2.5 pr-3 text-ink-muted">{position.unit}</td>
 
-        <td className="py-2 pr-3">
-          <div className="flex flex-col items-end gap-1">
+        <td className="py-2.5 pr-3">
+          <div className="flex flex-col items-end gap-1.5">
             <label className="sr-only" htmlFor={`price-${position.oz}`}>
               {copy.row.unitPriceFor(position.oz)}
             </label>
@@ -155,8 +153,8 @@ export default function PositionRow({
               }}
               className={
                 locked
-                  ? "w-24 px-1.5 py-0.5 text-right tabular-nums text-slate-700"
-                  : "w-24 rounded border border-transparent px-1.5 py-0.5 text-right tabular-nums hover:border-slate-300 focus:border-slate-400 focus:outline-none"
+                  ? "h-[30px] w-[104px] rounded-md border border-line bg-elev px-2 text-right text-sm text-ink tabular-nums"
+                  : "field h-[30px] w-[104px] rounded-md px-2 text-right text-sm tabular-nums"
               }
             />
 
@@ -178,7 +176,7 @@ export default function PositionRow({
                   <button
                     type="button"
                     onClick={() => onAccept(proposal)}
-                    className="shrink-0 rounded border border-slate-300 px-1.5 py-0.5 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
+                    className="btn-secondary btn-sm shrink-0"
                   >
                     {copy.row.use}
                   </button>
@@ -194,12 +192,12 @@ export default function PositionRow({
                 <button
                   type="button"
                   onClick={() => onGap(position.category, position.unit)}
-                  className="text-xs text-slate-500 underline decoration-dotted underline-offset-4 hover:text-slate-900"
+                  className="text-xs text-ink-subtle underline decoration-dotted underline-offset-4 hover:text-ink"
                 >
                   {copy.row.noComparableEntry}
                 </button>
               ) : (
-                <span className="text-xs text-slate-500">{copy.row.noComparableEntry}</span>
+                <span className="text-xs text-ink-subtle">{copy.row.noComparableEntry}</span>
               )
             )}
 
@@ -208,7 +206,7 @@ export default function PositionRow({
               // person's. Said in words, with the derivation they confirmed, if
               // an agent offered one -- plain text, never a chip. A chip would
               // claim a source this value does not have.
-              <span className="text-right text-xs text-slate-500">
+              <span className="text-right text-xs text-ink-muted">
                 {copy.row.setByYou}
                 {position.note ? ` · ${position.note}` : null}
               </span>
@@ -222,10 +220,10 @@ export default function PositionRow({
               // from, as design rather than small print.
               <div
                 data-testid={`confirm-${position.oz}`}
-                className="mt-1 w-full max-w-full rounded border border-slate-400 bg-slate-50 px-2 py-1.5 text-left text-xs text-slate-700"
+                className="mt-1 w-[300px] max-w-full rounded-lg border border-line-strong bg-white p-3 text-left text-xs text-ink shadow-md"
               >
-                <p className="font-medium text-slate-900">{copy.row.confirmTitle}</p>
-                <p className="mt-0.5 tabular-nums">
+                <p className="text-sm font-medium text-ink">{copy.row.confirmTitle}</p>
+                <p className="mt-1 tabular-nums">
                   {copy.row.confirmMath(
                     formatEuro(pending.unit_price),
                     formatQuantity(position.quantity),
@@ -234,31 +232,31 @@ export default function PositionRow({
                   )}
                 </p>
                 {pending.current_unit_price !== null && (
-                  <p className="mt-0.5 text-slate-500">
+                  <p className="mt-1 text-ink-muted">
                     {pending.current_unit_price === pending.unit_price
                       ? copy.row.remarkOnly
                       : copy.row.replaces(formatEuro(pending.current_unit_price))}
                   </p>
                 )}
-                <p className="mt-0.5 text-slate-500">{copy.row.notFromPriceBook}</p>
+                <p className="mt-1 text-ink-muted">{copy.row.notFromPriceBook}</p>
                 {pending.rationale && (
-                  <p className="mt-0.5">
-                    <span className="text-slate-500">{copy.row.rationaleLabel}: </span>
+                  <p className="mt-1">
+                    <span className="text-ink-muted">{copy.row.rationaleLabel}: </span>
                     {pending.rationale}
                   </p>
                 )}
-                <div className="mt-1.5 flex justify-end gap-2">
+                <div className="mt-2 flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => onDiscard?.(position.oz)}
-                    className="rounded border border-slate-300 px-1.5 py-0.5 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
+                    className="btn-ghost btn-sm"
                   >
                     {copy.row.discard}
                   </button>
                   <button
                     type="button"
                     onClick={() => onConfirm?.(position.oz)}
-                    className="rounded border border-slate-400 px-1.5 py-0.5 text-xs font-medium text-slate-900 hover:border-slate-900"
+                    className="btn-primary btn-sm"
                   >
                     {copy.row.confirm}
                   </button>
@@ -270,27 +268,27 @@ export default function PositionRow({
               // Stays in the row with its reason. A message that fades away is a
               // message nobody read. Two audiences, one row: the code is what an
               // agent corrects itself on, the sentence is what a person acts on.
-              <span className="flex flex-col items-end text-right text-xs text-slate-500">
+              <span className="flex flex-col items-end text-right text-xs text-ink-muted">
                 <span>
                   {copy.row.notWritten} · <span className="font-mono">{rejection.reason}</span>
                 </span>
                 {copy.row.rejection[rejection.reason] && (
-                  <span className="text-slate-500">{copy.row.rejection[rejection.reason]}</span>
+                  <span className="text-ink-muted">{copy.row.rejection[rejection.reason]}</span>
                 )}
               </span>
             )}
           </div>
         </td>
 
-        <td className="py-2 text-right tabular-nums text-slate-400">
+        <td className="py-2.5 text-right text-ink-muted tabular-nums">
           {position.line_total === null ? "—" : formatEuro(position.line_total)}
         </td>
       </tr>
 
       {open && chip && (
-        <tr className="border-b border-slate-100 bg-slate-50">
+        <tr className="border-b border-line bg-elev">
           <td />
-          <td colSpan={5} className="px-0 py-2 pr-3">
+          <td colSpan={5} className="px-0 py-2.5 pr-3">
             <OriginalLine chip={chip} language={language} copy={copy} />
           </td>
         </tr>
@@ -337,13 +335,13 @@ function SourceChip({
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      className="flex w-full max-w-full flex-col rounded border border-slate-300 px-1.5 py-0.5 text-left text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
+      className="chip hover:border-line-strong"
     >
       <span className="flex items-baseline gap-1.5">
         <span className="tabular-nums">{formatEuro(chip.unit_price)}</span>
-        <span className="text-slate-500">{copy.row.chipLead}</span>
+        <span className="text-ink-muted">{copy.row.chipLead}</span>
       </span>
-      <span className="text-slate-500">
+      <span className="text-ink-muted">
         {copy.row.chipWhere(
           source.source_project,
           formatMonthYear(source.source_date, language)
@@ -365,18 +363,18 @@ function OriginalLine({
 }) {
   const source = chip.source;
   return (
-    <div className="text-xs text-slate-600">
+    <div className="text-xs text-ink-muted">
       {/* Names the thing before quoting it. Verbatim underneath: this is the
           evidence, and evidence that needs explaining afterwards is not read. */}
-      <p className="text-slate-500">{copy.row.originalLine}</p>
-      <p className="mt-0.5 text-slate-900">{source.source_position_text}</p>
+      <p className="text-ink-subtle">{copy.row.originalLine}</p>
+      <p className="mt-0.5 text-sm text-ink italic">{source.source_position_text}</p>
       <p className="mt-0.5">
         {source.source_project} · {formatMonthYear(source.source_date, language)} ·{" "}
         {formatEuro(chip.unit_price)} ·{" "}
         <span className="font-mono text-[11px]">{source.price_book_id}</span>
       </p>
       {chip.matched && (
-        <p className="mt-0.5 text-slate-500">
+        <p className="mt-0.5 font-mono text-[11px] text-ink-subtle">
           {/* Tool data, printed as it stands. Never a scale, never a percentage. */}
           {copy.row.matched(chip.matched.terms, chip.matched.on.join(", "))}
         </p>

@@ -317,8 +317,10 @@ it("shows the 14 positions with quantity and unit, no prices and a zero total", 
   stubApi();
   render(<App />);
 
+  // The table carries a group row and a header row per item-number group;
+  // the positions are the rows that name an item.
   const rows = await waitFor(() => {
-    const found = screen.getAllByRole("row").slice(1);
+    const found = screen.getAllByRole("row").filter((row) => row.hasAttribute("data-oz"));
     expect(found).toHaveLength(14);
     return found;
   });
@@ -360,7 +362,8 @@ it("diagnoses a browser without WebMCP and names both ways to get it", async () 
   stubApi();
   render(<App />);
 
-  await screen.findByText("WebMCP not available in this browser");
+  // In the panel and in the status bar alike.
+  await screen.findAllByText("WebMCP not available in this browser");
   expect(screen.getByText(/ChatGPT desktop app browser/)).toBeInTheDocument();
   expect(screen.getByText("chrome://flags/#enable-webmcp-testing")).toBeInTheDocument();
   expect(
@@ -382,7 +385,7 @@ it("counts the registered tools from the registry when WebMCP is present", async
   // Ten imperative tools plus ask_clarification, which the form declares.
   // Eleven either way: ten imperative plus the form where a browser declares
   // it, eleven imperative where it does not. jsdom is the second case.
-  await screen.findByText("WebMCP detected · 11 tools registered");
+  await screen.findAllByText("WebMCP detected · 11 tools registered");
   for (const name of [
     "list_tenders",
     "get_tender",
@@ -445,7 +448,7 @@ it("switches the language without touching a single tool registration", async ()
 
   try {
     render(<App />);
-    await screen.findByText("WebMCP detected · 11 tools registered");
+    await screen.findAllByText("WebMCP detected · 11 tools registered");
     const registrationsBefore = registerTool.mock.calls.length;
     expect(registrationsBefore).toBeGreaterThan(0);
 
@@ -464,7 +467,8 @@ it("switches the language without touching a single tool registration", async ()
 
     // The self-diagnosis says the same number, in German, and no tool was
     // registered a second time.
-    expect(screen.getByText("WebMCP erkannt · 11 Werkzeuge angemeldet")).toBeInTheDocument();
+    // Said twice on purpose: in the panel, and in the status bar that never scrolls away.
+    expect(screen.getAllByText("WebMCP erkannt · 11 Werkzeuge angemeldet").length).toBeGreaterThan(0);
     expect(registerTool.mock.calls.length).toBe(registrationsBefore);
 
     // Money does not move with the language; only the words and the dates do.
