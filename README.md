@@ -137,7 +137,13 @@ the page counted ten tools while the agent saw nine (eleven and ten today, one t
 
 ## Architecture
 
-- **One Cloudflare Worker** serves the API under `/api/*` and the built SPA. `wrangler deploy`.
+- **One Cloudflare Worker** serves the API under `/api/*` and the built SPA. `npm run deploy` is
+  guarded (`scripts/deploy.mjs`): typecheck, the unit suite *counted* against the last known
+  number rather than trusted by exit code, `seed/verify_seed.py`, and the three eval sets on
+  disk — any of them red and nothing is built. After the deploy the three eval sets run against
+  the live URL, and a red one ends the step with the rollback command. It exists because a
+  `typecheck && vitest && deploy` chain once deployed after vitest had said "no tests" and
+  exited 0.
 - **React 19 + Vite + TypeScript + Tailwind** on the front, **Hono + D1 (SQLite)** behind it.
 - **No LLM in the backend.** The matching heuristic is deterministic and explainable; the
   intelligence sits in the user's own agent, which is the whole WebMCP thesis.

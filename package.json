@@ -9,7 +9,8 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "vite build && wrangler deploy",
+    "deploy": "node scripts/deploy.mjs",
+    "deploy:gate": "node scripts/deploy.mjs --gate-only",
     "types": "wrangler types env.d.ts --include-runtime false",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

@@ -75,6 +75,7 @@ Agent-ready tender room for building trades. Einreichung für die WebMCP Challen
 - **Chrome braucht kein Flag mehr.** Der Origin-Trial-Token steht in `index.html`; in Chrome 152 ohne Flag gemessen, Selbstdiagnose zählt elf Werkzeuge (zehn bis zum 02.09.). Das Flag `chrome://flags/#enable-webmcp-testing` bleibt der Rückfallweg, dazu Extension „Model Context Tool Inspector" und das DevTools-WebMCP-Panel.
 - ChatGPT-Desktop-Browser (WebMCP seit ~26.08.2026): Pfeil in der Adressleiste zeigt Tools; Bestätigung bei sensiblen Aktionen prüfen.
 - Vor jedem Commit: `npm test` (vitest) + `npm run typecheck`. Vor Deploy: Seed/Reset lokal durchspielen.
+- **`npm run deploy` ist bewacht (CC-10 Teil 1, `scripts/deploy.mjs`):** Typecheck, vitest per JSON-Reporter **gezählt** gegen `scripts/test-baseline.json` (null oder weniger als bekannt = rot; die Zahl rastet nur nach oben, Datei mitcommitten), `seed/verify_seed.py`, die drei Eval-Sätze auf der Platte. Danach Build, Deploy, 15 s, alle drei Evals gegen die Live-URL; ein rotes Eval beendet den Schritt mit Fehler und dem Rollback-Befehl. `npm run deploy:gate` prüft nur. Grund: „no tests" mit Exit 0 wurde am 02.09. von `&&` durchgewinkt. Deploy nie mit `;` hinter einen Commit ketten.
 - Testmatrix und Eval-Fälle: `docs/03-spec-biddesk.md` §6. **Ausgeführt** liegen sie in `evals/`: `python evals/assert_outcomes.py` (Bieter, über die offizielle `webmcp-evals`-CLI), `node evals/client_role.mjs` (Auftraggeber), `node evals/gaeb_import.mjs` (GAEB-Abnahme). Alle brauchen lokal Chrome 149+.
 
 ## Nicht tun

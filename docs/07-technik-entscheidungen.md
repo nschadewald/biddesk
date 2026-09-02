@@ -1776,4 +1776,67 @@ Test hält Anzahl (7 / 3) und Reihenfolge in beiden Sprachen.
 
 ### Stand
 
-203 Unit-Tests in 18 Dateien, Typecheck sauber. Deploy und Evals: siehe Schritt 22.
+203 Unit-Tests in 18 Dateien, Typecheck sauber. Deploy **`4d89d7cf`** (17:54), danach Bieter-Evals
+14/14 und Client-Evals C1–C4 grün, Chrome 152 zählt 11 Werkzeuge; die sieben Sätze stehen live
+im Panel. Commit `7b31a42`.
+
+Am Rande, weil es der Wächter aus Schritt 22 nicht fängt: Der Commit scheiterte zuerst an einer
+verwaisten `.git/index.lock` (0 Byte, kein git-Prozess – der Fallstrick aus dem Handover), und
+die Kette „add && commit; deploy" deployte den Arbeitsbaum trotzdem, weil der Deploy hinter einem
+Semikolon stand. Der Build war der richtige, der Commit kam vier Minuten später. Lehre: Deploy
+und Commit nie mit `;` verketten.
+
+## Schritt 22 – Der Deploy-Wächter (Mi 02.09.2026, CC-10 Teil 1)
+
+### Warum
+
+Schritt 20, Nachtrag: „typecheck → vitest → deploy" deployte, nachdem vitest **„no tests"**
+gemeldet hatte – der Worker-Pool war beim Start gestorben, vitest beendete sich mit 0, und `&&`
+winkte durch. Die Suite war fünf Minuten davor grün gewesen, also ging es gut. Es hätte nicht
+gut gehen müssen. Ein Exit-Code sagt „nichts ist gescheitert"; er sagt nicht „etwas wurde
+geprüft".
+
+### Was der Wächter tut
+
+`npm run deploy` ruft `scripts/deploy.mjs` und sonst nichts. Vor dem Build:
+
+- `tsc --noEmit`;
+- die Unit-Suite über den JSON-Reporter von vitest **gezählt**, nicht am Exit-Code abgelesen:
+  null Tests sind rot, weniger als die letzte bekannte Zahl in `scripts/test-baseline.json` sind
+  rot, ein fehlgeschlagener Test ist rot; die Zahl rastet nur nach oben und die Datei wird
+  mitcommittet;
+- `seed/verify_seed.py` muss „ALLES GRUEN" sagen;
+- die drei Eval-Sätze müssen auf der Platte liegen (`bidder.evals.json` + `assert_outcomes.py`,
+  `client_role.mjs`, `gaeb_import.mjs`).
+
+Ein einziger Grund, und nichts wird gebaut. Danach `vite build`, `wrangler deploy`, 15 Sekunden
+für die Edge, dann **alle drei Eval-Sätze gleichzeitig gegen die Live-URL**. Ein rotes Eval macht
+den Deploy nicht rückgängig – dazu hat das Skript keine Befugnis –, aber es beendet den Schritt
+mit Fehler und nennt den Rollback-Befehl mit der Version, die vorher lief. `npm run deploy:gate`
+fährt nur das Tor.
+
+Die Entscheidung selbst ist eine reine Funktion (`scripts/deploy-gate.mjs`, `evaluateGate`),
+getrennt von der Shell, damit ein Test sie mit einer leeren Suite füttern kann.
+
+### Die Probe
+
+| | |
+|---|---|
+| `deploy-gate.test.ts` · leere Suite (0 Tests, Exit grün) | **rot**, „0 tests ran" |
+| · geschrumpfte Suite (150 statt 203) | **rot** |
+| · ein Fehlschlag, roter Typecheck, roter Seed, fehlender Eval-Satz – je einzeln | je **rot**, mit genau einem Grund |
+| · kein Report | **rot** |
+| · grün, 210 statt 203 | ok, Basis rastet auf 210 |
+| Live: `deploy:gate` mit Basis 9999 | **verweigert**: „209 tests ran, 9999 were known", nichts gebaut |
+
+Die erste Live-Probe verweigerte aus **allen** Gründen gleichzeitig – Typecheck, kein Report,
+Seed, alle drei Sätze fehlen. Ursache: `new URL("..", import.meta.url).pathname` liefert den
+Projektpfad mit `%20` für das Leerzeichen in „The WebMCP Challenge", und jeder Aufruf lief in
+einem Ordner, den es nicht gibt. `fileURLToPath` statt `.pathname`. Ohne die Probe wäre der
+Wächter mit einem Fehler ausgeliefert worden, der auf dem Laptop nie aufgefallen wäre, bis
+jemand `npm run deploy` in einem Pfad ohne Leerzeichen anders erlebt als hier.
+
+### Stand
+
+209 Unit-Tests in 19 Dateien (neu: `scripts/deploy-gate.test.ts`, 6 Tests), Typecheck sauber,
+Basiszahl 209. Deploy über den Wächter: siehe unten.
