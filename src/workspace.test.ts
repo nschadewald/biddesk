@@ -3,7 +3,7 @@ import { isWorkspaceId, SEED_STATEMENTS } from "./workspace";
 
 describe("seed statements", () => {
   it("keeps every INSERT from seed.sql and drops the comments", () => {
-    expect(SEED_STATEMENTS).toHaveLength(127);
+    expect(SEED_STATEMENTS).toHaveLength(128);
     expect(SEED_STATEMENTS.every((sql) => sql.startsWith("INSERT"))).toBe(true);
   });
 

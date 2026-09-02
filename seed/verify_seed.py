@@ -20,7 +20,7 @@ t14bids = con.execute("SELECT COUNT(*) FROM bids WHERE tender_id='T-2026-014'").
 check("Zwei versiegelte Konkurrenzangebote auf T-2026-014 (Zaehler springt auf 3)", t14bids == 2, "%d" % t14bids)
 own = con.execute("SELECT COUNT(*) FROM bids WHERE tender_id='T-2026-014' AND bidder_id='B-A'").fetchone()[0]
 check("Farbwerk Meier hat auf T-2026-014 NOCH KEIN Angebot (das legt die Demo an)", own == 0)
-check("Rueckfragen", n("clarifications") == 2)
+check("Rueckfragen", n("clarifications") == 3)
 exp = con.execute("SELECT COUNT(*) FROM bidder_documents WHERE bidder_id='B-A' AND valid_until < date('now')").fetchone()[0]
 check("Genau EIN abgelaufener Nachweis bei B-A (check_bid-Szene)", exp == 1, "%d" % exp)
 due = con.execute("SELECT julianday(due_date)-julianday('now') FROM tenders WHERE id='T-2026-014'").fetchone()[0]
