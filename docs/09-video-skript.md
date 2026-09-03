@@ -1,147 +1,125 @@
-# Videoskript (Ziel 2:40, hart unter 3:00, englisches Voice-over) — Fassung Mi 02.09., 18:30
+# Videoskript v3 (Ziel 2:45, hart unter 3:00, englisches Voice-over) — Fassung Do 03.09., 10:00
 
-**Eine Botschaft je Szene, ≈ 335 gesprochene Wörter, 130–140 Wörter pro Minute.** Änderungen
-gegenüber 17:30 nach Nils' Videodurchlauf: kalter Einstieg beim Auftraggeber (zwei Angebote,
-versiegelt — sonst trägt „zwei, jetzt drei" am Ende nicht), **beide** leeren Zeilen bekommen den
-Preis des Menschen (der Abgabedialog liest sich sonst wie ein Fehler), kein Ausreißer in der
-Prüfszene (den gäbe es nur nach einem absichtlichen Zahlendreher — gestrichen), Beweiskarte
-gestrichen (zu technisch, gehört in den Devpost-Text), Abbinder ohne Diagramm. Aufnahme im
-ChatGPT-Desktop-Browser auf dem **Freeze-Stand `e73eada`, live `ef9fd1a2`** (Mi 02.09., nach CC-14 —
-CC-10 Teil 3, CC-12, der Skin aus CC-13 und der Rahmen aus CC-14 sind drin, danach nur noch Befunde), Oberfläche **Englisch**, frischer
-Workspace, Fenster ≥ 1240 px, Cursor sichtbar.
+**≈ 300 gesprochene Wörter, 120–135 Wörter pro Minute, Anfang und Ende bewusst langsam.**
+Umbau nach dem Blick auf das Feld: Alleinstellung in den ersten 15 Sekunden,
+echte Werkzeugaufrufe im Bild, GAEB als eigener Beat, die Abgabe scheitert sichtbar am Nachweis
+und gelingt nach der Korrektur, Rollenwechsel als Höhepunkt, ruhiger Schluss mit Zahlen. Was
+bleibt: Herkunfts-Chip, die zwei leeren Zellen, Bestätigung statt Sackgasse, 11 → 10.
+Aufnahme im ChatGPT-Desktop-Browser auf **`e73eada` / `ef9fd1a2`** (Freeze-Stand), Oberfläche
+**Englisch**, frischer Workspace, Fenster 1920 × 1080, Cursor sichtbar.
 
 ---
 
-## 0:00–0:08 · Kalter Einstieg
-**Bild:** Rolle „Client · Rheinpark Property Management", T-2026-014 geöffnet. Kasten „Bids
-received": **2 bids received · Sealed until 12 Sept 2026** — keine Preise, keine Namen.
-**VO:** "A property manager has put a staircase out to tender. Two bids are in — sealed. A third
-firm has until the twelfth."
+## 0:00–0:15 · Was es ist
+**Bild:** Bieter-Bildschirm, Tabelle füllt sich bereits (aus Take 1, ab der dritten Zeile),
+dann Standbild mit gefüllter Tabelle, Chips, zwei leeren Zellen.
+**VO:** "A German construction tender: fourteen line items. BidDesk is a workspace where the
+contractor's own AI agent prices, checks and prepares the bid — and cannot bypass roles,
+validation, or a person's final say."
 
-## 0:08–0:22 · Hook
-**Bild:** Rolle „Bidder · Farbwerk Meier". Prompt 1 ist abgeschickt. Die Tabelle füllt sich
-gestaffelt, Chips erscheinen, die Summenleiste klettert. 03.04 und 04.02 bleiben leer.
-**VO:** "Fourteen line items a painting firm has to price. The contractor's own AI agent fills the
-table from the firm's price book — and leaves two cells empty."
+## 0:15–0:35 · Echte Ausschreibung, echte Werkzeuge
+**Bild:** Take 3: die Datei `T-2026-021.x83` fällt auf die Dropzone, die Tabelle des importierten
+Leistungsverzeichnisses erscheint, unbepreist. Dann 3 Sekunden ChatGPTs Werkzeugansicht
+„11 tools · 5 with write access", dann das Panel „WebMCP detected · 11 tools registered".
+**VO:** "Tenders arrive as GAEB files — the format German procurement actually uses. Dropped on
+the page, one becomes a priceable bill of quantities. The page publishes eleven typed tools, and
+the agent discovers them. No API key, no plugin: bring your own agent."
 
-## 0:22–0:35 · Das Problem
-**Bild:** Die gefüllte Tabelle bleibt stehen; kein Schnitt.
-**VO:** "Normally this is an evening at the kitchen table: a forty-six-page PDF, and the prices
-buried in last year's quotes. Many small firms skip tenders for this reason."
+## 0:35–1:05 · Preise mit Herkunft
+**Bild:** Satz 1 abgeschickt, Log `get_tender` → `suggest_prices` → `set_unit_price · 12 applied`,
+Zeilen laufen gestaffelt ein. Chip „from your quote · Luegallee 40 · March 2026" öffnen: die
+Originalzeile. 03.04 und 04.02: „no comparable entry".
+**VO:** "One sentence: price every position from my price book. Twelve rows fill in, each with
+its source — project, date, the original line. Two rows stay empty. The price book has nothing
+comparable, so the agent says so instead of guessing."
 
-## 0:35–0:55 · Herkunft
-**Bild:** Chip „from your quote · Luegallee 40 · March 2026" öffnen: die Originalzeile. Dann
-03.04: „no comparable entry".
-**VO:** "Every price the agent wrote points back to a line in this firm's own history — project,
-date, the original item. Where the firm has never priced radiators, the agent doesn't guess. It
-says so, and leaves the cell empty."
+## 1:05–1:30 · Der Preis des Menschen — und die Abgabe scheitert
+**Bild:** Satz 2 (beide Preise). Log `set_unit_price · AWAITING CONFIRMATION` als oberste Zeile.
+Zwei Karten an den Zeilen, zwei Klicks, „set by you" ohne Chip, Summe 13.457,50 €. Dann Satz 3
+„Submit the bid." → Kasten **„Cannot be handed in yet: 1 thing in the way — Tax clearance
+certificate — expired 13 Aug 2026"**, Knopf „Submit bid" grau.
+**VO:** "The contractor states his own prices, and why. The agent has no source for them, so it
+puts them on the rows and waits — the clicks are his. Then: submit. The page refuses. A tax
+clearance certificate expired three weeks ago, and nobody hands in around that — not the agent,
+not the button."
 
-## 0:55–1:20 · Der Weg
-**Bild:** Prompt: *"Set 03.04 to 61 euros — four radiators, twenty-five minutes each, at my rate —
-and 04.02 to 48 euros, my hourly rate."* Log: `set_unit_price` · AWAITING CONFIRMATION. An beiden
-Zeilen die Bestätigung: „61,00 € × 4 pcs = 244,00 € · not from your price book — you are setting
-this price yourself" + Herleitung; „48,00 € × 10 h = 480,00 €". Klick **Confirm**, zweimal. Zeilen:
-„set by you · …", kein Chip. Summe 13.457,50 €, Bedarfspositionen 850,00 €.
-**VO:** "The contractor states his prices, and why. The agent has no source for those numbers, so
-it neither refuses nor pretends. It puts them on the rows and waits. The clicks are his — recorded
-as his, no chip. No authority of its own means confirmation, not a dead end."
+## 1:30–1:50 · Die Korrektur
+**Bild:** Satz 4 „My new tax clearance certificate is valid until 15 August 2027." Karte im
+Prüfpanel: „Confirm this document? … Nothing is uploaded or checked here." · „13 Aug 2026 →
+15 Aug 2027". Klick. Der Kasten verschwindet, „Submit bid" wird dunkel.
+**VO:** "The fix is stated, not uploaded: the new validity date, confirmed with a click, recorded
+as a date a person gave. The blocker is gone."
 
-## 1:20–1:45 · Prüfen
-**Bild:** Prompt 3. Ein Befund: **Nachweis abgelaufen, in Rot**, mit Handlungssatz. Prompt:
-*"My new tax clearance certificate is valid until 15 August 2027."* Bestätigung im Check-Panel
-(„Nothing is uploaded or checked here"), Klick, der rote Befund verschwindet.
-**VO:** "Then the check. One finding: a tax clearance certificate that expired three weeks ago —
-the only red in the app, with its way out beside it. Renewed the same way: stated in the chat,
-confirmed with a click. Nothing is uploaded; the page says so."
+## 1:50–2:10 · Die Abgabe
+**Bild:** Satz 5 „Submit the bid." Zusammenfassung im Chat, Dialog mit Endsumme — das einzige
+Modal — Klick. Banner „Submitted", Tabelle gesperrt, Statuszeile **11 → 10**.
+**VO:** "Now submitting is allowed — and still binding, so the agent stops. It summarises; a
+person clicks. Afterwards the tool is gone from the agent's repertoire: eleven tools before, ten
+after."
 
-## 1:45–2:05 · Die Grenze
-**Bild:** Prompt 5. Zusammenfassung, Abgabedialog mit Endsumme — das einzige Modal. Klick.
-Banner, Tabelle gesperrt. Selbstdiagnose **11 → 10**.
-**VO:** "Submitting is binding, so the agent stops. It summarises; a person clicks. Afterwards the
-tool is gone from the agent's repertoire — eleven tools before, ten after. The page didn't ask the
-agent to behave. It took the capability away."
+## 2:10–2:35 · Die andere Rolle
+**Bild:** „Acting as" → Client. Panel „5 tools registered". T-2026-014: **3 bids received ·
+sealed**. Satz „Open tender T-2026-014" → Positionen ohne Preise; im Log die Antwort ohne
+Preisfelder. Kurz: der Preisspiegel der geschlossenen Fassaden-Ausschreibung, Ausreißer
+unterstrichen.
+**VO:** "The property manager's side: five tools, not eleven. Three bids in, sealed until the
+deadline — for their agent as well. Prices reach this side only after closing, and it is the
+server that refuses, not the screen. On a closed tender: the full comparison."
 
-## 2:05–2:25 · Die andere Seite
-**Bild:** Rolle Auftraggeber, T-2026-014: **3 bids received · sealed**. Prompt: *"Open tender
-T-2026-014"* → Positionen ohne Preise. Dann der Preisspiegel der geschlossenen
-Fassaden-Ausschreibung mit markiertem Ausreißer.
-**VO:** "Back on the property manager's side: three bids now — and still no prices. Sealed until
-the deadline, for their agent too: the server refuses, not just the screen. On a closed tender,
-the full comparison — one bidder's scaffolding at twice the median."
-
-## 2:25–2:40 · Schluss
-**Bild:** Der Preisspiegel bleibt kurz stehen, dann eine schlichte Texttafel (weiß, zwei Zeilen,
-darunter die URL) — kein Diagramm, keine Zahlen:
+## 2:35–2:50 · Schluss
+**Bild:** Texttafel (Space Grotesk auf Weiß, Text dunkel, URL orange):
 > No price enters a bid without a traceable source —
 > or a person's hand on that exact value.
-> biddesk.n-schadewald.workers.dev
-**VO:** "No model in the backend — the intelligence is the user's own agent; the site only offers
-it tools. And no price enters a bid without a traceable source, or a person's hand on that exact
-value."
+> 227 tests · live · MIT · biddesk.n-schadewald.workers.dev
+**VO:** "Two hundred and twenty-seven tests. Live, open source, MIT. And no price enters a bid
+without a traceable source — or a person's hand on that exact value."
 
 ---
 
 ## Für den Aufnehmenden — bitte zuerst lesen
 
-**Was aufgenommen wird:** https://biddesk.n-schadewald.workers.dev im **ChatGPT-Desktop-Browser**.
-Modell **5.6 Sol** oder Terra — bei Luna ist WebMCP deaktiviert, und dann fehlt auch die Frage
-nach dem Arbeitsmodus.
+**Was aufgenommen wird:** https://biddesk.n-schadewald.workers.dev im **ChatGPT-Desktop-Browser**,
+Modell **5.6 Sol** oder Terra (bei Luna ist WebMCP aus). **Der Handoff:** ChatGPT fragt beim ersten
+Werkzeugaufruf nach dem Arbeitsmodus — **annehmen**; abgelehnt heißt: neue Unterhaltung.
 
-**Der Handoff.** ChatGPT fragt einmal nach dem Arbeitsmodus (beim ersten Werkzeugaufruf, also bei
-Prompt 1). **Annehmen.** Wird er abgelehnt, verweigert ChatGPT für den Rest der Unterhaltung.
-Abhilfe: neue Unterhaltung. Kommt die Frage gar nicht: Modell prüfen.
+**Drei Takes, in dieser Reihenfolge:**
 
-**Vor der Aufnahme:**
-1. „Reset demo" — Tabelle leer, Summe 0,00 €, Log leer. Sprache **English**. Bieter Farbwerk Meier.
-2. Fensterbreite ≥ 1240 px: Tabelle und Agent-Panel nebeneinander.
-3. Selbstdiagnose „WebMCP detected · **11** tools registered". ChatGPTs Werkzeugansicht
-   (Pfeil in der Adresszeile) **11 · 5 mit Schreibzugriff**. Zeigt eine der beiden etwas
-   anderes: Stand alt oder Browser falsch — nicht aufnehmen.
-4. Nach einem Deploy 15 Sekunden warten.
-5. Für den kalten Einstieg zuerst auf „Client · Rheinpark Property Management" wechseln und
-   T-2026-014 öffnen (2 bids received), dann zurück zu „Bidder · Farbwerk Meier". Der Wechsel
-   selbst wird weggeschnitten.
+**Take 1 — der Hauptlauf** (frischer Workspace: „Reset demo", English, 1920 × 1080, Log leer,
+Statuszeile 11; vorher ChatGPTs Werkzeugansicht öffnen und 3 Sekunden stehen lassen):
+1. *"Open tender T-2026-014 and price every position from my price book. Leave anything without a
+   match empty and tell me which ones."* → Chip öffnen, 03.04 zeigen.
+2. *"Set 03.04 to 61 euros — four radiators, twenty-five minutes each, at my rate — and 04.02 to
+   48 euros, my hourly rate."* → zwei Karten, **die Sekunde vor dem Klick stehen lassen**, zwei Klicks.
+3. *"Submit the bid."* → **blockiert**, Kasten mit dem Nachweis. Das ist gewollt, das ist die Szene.
+4. *"My new tax clearance certificate is valid until 15 August 2027."* → Karte im Prüfpanel, Klick.
+5. *"Submit the bid."* → Dialog, Klick, Banner, Statuszeile 10.
+Teilt der Agent Satz 2 in zwei Aufrufe oder ruft er vor Satz 3 selbst `check_bid`: in Ordnung,
+nicht nachhelfen. Prüfzahlen: 13.213,50 € → 13.457,50 €, Bedarf 370 → 850 €, Dialog „12 of 12 ·
+2 of 2".
 
-**Reihenfolge ist Pflicht.** Die Abgabe ist blockiert, solange 03.04 offen oder der Nachweis
-abgelaufen ist — das ist gewollt. 04.02 ist eine Bedarfsposition und würde nicht blockieren; sie
-wird trotzdem bepreist, damit der Abgabedialog vollständig liest. Also: Auftraggeber (2) → Bieter,
-Prompt 1 → Chip → beide Preise bestätigen → Prüfen → Nachweis bestätigen → Abgabe → Auftraggeber
-(3). Wer die Abgabe vor dem Nachweis versucht, sieht „blocked" mit der Liste; das ist kein Fehler,
-aber nicht die Szene.
+**Take 2 — Auftraggeber:** „Acting as" → Client. T-2026-014 öffnen: „3 bids received · sealed".
+*"Open tender T-2026-014"* → keine Preise. *"Compare all bids for the facade tender and tell me
+who is cheapest but complete."* → Preisspiegel.
 
-**Die fünf Sätze, wörtlich** (der Agent wählt die Kette selbst — nicht nachhelfen; teilt er den
-zweiten Satz in zwei Aufrufe, ist das in Ordnung):
-- *"Open tender T-2026-014 and price every position from my price book. Leave anything
-  without a match empty and tell me which ones."*
-- *"Set 03.04 to 61 euros — four radiators, twenty-five minutes each, at my rate — and 04.02 to
-  48 euros, my hourly rate."*
-- *"Run a check on my bid — anything that looks off?"*
-- *"My new tax clearance certificate is valid until 15 August 2027."*
-- *"Submit the bid."*
-Danach als Auftraggeber: *"Open tender T-2026-014"* (zeigt: keine Preise) und *"Compare all
-bids for the facade tender and tell me who is cheapest but complete."*
+**Take 3 — GAEB, zuletzt:** Zurück zu Contractor, `seed/gaeb/T-2026-021.x83` aus dem Explorer auf
+die Dropzone ziehen. Die importierte Ausschreibung öffnet sich, unbepreist. 5 Sekunden. Danach
+„Reset demo". (Zuletzt, weil der Import den Workspace wechselt.)
 
-**Prüfzahlen im Bild:** nach Prompt 1 netto **13.213,50 €**, Bedarfspositionen 370,00 €; nach den
-zwei Bestätigungen netto **13.457,50 €**, Bedarfspositionen **850,00 €**; Abgabedialog „12 of 12"
-plus die Bedarfspositionen „2 of 2". Stimmt eine nicht: anhalten, melden.
+**Was zwingend im Bild sein muss:** Werkzeugansicht 11 · 5 · Statuszeile mit Zahl · Live-Log mit
+AWAITING CONFIRMATION als oberster Zeile · Chip „from your quote" · die zwei leeren Zellen · zwei
+Bestätigungen, danach „set by you" ohne Chip · der Blockiert-Kasten · die Karte im Prüfpanel ·
+Dialog · 11 → 10 · Panel „5 tools" · „3 bids received · sealed" · Positionen ohne Preise · GAEB-Drop.
 
-**Was zwingend im Bild sein muss:** „2 bids received · sealed" vor Prompt 1 · Selbstdiagnose mit
-Zahl · Live-Log während der Aufrufe, einschließlich AWAITING CONFIRMATION · Chip „from your
-quote" · die zwei leeren Zeilen · die Bestätigungen an den Zeilen und danach „set by you" ohne
-Chip · die Bestätigung im Check-Panel und der verschwindende rote Befund · Abgabedialog · 11 → 10 ·
-„3 bids received · sealed" · Positionen ohne Preise beim Auftraggeber · Preisspiegel mit Ausreißer.
-
-**Nicht wegschneiden:** das gestaffelte Einlaufen bei Prompt 1 und die Sekunde zwischen
-AWAITING CONFIRMATION und dem Klick.
+**Nicht wegschneiden:** das gestaffelte Einlaufen bei Satz 1, die Sekunde zwischen AWAITING
+CONFIRMATION und dem Klick, den Moment, in dem der Blockiert-Kasten erscheint.
 
 **Freeze-Regel:** Aufnahme auf `e73eada` / `ef9fd1a2`. Ändert sich der Code danach (nur noch
-Befunde, Freeze Do 12:00), wird nur das nachgedreht, was sich sichtbar geändert hat.
+Befunde, Freeze 12:00), wird nur das nachgedreht, was sich sichtbar geändert hat.
 
 ## Produktionshinweise
-- Sicherungsaufnahme zuerst: einmal ungeschnitten komplett, mitschneiden.
-- 1080p, OBS oder Windows-Spielleiste. Schnitt Clipchamp/DaVinci. Voice-over ruhig, keine
-  Musik über den Sprechstellen.
-- Die Texttafel am Schluss ist eine Textebene im Schnittprogramm (weißer Grund, dunkle Schrift,
-  zwei Zeilen plus URL), 8–10 Sekunden, kein Diagramm.
+- Sicherungsaufnahme: Take 1 einmal ungeschnitten komplett, mitschneiden.
+- 1080p, OBS oder Windows-Spielleiste. Schnitt Clipchamp/DaVinci. Voice-over ruhig, Anfang und
+  Ende langsamer als die Mitte; keine Musik über den Sprechstellen.
+- Texttafel am Schluss: Textebene im Schnittprogramm, weißer Grund, Space Grotesk, 10 Sekunden.
 - YouTube **öffentlich**, unter 3:00, Titel "BidDesk — an agent-ready tender room (WebMCP
   Challenge)".

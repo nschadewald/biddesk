@@ -1,15 +1,65 @@
 # BidDesk
 
-**An agent-ready tender room for building trades.** A property manager publishes a bill of
-quantities; a painting contractor prices it together with their own AI agent, from their own
-price book; and everyone — people and agents — works on the same page.
+**An agent-ready tender room for building trades — bring your own agent.** A property manager
+publishes a bill of quantities; a painting contractor prices it together with their own AI agent
+(ChatGPT's browser, or stock Chrome), from their own price book; the client's side stays sealed
+until the deadline. No model in the backend, no API key, nothing to install: the page publishes
+typed tools, the agent you already have discovers them.
 
-Built for the [WebMCP Challenge](https://webmcp.devpost.com/). Every company, project and
-price in here is invented.
+**Live:** <https://biddesk.n-schadewald.workers.dev> · **Test it in 60 seconds:**
+<https://biddesk.n-schadewald.workers.dev/how-to-test> · **Video:** *link follows on 3 September* ·
+Built for the [WebMCP Challenge](https://webmcp.devpost.com/); every company, project and price
+in here is invented.
 
-**Live: <https://biddesk.n-schadewald.workers.dev>** · no sign-in, no setup.
+## The problem, and why a page with tools
 
----
+In German construction, work is tendered as a numbered list of line items — a *Leistungsverzeichnis*
+— and a contractor has to put a unit price on every line, at the kitchen table, with a 46-page PDF
+on one screen and last year's quotes on the other. Many small firms skip tenders because of it.
+
+That list is structured data pretending to be a document. An agent should work on positions, not on
+a scraped DOM or a PDF — so the page exposes exactly the operations that make sense on that data,
+each with a typed schema and an explicit read/write boundary, and keeps for itself the three things
+an agent must never do alone: invent a price, fake a certificate, hand in a bid. Roles are not a
+setting but a set of tools: eleven for the contractor, five for the client, and the server refuses
+the other side's calls with 403 whatever the screen shows.
+
+## Judge test: one prompt, three places where it waits for you
+
+Open the live URL in the **ChatGPT desktop app browser** (5.6 Sol or Terra) or **Chrome 152**
+(origin trial, no flag). Accept ChatGPT's question whether it may work on the page. The agent
+panel on the right should say *WebMCP detected · 11 tools registered*. Then paste:
+
+> **Open tender T-2026-014 and price every position from my price book. Set 03.04 to 61 euros — four radiators, twenty-five minutes each, at my rate — and 04.02 to 48 euros, my hourly rate. Then check the bid and submit it only when everything passes.**
+
+What should happen (the agent may order the steps slightly differently; the outcome is the same):
+
+1. **Twelve of fourteen rows fill in** from the firm's own price book, each with a chip naming the
+   past project and date the price came from (*from your quote · Luegallee 40 · March 2026*).
+   Two rows stay empty and say *no comparable entry* — a real gap, not a hidden guess. Net total
+   **13.213,50 €**.
+2. **03.04 and 04.02 wait for your click.** The agent has no source for those two numbers, so it
+   may not write them: each row shows the price and the reasoning and a *Confirm* button. Click
+   both — the rows now read *set by you*, without a chip. **13.457,50 €**.
+3. **The hand-in is blocked**, and the agent says why: the tax clearance certificate expired three
+   weeks ago. No dialog opens; the button is grey. Tell it: *"My new tax clearance certificate is
+   valid until 15 August 2027."* — a card in the check panel waits for your click; nothing is
+   uploaded, and the page says so.
+4. **"Submit the bid."** The agent summarises and stops; a dialog shows the final total; your click
+   hands in. Afterwards the status bar counts **10 tools** — `submit_bid` has been withdrawn.
+
+Then switch *Acting as* to **Client**: five different tools, three bids received, sealed — ask for
+the prices and the server refuses, not the screen. Full walkthrough with all seven prompts:
+[/how-to-test](https://biddesk.n-schadewald.workers.dev/how-to-test).
+
+**In this run, reproducibly:** 14 positions · 12 priced from the price book in one call · 2 gaps
+named, not guessed · 1 blocker found (an expired certificate) · 3 confirmations by a person ·
+1 click to hand in · 0 prices the agent wrote on its own authority.
+
+**Verified, not claimed:** 227 unit and integration tests · tool-chain evals 16 of 16 steps over
+9 contractor cases and 4 client cases, run live after every deploy by a guard that counts its
+tests before it trusts them · Lighthouse agentic-browsing 1.00 · GAEB X83 import tested against a
+file the parser had never seen · MIT.
 
 ## The one sentence
 

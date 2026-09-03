@@ -1,4 +1,4 @@
-# Devpost submission text (English) — Fassung 02.09., 19:40 — Überschriften tragen die vier Pflichtpunkte, Zahlen nach CC-10 Teil 3, ~1.350 Wörter
+# Devpost submission text (English) — Fassung 03.09., 10:15 — Judge-Prompt und Demo-Zahlen oben, bring your own agent, ~1.600 Wörter
 
 **Tagline:** The agent-ready tender room for building trades.
 
@@ -10,9 +10,17 @@ In German construction, work is tendered as a *Leistungsverzeichnis* — a bill 
 
 ## What BidDesk does
 
-BidDesk turns that list into a page a contractor prices **together with their own AI agent** — ChatGPT's browser, or stock Chrome 152 — from their own price book. The agent gets thirteen typed tools through WebMCP. It reads the tender and the firm's price history, proposes prices, writes the ones it can trace, checks the bid, asks the client, and prepares the hand-in. The person corrects any line, confirms what only a person can confirm, and clicks the one binding button.
+BidDesk turns that list into a page a contractor prices **together with their own AI agent** — ChatGPT's browser, or stock Chrome 152 — from their own price book. Bring your own agent: no model in the backend, no API key, nothing to install. The agent gets thirteen typed tools through WebMCP. It reads the tender and the firm's price history, proposes prices, writes the ones it can trace, checks the bid, asks the client, and prepares the hand-in. The person corrects any line, confirms what only a person can confirm, and clicks the one binding button.
 
 The property manager has the other side of the same page: bids arrive, sealed until the deadline; after it, a position-by-position comparison.
+
+## Try it in sixty seconds: one prompt, three places where it waits for you
+
+Open the live URL in ChatGPT's desktop browser (5.6 Sol or Terra) or Chrome 152, accept ChatGPT's question whether it may work on the page, check *WebMCP detected · 11 tools registered*, and paste:
+
+> *Open tender T-2026-014 and price every position from my price book. Set 03.04 to 61 euros — four radiators, twenty-five minutes each, at my rate — and 04.02 to 48 euros, my hourly rate. Then check the bid and submit it only when everything passes.*
+
+Twelve rows fill in from the price book, each with its source. Two rows wait for your click — the agent has no source for those numbers. The hand-in is blocked by an expired tax clearance certificate; state the new date, confirm with a click. *"Submit the bid"* — a dialog, your click, and the tool is gone: eleven tools before, ten after. Reproducibly, in every fresh workspace: 14 positions · 12 priced in one call · 2 gaps named, not guessed · 1 blocker found · 3 confirmations by a person · 1 click to hand in · 0 prices written on the agent's own authority.
 
 ## The core flow, in sixty seconds — what changes for the contractor
 
