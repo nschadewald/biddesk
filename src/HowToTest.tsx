@@ -33,6 +33,40 @@ export const PROMPTS: { prompt: string; expect: string }[] = copyFor("en").panel
   (prompt, index) => ({ prompt, expect: EXPECTATIONS[index] ?? "" })
 );
 
+const PANEL = copyFor("en").panel.prompts;
+
+/**
+ * The judge test: one prompt, and the page stops three times for a person.
+ * It is the panel's sentences 1 and 3, word for word, with one closing
+ * sentence of this page's own -- composed from the dictionary rather than
+ * typed here, so it cannot drift if a panel sentence ever changes. A test
+ * holds it to that.
+ */
+export const JUDGE_PROMPT = `${PANEL[0]} ${PANEL[2]} Then check the bid and submit it only when everything passes.`;
+
+/** The four things that should happen, in the order the page stops. */
+const JUDGE_STOPS: { lead: string; rest: string }[] = [
+  {
+    lead: "Twelve of fourteen rows fill in",
+    rest:
+      " from the firm's own price book, each with a chip naming the past project and date the price came from (from your quote · Luegallee 40 · March 2026). Two rows stay empty and say “no comparable entry” — a real gap, not a hidden guess. Net total 13.213,50 €."
+  },
+  {
+    lead: "03.04 and 04.02 wait for your click.",
+    rest:
+      " The agent has no source for those two numbers, so it may not write them: each row shows the price, the reasoning and a Confirm button. Click both — the rows now read “set by you”, without a chip. 13.457,50 €."
+  },
+  {
+    lead: "The hand-in is blocked,",
+    rest: ` and the agent says why: the tax clearance certificate expired three weeks ago. No dialog opens; the button is grey. Tell it: “${PANEL[4]}” — a card in the check panel waits for your click; nothing is uploaded, and the page says so.`
+  },
+  {
+    lead: `“${PANEL[6]}”`,
+    rest:
+      " The agent summarises and stops; a dialog shows the final total; your click hands in. Afterwards the status bar counts 10 tools — submit_bid has been withdrawn."
+  }
+];
+
 export default function HowToTest() {
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-10 text-slate-900">
@@ -116,11 +150,39 @@ export default function HowToTest() {
         </p>
       </section>
 
+      <section className="rounded border border-slate-300 bg-slate-50 px-4 py-3" data-testid="judge-test">
+        <h2 className="text-sm font-semibold">One prompt, three places where it waits for you</h2>
+        <p className="mt-1 text-sm text-slate-700">
+          If that line is green, this one prompt shows the whole product. The agent may order
+          the steps a little differently; the outcome is the same.
+        </p>
+        <blockquote className="mt-2 flex items-start gap-3 rounded border border-slate-200 bg-white p-3">
+          <p className="flex-1 text-sm font-medium" data-testid="judge-prompt">
+            {JUDGE_PROMPT}
+          </p>
+          <CopyButton text={JUDGE_PROMPT} />
+        </blockquote>
+        <ol className="mt-3 flex list-decimal flex-col gap-1.5 pl-5 text-sm text-slate-700">
+          {JUDGE_STOPS.map((stop) => (
+            <li key={stop.lead}>
+              <strong>{stop.lead}</strong>
+              {stop.rest}
+            </li>
+          ))}
+        </ol>
+        <p className="mt-3 text-sm text-slate-700">
+          <strong>In this run, reproducibly:</strong> 14 positions · 12 priced from the price book
+          in one call · 2 gaps named, not guessed · 1 blocker found (an expired certificate) · 3
+          confirmations by a person · 1 click to hand in · 0 prices the agent wrote on its own
+          authority.
+        </p>
+      </section>
+
       <section>
-        <h2 className="text-sm font-semibold">The seven prompts, and what you should see</h2>
+        <h2 className="text-sm font-semibold">Step by step, the seven prompts of the demo</h2>
         <p className="mt-1 text-xs text-slate-500">
           In order — the same seven, in the same order, as the agent panel on the main page,
-          where each one is copyable too.
+          where each one is copyable too. Together they take the route above one stop at a time.
         </p>
         <ol className="mt-2 flex flex-col gap-2" data-testid="prompt-cards">
           {PROMPTS.map((entry, index) => (
@@ -170,30 +232,37 @@ function PromptCard({
   prompt: string;
   expect: string;
 }) {
-  const [copied, setCopied] = useState(false);
-
   return (
     <li className="rounded border border-slate-200 p-3">
       <div className="flex items-start gap-3">
         <span className="text-xs tabular-nums text-slate-400">{index}</span>
         <p className="flex-1 text-sm" data-testid="prompt-text">{prompt}</p>
-        <button
-          type="button"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(prompt);
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 1200);
-            } catch {
-              // Clipboard access can be refused; the text is selectable anyway.
-            }
-          }}
-          className="shrink-0 rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
-        >
-          {copied ? "Copied" : "Copy"}
-        </button>
+        <CopyButton text={prompt} />
       </div>
       <p className="mt-1.5 pl-6 text-xs text-slate-600">{expect}</p>
     </li>
+  );
+}
+
+/** The same button on the judge prompt and on every card: a click copies, and says so for a moment. */
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1200);
+        } catch {
+          // Clipboard access can be refused; the text is selectable anyway.
+        }
+      }}
+      className="shrink-0 rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-slate-400 hover:text-slate-900"
+    >
+      {copied ? "Copied" : "Copy"}
+    </button>
   );
 }

@@ -5,6 +5,8 @@
 > price book. Everything an agent can do here it does through WebMCP tools this page
 > registers — there is no hidden API and no LLM in the backend.
 
+Quick test (one prompt): "Open tender T-2026-014 and price every position from my price book. Leave anything without a match empty and tell me which ones. Set 03.04 to 61 euros — four radiators, twenty-five minutes each, at my rate — and 04.02 to 48 euros, my hourly rate. Then check the bid and submit it only when everything passes." — twelve of fourteen rows fill in from the price book, each naming its source, and two stay empty; 03.04 and 04.02 wait for a person's click on the page; the hand-in is blocked by an expired tax clearance certificate until its new date is stated and confirmed; the final submit stops at a dialog for a person's click, after which submit_bid is withdrawn.
+
 The rule the whole application rests on: no price enters a bid without either a traceable
 source in this firm's own history or a person's hand on that exact value. Through these tools
 an agent can transcribe a price from the price book, or propose one with a rationale for the

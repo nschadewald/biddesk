@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { expect, it } from "vitest";
-import HowToTest, { PROMPTS } from "./HowToTest";
+import HowToTest, { JUDGE_PROMPT, PROMPTS } from "./HowToTest";
 import { copyFor } from "./i18n";
 
 /**
@@ -38,4 +38,27 @@ it("says under every prompt what should visibly happen, and names the blocker ca
   // The count a juror checks against the panel.
   expect(screen.getByText(/11 tools registered/)).toBeInTheDocument();
   expect(screen.getByText(/Eleven of them/)).toBeInTheDocument();
+});
+
+it("offers one judge prompt, built from the panel's sentences 1 and 3, above the seven cards", () => {
+  // Word for word from the dictionary, so the one prompt a juror pastes cannot
+  // drift from what the panel offers if a sentence there ever changes.
+  const panel = copyFor("en").panel.prompts;
+  expect(JUDGE_PROMPT).toContain(panel[0]);
+  expect(JUDGE_PROMPT).toContain(panel[2]);
+  expect(JUDGE_PROMPT.endsWith("Then check the bid and submit it only when everything passes.")).toBe(true);
+
+  render(<HowToTest />);
+  const block = screen.getByTestId("judge-test");
+  expect(within(block).getByTestId("judge-prompt").textContent).toBe(JUDGE_PROMPT);
+  expect(within(block).getByRole("button", { name: "Copy" })).toBeInTheDocument();
+  // Four things that should happen, three of them a stop for a person.
+  expect(within(block).getAllByRole("listitem")).toHaveLength(4);
+  expect(within(block).getByText(/wait for your click/)).toBeInTheDocument();
+  expect(within(block).getByText(/The hand-in is blocked/)).toBeInTheDocument();
+  expect(within(block).getByText(/0 prices the agent wrote on its own authority/)).toBeInTheDocument();
+  // The block stands above the seven cards, which stay.
+  const cards = screen.getByTestId("prompt-cards");
+  expect(block.compareDocumentPosition(cards) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(within(cards).getAllByRole("listitem")).toHaveLength(7);
 });
