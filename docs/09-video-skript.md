@@ -70,8 +70,8 @@ server that refuses, not the screen. On a closed tender: the full comparison."
 **Bild:** Texttafel (Space Grotesk auf Weiß, Text dunkel, URL orange):
 > No price enters a bid without a traceable source —
 > or a person's hand on that exact value.
-> 227 tests · live · MIT · biddesk.n-schadewald.workers.dev
-**VO:** "Two hundred and twenty-seven tests. Live, open source, MIT. And no price enters a bid
+> 228 tests · live · MIT · biddesk.n-schadewald.workers.dev
+**VO:** "Two hundred and twenty-eight tests. Live, open source, MIT. And no price enters a bid
 without a traceable source — or a person's hand on that exact value."
 
 ---

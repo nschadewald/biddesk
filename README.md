@@ -30,7 +30,7 @@ Open the live URL in the **ChatGPT desktop app browser** (5.6 Sol or Terra) or *
 (origin trial, no flag). Accept ChatGPT's question whether it may work on the page. The agent
 panel on the right should say *WebMCP detected · 11 tools registered*. Then paste:
 
-> **Open tender T-2026-014 and price every position from my price book. Set 03.04 to 61 euros — four radiators, twenty-five minutes each, at my rate — and 04.02 to 48 euros, my hourly rate. Then check the bid and submit it only when everything passes.**
+> **Open tender T-2026-014 and price every position from my price book. Leave anything without a match empty and tell me which ones. Set 03.04 to 61 euros — four radiators, twenty-five minutes each, at my rate — and 04.02 to 48 euros, my hourly rate. Then check the bid and submit it only when everything passes.**
 
 What should happen (the agent may order the steps slightly differently; the outcome is the same):
 
@@ -56,7 +56,7 @@ the prices and the server refuses, not the screen. Full walkthrough with all sev
 named, not guessed · 1 blocker found (an expired certificate) · 3 confirmations by a person ·
 1 click to hand in · 0 prices the agent wrote on its own authority.
 
-**Verified, not claimed:** 227 unit and integration tests · tool-chain evals 16 of 16 steps over
+**Verified, not claimed:** 228 unit and integration tests · tool-chain evals 16 of 16 steps over
 9 contractor cases and 4 client cases, run live after every deploy by a guard that counts its
 tests before it trusts them · Lighthouse agentic-browsing 1.00 · GAEB X83 import tested against a
 file the parser had never seen · MIT.

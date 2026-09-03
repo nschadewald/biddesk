@@ -2282,3 +2282,61 @@ Unbedenklichkeitsbescheinigung). Mit der einzeiligen Statuszeile steht die Log-�
 714 px, Reset bei 996–1024 px. **`ef9fd1a2` auf `e73eada` = Videostand.** Der Abgabedialog wurde
 live nicht geöffnet (die Abgabe ist vor der Nachweis-Erneuerung geblockt, wie vorgesehen); der
 Zustand „Dialog offen" ist lokal in Chrome gemessen, 900/900 und 1080/1080.
+
+## Schritt 29 – Der Judge-Prompt auf der Jury-Seite; ein Lighthouse-Befund (Do 03.09.2026, CC-15)
+
+### Ein Prompt, drei Stellen, an denen die Seite wartet
+
+Die Projekte, die sich am leichtesten bewerten lassen, führen ganz oben einen Test mit **einem**
+Prompt und dem erwarteten Ergebnis. Wir haben das Tiefere und sagen es jetzt in derselben Form –
+im README-Kopf (Cowork, Commit A `2d4cc08`), im Devpost-Text, auf `/how-to-test` und in einer
+Zeile von `llms.txt` (Commit B `9e61052`).
+
+- **Der Prompt wird nicht getippt, sondern zusammengesetzt:** Panelsatz 1 und Panelsatz 3 wörtlich
+  aus dem Wörterbuch, dazu ein Schlusssatz der Seite („Then check the bid and submit it only when
+  everything passes."). Ein Test hält ihn daran – ändert sich je ein Panelsatz, wandert der
+  Judge-Prompt mit oder der Test wird rot. Deshalb enthält er auch den zweiten Halbsatz von
+  Satz 1 („Leave anything without a match empty and tell me which ones."), den der README-Entwurf
+  vom Morgen nicht hatte; README und docs/08 sind auf diesen einen Wortlaut angeglichen, damit
+  überall derselbe Satz steht.
+- **Die Seite darüber:** Block „One prompt, three places where it waits for you" über den sieben
+  Karten, Zitat mit demselben Copy-Knopf wie die Karten, vier Punkte, die Zeile „In this run,
+  reproducibly: … 0 prices the agent wrote on its own authority". Die sieben Karten bleiben
+  darunter als „Step by step, the seven prompts of the demo"; der CC-12-Test (sieben Karten aus
+  `panel.prompts`, Reihenfolge) bleibt grün. Kein neuer i18n-Schlüssel, die Seite ist einsprachig.
+- **Zahl nachgezogen:** mit dem neuen Test sind es **228** Tests; README, docs/08, die Schlusstafel
+  und der gesprochene Satz in docs/09 sagen 228, die Wächter-Basis steht auf 228.
+
+Sichtprüfung bei 1240 px am Dev-Server: Block bei 792 px über den Karten bei 1426 px, sieben
+Karten, vier Punkte, kein horizontaler Überlauf (breitestes Element 1240 von 1240), Klick auf Copy
+schreibt den Prompt in die Zwischenablage und der Knopf sagt „Copied".
+
+### Lighthouse: 0,96 – und warum
+
+Agentic Browsing gegen die Live-URL (`ef9fd1a2`, Lighthouse 13.4.1, Mobil-Emulation 412×823):
+`agent-accessibility-tree` 1, `webmcp-registered-tools` 1, `webmcp-schema-validity` 1, `llms-txt` 1,
+`webmcp-form-coverage` nicht anwendbar – und **`cumulative-layout-shift` 0,122 (Score 0,84)**, macht
+0,96. In Schritt 10 lag der CLS bei 0,006; seit dem Skin (CC-13) und dem Rahmen (CC-14) wurde nicht
+neu gemessen. Zwei Sprünge, beide von uns, per `PerformanceObserver` mit Quellen nachgestellt:
+
+1. **Die Fußzeile (0,076).** Die Klasse `frame` kam per `useEffect`, also nach dem ersten Paint.
+   Erster Paint ohne Rahmen: Dokument in Inhaltshöhe, Statusleiste direkt unter dem Inhalt; dann
+   der Rahmen, und die Leiste springt ans Fensterende. Jetzt `useLayoutEffect` – die Klasse steht,
+   bevor der Browser malt.
+2. **`main` (0,046).** „Bidding as" wurde erst gerendert, wenn die Bieterliste da war (bei 777 ms);
+   im umgebrochenen Kopf der schmalen Ansicht eine zusätzliche Zeile, alles darunter 44 px tiefer.
+   Jetzt steht das Select in der Bieterrolle vom ersten Paint an, leer und deaktiviert, bis die
+   Liste kommt.
+
+Lokal in derselben Emulation danach: **CLS 0, keine Layout-Shifts.** Commit `5bbaa9f`. Der
+Live-Wert wird nach dem Deploy neu gemessen und hier nachgetragen; erst dann darf das README
+„1.00" weiter behaupten – bis dahin steht die Zahl unter Vorbehalt dieses Schritts.
+
+### Stand
+
+Commits A `2d4cc08` (Text), B `9e61052` (Seite, Test, `llms.txt`, Basis 228), Befund `5bbaa9f`,
+Doku siehe git log. 228 Unit-Tests in 22 Dateien, Typecheck sauber, `verify_seed.py` grün, drei
+Eval-Sätze gegen die Live-URL grün (E1–E9, C1–C4, GAEB). **Nicht deployt** – Deploy über den
+Wächter erst auf Signal; die Freeze-Zeilen in docs/09 bleiben bis dahin auf `e73eada` /
+`ef9fd1a2`.
+
