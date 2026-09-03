@@ -74,12 +74,17 @@ export default function Header({
         </select>
       </label>
 
-      {role === "bidder" && bidders.length > 0 && (
+      {role === "bidder" && (
+        // Rendered before the list arrives, empty and disabled, so the header
+        // has its height from the first paint. A select that appeared a moment
+        // later pushed everything below it down by a row on narrow screens,
+        // and Lighthouse counted the move (CLS 0.046 of the 0.122 on 02.09.).
         <label className="flex items-center gap-2 text-[13px] text-ink-muted">
           {copy.header.biddingAs}
           <select
-            value={bidderId ?? bidders[0]!.id}
+            value={bidders.length > 0 ? (bidderId ?? bidders[0]!.id) : ""}
             onChange={(event) => onBidder(event.target.value)}
+            disabled={bidders.length === 0}
             className="field h-9 w-[212px] py-0 pr-8"
           >
             {bidders.map((bidder) => (

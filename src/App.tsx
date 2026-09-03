@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import AgentPanel, { StatusBar } from "./AgentPanel";
 import CheckPanel from "./CheckPanel";
 import Clarifications from "./Clarifications";
@@ -85,8 +85,11 @@ export default function App() {
 
   // The frame: html, body and the root take the full height and never scroll
   // as a document. Set here rather than in the stylesheet so the how-to-test
-  // page, which is a document, keeps scrolling like one.
-  useEffect(() => {
+  // page, which is a document, keeps scrolling like one. A layout effect, not
+  // an effect: with the class arriving after the first paint, the status bar
+  // was painted under the content and then jumped to the bottom of the
+  // window, and Lighthouse counted the jump (CLS 0.122 on 02.09.).
+  useLayoutEffect(() => {
     document.documentElement.classList.add("frame");
     return () => document.documentElement.classList.remove("frame");
   }, []);
