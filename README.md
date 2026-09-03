@@ -7,7 +7,7 @@ until the deadline. No model in the backend, no API key, nothing to install: the
 typed tools, the agent you already have discovers them.
 
 **Live:** <https://biddesk.n-schadewald.workers.dev> · **Test it in 60 seconds:**
-<https://biddesk.n-schadewald.workers.dev/how-to-test> · **Video:** *link follows on 3 September* ·
+<https://biddesk.n-schadewald.workers.dev/how-to-test> · **Video:** <https://youtu.be/1300Tw1pI0k> ·
 Built for the [WebMCP Challenge](https://webmcp.devpost.com/); every company, project and price
 in here is invented.
 
