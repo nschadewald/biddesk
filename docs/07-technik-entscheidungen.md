@@ -2328,15 +2328,19 @@ neu gemessen. Zwei Sprünge, beide von uns, per `PerformanceObserver` mit Quelle
    Jetzt steht das Select in der Bieterrolle vom ersten Paint an, leer und deaktiviert, bis die
    Liste kommt.
 
-Lokal in derselben Emulation danach: **CLS 0, keine Layout-Shifts.** Commit `5bbaa9f`. Der
-Live-Wert wird nach dem Deploy neu gemessen und hier nachgetragen; erst dann darf das README
-„1.00" weiter behaupten – bis dahin steht die Zahl unter Vorbehalt dieses Schritts.
+Lokal in derselben Emulation danach: **CLS 0, keine Layout-Shifts.** Commit `5bbaa9f`. Live nach
+dem Deploy `2398b65f` neu gemessen, gleiche Emulation: **Agentic Browsing 1,00, CLS 0**, alle
+übrigen Audits unverändert bei 1. Das README darf die 1,00 wieder behaupten.
 
 ### Stand
 
 Commits A `2d4cc08` (Text), B `9e61052` (Seite, Test, `llms.txt`, Basis 228), Befund `5bbaa9f`,
 Doku siehe git log. 228 Unit-Tests in 22 Dateien, Typecheck sauber, `verify_seed.py` grün, drei
-Eval-Sätze gegen die Live-URL grün (E1–E9, C1–C4, GAEB). **Nicht deployt** – Deploy über den
-Wächter erst auf Signal; die Freeze-Zeilen in docs/09 bleiben bis dahin auf `e73eada` /
-`ef9fd1a2`.
+Eval-Sätze gegen die Live-URL grün (E1–E9, C1–C4, GAEB). Deploy auf „deploy jetzt" über den
+Wächter: **`2398b65f` auf `6025fb6`**, 15 s, E1–E9, C1–C4, GAEB angenommen. Danach live in Chrome
+152 headless: Selbstdiagnose „WebMCP detected · 11 tools registered", Dokument 1080/1080, das
+Bieter-Select mit drei Einträgen aktiv; `/how-to-test` bei 1240 px mit dem Block bei 792 px über
+den Karten bei 1426 px, sieben Karten, vier Punkte, kein Überlauf; `/llms.txt` 200 mit dem
+Quick-Test. **`2398b65f` auf `6025fb6` = Videostand und Freeze-Stand.** Die Aufnahme hatte noch
+nicht begonnen; die Freeze-Zeilen in docs/09 stehen auf diesem Stand.
 

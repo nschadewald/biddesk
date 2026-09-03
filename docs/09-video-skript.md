@@ -5,7 +5,7 @@ Umbau nach dem Blick auf das Feld: Alleinstellung in den ersten 15 Sekunden,
 echte Werkzeugaufrufe im Bild, GAEB als eigener Beat, die Abgabe scheitert sichtbar am Nachweis
 und gelingt nach der Korrektur, Rollenwechsel als Höhepunkt, ruhiger Schluss mit Zahlen. Was
 bleibt: Herkunfts-Chip, die zwei leeren Zellen, Bestätigung statt Sackgasse, 11 → 10.
-Aufnahme im ChatGPT-Desktop-Browser auf **`e73eada` / `ef9fd1a2`** (Freeze-Stand), Oberfläche
+Aufnahme im ChatGPT-Desktop-Browser auf **`6025fb6` / `2398b65f`** (Freeze-Stand), Oberfläche
 **Englisch**, frischer Workspace, Fenster 1920 × 1080, Cursor sichtbar.
 
 ---
@@ -113,7 +113,7 @@ Dialog · 11 → 10 · Panel „5 tools" · „3 bids received · sealed" · Pos
 **Nicht wegschneiden:** das gestaffelte Einlaufen bei Satz 1, die Sekunde zwischen AWAITING
 CONFIRMATION und dem Klick, den Moment, in dem der Blockiert-Kasten erscheint.
 
-**Freeze-Regel:** Aufnahme auf `e73eada` / `ef9fd1a2`. Ändert sich der Code danach (nur noch
+**Freeze-Regel:** Aufnahme auf `6025fb6` / `2398b65f`. Ändert sich der Code danach (nur noch
 Befunde, Freeze 12:00), wird nur das nachgedreht, was sich sichtbar geändert hat.
 
 ## Produktionshinweise
